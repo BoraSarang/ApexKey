@@ -56,6 +56,10 @@
 - [x] T-033: **앱 간 빈 AXMenu 구조 차이로 인한 메뉴 실행 실패** — T-032의 "빈 단계 무조건 보존"이 빈 AXMenu 레벨이 **없는** 앱(MovistPro 등)에서는 경로의 `""` 단계를 못 찾아 실패 (`메뉴 실행 경로: 파일 >  > 파일 열기…` → `E-MAC-MENU-3002`). 수정: ① `makeMenuItem`이 빈 title 컨테이너를 menuPath에서 제거(자식 경로로 흡수)해 menuPath를 앱 무관하게 `["파일", "항목"]`로 정규화 ② `child(named:of:)`가 빈 title+submenu AXMenu를 재귀로 파고들어 찾도록 개선 → 빈 레벨 유/무 어느 구조에서도 동일 경로로 동작. 메모리 트리 시뮬레이션 검증 (MenuEnumerator.swift)
 - [x] T-033-2: **IINA 등 메뉴 트리에 "(하위 메뉴)" 노드로 항목이 숨던 문제** — 열거 시 빈 title인 `AXMenu("")` 컨테이너가 MenuItem 노드로 만들어져 실질 항목들을 한 단계 더 감쌌다. `menuItems(from:parentPath:)` 리팩터로 빈 title 서브메뉴 컨테이너는 **노드 없이 자식만 상위로 평탄화(flatten)** → 각 최상위 메뉴에 실질 항목이 직접 표시. menuPath는 `["파일","열기…"]` 유지, 실행 `child(named:)` 우회와 호환. 라이브 IINA 확인(파일 14개 등) (MenuEnumerator.swift)
 
+## v0.2.6 — 동작 메뉴 명령 단계 (2026-09-03)
+
+- [x] T-036: **동작(단축어)의 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리)
+
 ## 다음 백로그
 
 

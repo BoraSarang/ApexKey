@@ -8,7 +8,7 @@ import AppKit
 final class ApexKeyStoreTests: XCTestCase {
 
     func testContainerCreatableAtDedicatedURL() throws {
-        let schema = Schema([PersistedApp.self, PersistedBinding.self, PersistedScript.self])
+        let schema = Schema([PersistedApp.self, PersistedBinding.self, PersistedScript.self, PersistedShortcut.self])
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("ApexKeyStoreTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -99,5 +99,39 @@ final class ApexKeyStoreTests: XCTestCase {
         // menuPath를 명시하지 않으면 실행 시 title 단일 경로로 fallback (old binding 호환)
         let fallback = MenuItem(title: "전체 화면").menuPath
         XCTAssertTrue(fallback.isEmpty)
+    }
+
+    func testShortcutPersistsRoundTrip() throws {
+        // 동작(단축어)의 단계들과 단축키가 영속 왕복에서 보존되어야 한다
+        let schema = Schema([PersistedShortcut.self])
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ApexKeyShortcut-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("default.store")
+
+        let shortcut = ShortcutItem(
+            name: "작업 시작",
+            steps: [
+                ShortcutStep(type: .launchApp, target: "com.apple.Safari", title: "Safari"),
+                ShortcutStep(type: .wait, target: "1.0", title: "대기 1초"),
+                ShortcutStep(type: .system, target: SystemActionType.mute.rawValue, title: "음소거"),
+            ],
+            combo: HotKeyCombo(keyCode: 4, modifiers: 1 << 8, displayString: "⌘H")
+        )
+        var context = ModelContext(try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)]))
+        context.insert(PersistedShortcut.from(shortcut))
+        try context.save()
+
+        // 두 번째 컨테이너로 다시 읽어 영속 왕복 확인
+        context = ModelContext(try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)]))
+        let fetched = try context.fetch(FetchDescriptor<PersistedShortcut>())
+        XCTAssertEqual(fetched.count, 1)
+        let restored = fetched.first?.toShortcut()
+        XCTAssertEqual(restored?.name, "작업 시작")
+        XCTAssertEqual(restored?.steps.count, 3)
+        XCTAssertEqual(restored?.steps[0].type, .launchApp)
+        XCTAssertEqual(restored?.steps[0].target, "com.apple.Safari")
+        XCTAssertEqual(restored?.combo.displayString, "⌘H")
     }
 }

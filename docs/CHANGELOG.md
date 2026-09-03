@@ -3,6 +3,19 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-03 macos — 동작 메뉴 명령 단계: 앱/메뉴 선택 UI (T-036)
+
+- **증상** — 동작(단축어)에서 '메뉴 명령' 단계가 실행되지 않음
+- **근본 원인** — `ShortcutStationView.buildStep`의 `.menuCommand`가 `target=""`(앱 미지정)·`menuPath=[]`(경로 미지정)로 단계를 생성. `ActionExecutor.execute`의 `.menuCommand`는 `performAction(item, in: binding.target="")`을 호출해 어느 앱에서도 실행하지 못해 구조적으로 실패. (앱 상세 뷰는 앱+경로가 고정돼 동작했지만 동작 단계는 정보가 비어 있었음)
+- **수정** — `ShortcutStationView.swift`
+  - 단계 편집에서 메뉴 명령 선택 시 '앱 피커' → 선택 앱의 **메뉴 트리에서 실행 항목 선택** UI 제공 (`menuCommandPicker` + 재귀 `MenuChoiceNode`)
+  - `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 (기존 `title` 텍스트 입력 제거) → `menuCommand` 단계가 정상 실행
+- **검증** — 빌드 성공 + 재설치/재시작 완료 (PID 27649). IINA 메뉴 AppleScript로 확인: `재생 > 재생목록 반복 재생` 존재 → 동작으로 구성 가능
+
+## 2026-09-03 macos — 시트 내용 상단 정렬
+
+- '새 동작' 이름 입력 시트와 단계 편집 시트가 수직 중앙 정렬 → `.frame`에 `alignment: .topLeading` 추가로 상단 정렬 수정 (`ShortcutStationView.swift`)
+
 ## 2026-09-03 macos — 메뉴 HUD 4열 고정 + 단축키 없는 메뉴 포함 + 모디파이어/폴백 수정 (T-035)
 
 - **증상** — ① 메뉴 HUD가 4열 고정 배치가 아니었다(6개 메뉴에서 3열로 줄어듦). ② 모디파이어가 전부 유실(예: "새 세션"이 "S"로 표시). ③ 점 표기 "…"/한글 제목이 단축키 키캡으로 오인 표시. ④ 단축키 없는 메뉴 항목이 HUD·앱 단축키 설정에서 누락

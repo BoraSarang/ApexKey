@@ -9,6 +9,7 @@ final class ConfigStore: ObservableObject {
     @Published var apps: [AppItem] = []
     @Published var bindings: [HotKeyBinding] = []
     @Published var scripts: [ScriptItem] = []
+    @Published var shortcuts: [ShortcutItem] = []
     @Published var showHiddenApps = false
     @Published var showQuickLauncher = false
     @Published var menuHUDHotkey: HotKeyCombo
@@ -26,9 +27,17 @@ final class ConfigStore: ObservableObject {
         didSet { UserDefaults.standard.set(menuHUDStyle.rawValue, forKey: PrefKeys.menuHUDStyle) }
     }
     @Published var showNoShortcutItems: Bool = true {
+
         didSet { UserDefaults.standard.set(showNoShortcutItems, forKey: PrefKeys.showNoShortcutItems) }
     }
-
+    @Published var showSystemApps: Bool = true {
+        didSet {
+            UserDefaults.standard.set(showSystemApps, forKey: PrefKeys.showSystemApps)
+            if showSystemApps {
+                addSystemAppsIfMissing()
+            }
+        }
+    }
     private var container: ModelContainer?
     private var cancellables = Set<AnyCancellable>()
 
@@ -93,6 +102,7 @@ final class ConfigStore: ObservableObject {
         static let showInDock = "pref.showInDock"
         static let menuHUDStyle = "pref.menuHUDStyle"
         static let showNoShortcutItems = "pref.showNoShortcutItems"
+        static let showSystemApps = "pref.showSystemApps"
     }
 
     init() {
@@ -121,9 +131,10 @@ final class ConfigStore: ObservableObject {
         self.toggleHotkey = Self.defaultToggleHotkey
         self.menuHUDHotkey = Self.defaultMenuHUDHotkey
         self.showNoShortcutItems = defaults.object(forKey: PrefKeys.showNoShortcutItems) == nil ? true : defaults.bool(forKey: PrefKeys.showNoShortcutItems)
+        self.showSystemApps = defaults.object(forKey: PrefKeys.showSystemApps) == nil ? true : defaults.bool(forKey: PrefKeys.showSystemApps)
         // 전용 저장소 경로 사용 — 기본 경로(~ibrary/Application Support/default.store)는
         // 다른 SwiftData 앱과 공유되어 스키마 충돌로 컨테이너 생성이 실패할 수 있음
-        let schema = Schema([PersistedApp.self, PersistedBinding.self, PersistedScript.self])
+        let schema = Schema([PersistedApp.self, PersistedBinding.self, PersistedScript.self, PersistedShortcut.self])
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         let storeDirectory = appSupport.appendingPathComponent("com.borasarang.ApexKey", isDirectory: true)
@@ -193,6 +204,16 @@ final class ConfigStore: ObservableObject {
         let bindingFetch = FetchDescriptor<PersistedBinding>()
         if let persistedApps = try? context.fetch(appFetch) {
             apps = persistedApps.map { $0.toAppItem() }
+            // 기존 카테고리 체계(구 6개) → 신규 표준 체계 자동 이관 (수동 변경 앱 제외, 저장 반영)
+            var migrated = false
+            for p in persistedApps where !(p.categoryManuallySet ?? false) {
+                let migratedCategory = AppCategory.migrate(p.categoryRaw)
+                if migratedCategory.rawValue != p.categoryRaw {
+                    p.categoryRaw = migratedCategory.rawValue
+                    migrated = true
+                }
+            }
+            if migrated { try? context.save() }
         }
         if let persistedBindings = try? context.fetch(bindingFetch) {
             bindings = persistedBindings.map { $0.toBinding() }
@@ -200,6 +221,14 @@ final class ConfigStore: ObservableObject {
         let scriptFetch = FetchDescriptor<PersistedScript>()
         if let persistedScripts = try? context.fetch(scriptFetch) {
             scripts = persistedScripts.map { $0.toScript() }
+        }
+        let shortcutFetch = FetchDescriptor<PersistedShortcut>()
+        if let persistedShortcuts = try? context.fetch(shortcutFetch) {
+            shortcuts = persistedShortcuts.map { $0.toShortcut() }
+            // 첫 실행(저장 아무것도 없음)이면 예시 단축어 3개 생성 (마이그레이션 아님)
+            if shortcuts.isEmpty {
+                seedSampleShortcuts(context: context)
+            }
         }
         if apps.isEmpty {
             // 첫 실행 시 설치된 앱 자동 로드
@@ -209,6 +238,20 @@ final class ConfigStore: ObservableObject {
                 apps = installed
             }
         }
+        pruneRemovedApps()
+        if showSystemApps {
+            addSystemAppsIfMissing()
+        }
+    }
+
+    /// 디스크에서 지워진 앱을 목록·저장에서 자동 정리 (경로가 비어있지 않은데 파일이 없으면 제거)
+    private func pruneRemovedApps() {
+        let nonexistent = apps.filter {
+            !$0.path.isEmpty && !FileManager.default.fileExists(atPath: $0.path)
+        }
+        guard !nonexistent.isEmpty else { return }
+        nonexistent.forEach { removeApp($0) }
+        Logger.info("ConfigStore", "[APPS] 디스크에서 사라진 앱 \(nonexistent.count)개 자동 제거")
     }
 
     // MARK: - 앱 관리
@@ -221,10 +264,22 @@ final class ConfigStore: ObservableObject {
     }
 
     func addAppsFromInstalled() {
-        let installed = AppFinder.installedApps()
+        let installed = AppFinder.installedApps(includesSystem: showSystemApps)
         let existingIDs = Set(apps.map { $0.bundleID })
         let new = installed.filter { !existingIDs.contains($0.bundleID) }
         guard let context = container?.mainContext else { return }
+        new.forEach { context.insert(PersistedApp.from($0)) }
+        try? context.save()
+        apps.append(contentsOf: new)
+    }
+
+    /// 시스템 앱(`/System/`)이 저장 목록에 없으면 스캔해 추가 — 시스템 앱 표시 토글을 켤 때 호출
+    private func addSystemAppsIfMissing() {
+        let installed = AppFinder.installedApps(includesSystem: true)
+            .filter { $0.path.hasPrefix("/System/") }
+        let existingIDs = Set(apps.map { $0.bundleID })
+        let new = installed.filter { !existingIDs.contains($0.bundleID) }
+        guard !new.isEmpty, let context = container?.mainContext else { return }
         new.forEach { context.insert(PersistedApp.from($0)) }
         try? context.save()
         apps.append(contentsOf: new)
@@ -263,10 +318,16 @@ final class ConfigStore: ObservableObject {
     }
 
     func visibleApps() -> [AppItem] {
+        var result: [AppItem]
         if showHiddenApps {
-            return apps
+            result = apps
+        } else {
+            result = apps.filter { !$0.isHidden }
         }
-        return apps.filter { !$0.isHidden }
+        if !showSystemApps {
+            result = result.filter { !$0.path.hasPrefix("/System/") }
+        }
+        return result
     }
 
     func categoryOrder() -> [AppCategory] {
@@ -279,6 +340,47 @@ final class ConfigStore: ObservableObject {
             let list = visibleApps().filter { $0.category == cat }
             return list.isEmpty ? nil : (cat, list)
         }
+    }
+
+    /// 사용자가 카테고리를 직접 변경 (수동 플래그를 세워 재분류 시 보존)
+    func updateCategory(for appID: UUID, to category: AppCategory) {
+        guard let idx = apps.firstIndex(where: { $0.id == appID }) else { return }
+        apps[idx].category = category
+        apps[idx].categoryManuallySet = true
+        guard let context = container?.mainContext else { return }
+        let fetch = FetchDescriptor<PersistedApp>()
+        guard let list = try? context.fetch(fetch),
+              let persisted = list.first(where: { $0.id == appID }) else { return }
+        persisted.categoryRaw = category.rawValue
+        persisted.categoryManuallySet = true
+        try? context.save()
+        Logger.info("ConfigStore", "[APPS] 카테고리 수동 변경: \(persisted.name) → \(category.rawValue)")
+    }
+
+    /// 수동으로 바꾼 앱을 제외한 나머지를 앱 메타데이터로 재분류
+    func reclassifyCategories() {
+        guard let context = container?.mainContext else { return }
+        var changed = false
+        for i in apps.indices where !apps[i].categoryManuallySet {
+            let category = AppFinder.categorize(path: apps[i].path)
+            if category != apps[i].category {
+                apps[i].category = category
+                changed = true
+            }
+        }
+        guard changed else {
+            Logger.info("ConfigStore", "[APPS] 재분류: 변경된 앱 없음")
+            return
+        }
+        let fetch = FetchDescriptor<PersistedApp>()
+        guard let persistedList = try? context.fetch(fetch) else { return }
+        for persisted in persistedList where !(persisted.categoryManuallySet ?? false) {
+            if let app = apps.first(where: { $0.id == persisted.id }) {
+                persisted.categoryRaw = app.category.rawValue
+            }
+        }
+        try? context.save()
+        Logger.info("ConfigStore", "[APPS] 카테고리 재분류 완료")
     }
 
     // MARK: - 스크립트 관리
@@ -318,6 +420,157 @@ final class ConfigStore: ObservableObject {
         bindings.filter {
             [ActionType.paste, .wait, .coordinateClick, .pauseUntilInput, .macro].contains($0.actionType)
         }
+    }
+
+    // MARK: - 동작(단축어) 관리
+
+    /// 첫 실행 시 예시 단축어 3개 생성 (사용자 학습용)
+    private func seedSampleShortcuts(context: ModelContext) {
+        let samples: [ShortcutItem] = [
+            ShortcutItem(
+                name: "작업 시작",
+                steps: [
+                    ShortcutStep(type: .launchApp, target: "com.apple.Safari", title: "Safari"),
+                    ShortcutStep(type: .wait, target: "1.0", title: "대기 1초"),
+                    ShortcutStep(type: .launchApp, target: "com.apple.finder", title: "Finder"),
+                ]
+            ),
+            ShortcutItem(
+                name: "볼륨 처리",
+                steps: [
+                    ShortcutStep(type: .macro, target: "49", title: "스페이스"),
+                    ShortcutStep(type: .system, target: SystemActionType.mute.rawValue, title: "음소거 토글"),
+                ]
+            ),
+            ShortcutItem(
+                name: "정리 시작",
+                steps: [
+                    ShortcutStep(type: .script, target: "rm -rf ~/Library/Caches/ApexKey-tmp 2>/dev/null; echo 정리 완료", title: "캐시 정리"),
+                    ShortcutStep(type: .wait, target: "2.0", title: "대기 2초"),
+                    ShortcutStep(type: .system, target: SystemActionType.displaySleep.rawValue, title: "디스플레이 끄기"),
+                ]
+            ),
+        ]
+        samples.forEach { context.insert(PersistedShortcut.from($0)) }
+        try? context.save()
+        shortcuts = samples
+        Logger.info("ConfigStore", "[SHORTCUT] 예시 단축어 3개 생성")
+    }
+
+    /// 새 동작 생성 (빈 단계)
+    @discardableResult
+    func addShortcut(name: String) -> ShortcutItem? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let shortcut = ShortcutItem(name: trimmed)
+        guard let context = container?.mainContext else { return nil }
+        context.insert(PersistedShortcut.from(shortcut))
+        try? context.save()
+        shortcuts.append(shortcut)
+        Logger.info("ConfigStore", "[SHORTCUT] 동작 생성: \(trimmed)")
+        return shortcut
+    }
+
+    func removeShortcut(_ shortcut: ShortcutItem) {
+        if !shortcut.combo.isEmpty {
+            hotKeyService.unregister(shortcut.id)
+        }
+        shortcuts.removeAll { $0.id == shortcut.id }
+        guard let context = container?.mainContext else { return }
+        let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == shortcut.id })
+        if let found = try? context.fetch(fetch).first {
+            context.delete(found)
+        }
+        try? context.save()
+        Logger.info("ConfigStore", "[SHORTCUT] 동작 삭제: \(shortcut.name)")
+    }
+
+    /// 동작 이름 변경
+    func renameShortcut(_ shortcut: ShortcutItem, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        shortcuts[idx].name = trimmed
+        syncShortcut(shortcuts[idx])
+    }
+
+    /// 동작에 단계 추가
+    func addStep(to shortcut: ShortcutItem, step: ShortcutStep) {
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        shortcuts[idx].steps.append(step)
+        syncShortcut(shortcuts[idx])
+        Logger.info("ConfigStore", "[SHORTCUT] 단계 추가: \(step.type.displayName)")
+    }
+
+    /// 단계 삭제
+    func removeStep(from shortcut: ShortcutItem, at index: Int) {
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }),
+              shortcuts[idx].steps.indices.contains(index) else { return }
+        shortcuts[idx].steps.remove(at: index)
+        syncShortcut(shortcuts[idx])
+    }
+
+    /// 단계 순서 이동 (위/아래)
+    func moveStep(in shortcut: ShortcutItem, from index: Int, direction: MoveDirection) {
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }),
+              shortcuts[idx].steps.indices.contains(index) else { return }
+        let targetIdx: Int
+        switch direction {
+        case .up: targetIdx = index - 1
+        case .down: targetIdx = index + 1
+        }
+        guard targetIdx >= 0, targetIdx < shortcuts[idx].steps.count else { return }
+        shortcuts[idx].steps.swapAt(index, targetIdx)
+        syncShortcut(shortcuts[idx])
+    }
+
+    /// 단계 복제
+    func duplicateStep(in shortcut: ShortcutItem, at index: Int) {
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }),
+              shortcuts[idx].steps.indices.contains(index) else { return }
+        let step = shortcuts[idx].steps[index]
+        var copy = step
+        copy.id = UUID()
+        shortcuts[idx].steps.insert(copy, at: index + 1)
+        syncShortcut(shortcuts[idx])
+    }
+
+    /// 동작 실행 단축키 지정/변경 (중복 시 무시)
+    func setShortcutCombo(_ shortcut: ShortcutItem, combo: HotKeyCombo) {
+        if combo.isEmpty { return }
+        if isDuplicate(combo: combo, excluding: shortcut.id) {
+            Logger.info("ConfigStore", "[SHORTCUT] 중복 단축키 무시: \(combo.displayString)")
+            return
+        }
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        // 이전 조합 해제
+        if !shortcuts[idx].combo.isEmpty, shortcuts[idx].combo != combo {
+            hotKeyService.unregister(shortcut.id)
+        }
+        shortcuts[idx].combo = combo
+        _ = hotKeyService.register(shortcut.id, combo: combo)
+        syncShortcut(shortcuts[idx])
+        Logger.info("ConfigStore", "[SHORTCUT] 실행 단축키 지정: \(shortcut.name) → \(combo.displayString)")
+    }
+
+    /// 동작 단축키 해제
+    func clearShortcutCombo(_ shortcut: ShortcutItem) {
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        hotKeyService.unregister(shortcut.id)
+        shortcuts[idx].combo = .empty
+        syncShortcut(shortcuts[idx])
+    }
+
+    private func syncShortcut(_ shortcut: ShortcutItem) {
+        guard let context = container?.mainContext else { return }
+        let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == shortcut.id })
+        if let found = try? context.fetch(fetch).first {
+            found.name = shortcut.name
+            found.comboKeyCode = shortcut.combo.keyCode
+            found.comboModifiers = shortcut.combo.modifiers
+            found.comboDisplayString = shortcut.combo.displayString
+            found.stepsData = (try? JSONEncoder().encode(shortcut.steps)) ?? Data()
+        }
+        try? context.save()
     }
 
     // MARK: - 시스템 액션 바인딩
@@ -416,10 +669,12 @@ final class ConfigStore: ObservableObject {
         try? context.save()
     }
 
-    /// 단축키 중복 감지 (다른 binding과 충돌)
+    /// 단축키 중복 감지 (다른 binding/단축어와 충돌)
     func isDuplicate(combo: HotKeyCombo, excluding id: UUID) -> Bool {
         guard !combo.isEmpty else { return false }
-        return bindings.contains { $0.id != id && $0.combo == combo }
+        let bindingConflict = bindings.contains { $0.id != id && $0.combo == combo }
+        if bindingConflict { return true }
+        return shortcuts.contains { $0.id != id && $0.combo.matches(combo) }
     }
 
     /// ⇧⌥A 패널 토글 핫키 변경 (재등록)
@@ -464,6 +719,13 @@ final class ConfigStore: ObservableObject {
     }
 
     private func handleHotKey(_ bindingID: UUID) {
+        // 동작(단축어) 실행 단축키 먼저 확인
+        if let shortcut = shortcuts.first(where: { $0.id == bindingID }) {
+            Logger.info("ConfigStore", "[HOTKEY] 동작 실행: \(shortcut.name)")
+            lastExecutedBindingID = bindingID
+            actionExecutor.execute(shortcut)
+            return
+        }
         guard let binding = bindings.first(where: { $0.id == bindingID }) else {
             Logger.info("ConfigStore", "[HOTKEY] 미등록 binding 감지: \(bindingID.uuidString)")
             return
@@ -482,6 +744,11 @@ final class ConfigStore: ObservableObject {
     func repeatLastBinding() {
         guard let lastID = lastExecutedBindingID else {
             Logger.info("ConfigStore", "[REPEAT] 실행된 바인딩 없음")
+            return
+        }
+        if let shortcut = shortcuts.first(where: { $0.id == lastID }) {
+            actionExecutor.execute(shortcut)
+            Logger.info("ConfigStore", "[REPEAT] 반복 실행: \(shortcut.name)")
             return
         }
         guard let binding = bindings.first(where: { $0.id == lastID }) else {
@@ -531,28 +798,6 @@ final class ConfigStore: ObservableObject {
         Logger.info("ConfigStore", "바인딩 복제: \(binding.title) → \(newBinding.title)")
     }
 
-    /// 바인딩 JSON 내보내기
-    func exportBindings() -> Data? {
-        try? JSONEncoder().encode(bindings)
-    }
-
-    /// 바인딩 JSON 가져오기
-    func importBindings(from data: Data) -> Int {
-        guard let imported = try? JSONDecoder().decode([HotKeyBinding].self, from: data) else {
-            Logger.error("E-MAC-IMPORT-5001", "잘못된 JSON 형식")
-            return 0
-        }
-        var count = 0
-        for binding in imported {
-            if !isDuplicate(combo: binding.combo, excluding: UUID()) {
-                addBinding(binding)
-                count += 1
-            }
-        }
-        Logger.info("ConfigStore", "바인딩 가져오기 완료: \(count)개")
-        return count
-    }
-
     /// 바인딩 순서 이동 (위/아래)
     func moveBinding(_ binding: HotKeyBinding, direction: MoveDirection) {
         guard let idx = bindings.firstIndex(where: { $0.id == binding.id }) else { return }
@@ -576,25 +821,30 @@ final class ConfigStore: ObservableObject {
         macroRecordedKeyCodes = []
     }
 
-    /// 매크로 녹화 중지 및 새 바인딩 생성
-    func stopMacroRecording() -> HotKeyBinding? {
+    /// 매크로 녹화 중지 — 녹화된 키코드들을 반환 (바인딩은 만들지 않음)
+    func stopMacroRecording() -> [UInt32] {
         let keyCodes = MacroRecorder.shared.recordedKeyCodes
         MacroRecorder.shared.stopRecording()
         isMacroRecording = false
         macroRecordedKeyCodes = []
+        Logger.info("ConfigStore", "매크로 녹화 중지 — \(keyCodes.count)개 키")
+        return keyCodes
+    }
 
-        guard !keyCodes.isEmpty else { return nil }
+    /// 녹화된 키코드를 지정한 단축키로 매크로 바인딩 등록
+    func recordMacro(keyCodes: [UInt32], combo: HotKeyCombo) -> Bool {
+        guard !keyCodes.isEmpty, !combo.isEmpty else { return false }
         let target = keyCodes.map { String($0) }.joined(separator: ",")
         let binding = HotKeyBinding(
-            combo: HotKeyCombo(keyCode: keyCodes.first ?? 0, modifiers: 0),
+            combo: combo,
             actionType: .macro,
             target: target,
             title: "매크로 (\(keyCodes.count)키)",
             onlyWhenAppActive: false
         )
         addBinding(binding)
-        Logger.info("ConfigStore", "매크록 바인딩 추가: \(binding.title)")
-        return binding
+        Logger.info("ConfigStore", "매크로 바인딩 추가: \(binding.title) (\(combo.displayString))")
+        return true
     }
 }
 

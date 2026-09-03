@@ -11,25 +11,31 @@ final class PersistedApp {
     var path: String
     var categoryRaw: String
     var isHidden: Bool
+    var categoryManuallySet: Bool?
 
     init(id: UUID = UUID(), name: String, bundleID: String, path: String,
-         categoryRaw: String = "uncategorized", isHidden: Bool = false) {
+         categoryRaw: String = "uncategorized", isHidden: Bool = false,
+         categoryManuallySet: Bool = false) {
         self.id = id
         self.name = name
         self.bundleID = bundleID
         self.path = path
         self.categoryRaw = categoryRaw
         self.isHidden = isHidden
+        self.categoryManuallySet = categoryManuallySet
     }
 
     func toAppItem() -> AppItem {
-        AppItem(
+        let rawCategory: AppCategory =
+            AppCategory(rawValue: categoryRaw) ?? AppCategory.migrate(categoryRaw)
+        return AppItem(
             id: id,
             name: name,
             bundleID: bundleID,
             path: path,
-            category: AppCategory(rawValue: categoryRaw) ?? .uncategorized,
-            isHidden: isHidden
+            category: rawCategory,
+            isHidden: isHidden,
+            categoryManuallySet: categoryManuallySet ?? false
         )
     }
 
@@ -40,7 +46,8 @@ final class PersistedApp {
             bundleID: app.bundleID,
             path: app.path,
             categoryRaw: app.category.rawValue,
-            isHidden: app.isHidden
+            isHidden: app.isHidden,
+            categoryManuallySet: app.categoryManuallySet
         )
     }
 }
@@ -93,5 +100,40 @@ final class PersistedBinding {
             menuPath: b.menuPath,
             onlyWhenAppActive: b.onlyWhenAppActive
         )
+    }
+}
+
+/// SwiftData 영속 모델 — 동작(단축어)
+@Model
+final class PersistedShortcut {
+    var id: UUID
+    var name: String
+    var comboKeyCode: UInt32
+    var comboModifiers: UInt32
+    var comboDisplayString: String
+    /// 단계들을 JSON 직렬화해 저장 (Codable)
+    var stepsData: Data
+
+    init(id: UUID = UUID(), name: String, steps: [ShortcutStep], combo: HotKeyCombo = .empty) {
+        self.id = id
+        self.name = name
+        self.comboKeyCode = combo.keyCode
+        self.comboModifiers = combo.modifiers
+        self.comboDisplayString = combo.displayString
+        self.stepsData = (try? JSONEncoder().encode(steps)) ?? Data()
+    }
+
+    func toShortcut() -> ShortcutItem {
+        let steps = (try? JSONDecoder().decode([ShortcutStep].self, from: stepsData)) ?? []
+        return ShortcutItem(
+            id: id,
+            name: name,
+            steps: steps,
+            combo: HotKeyCombo(keyCode: comboKeyCode, modifiers: comboModifiers, displayString: comboDisplayString)
+        )
+    }
+
+    static func from(_ s: ShortcutItem) -> PersistedShortcut {
+        PersistedShortcut(id: s.id, name: s.name, steps: s.steps, combo: s.combo)
     }
 }

@@ -102,6 +102,10 @@ struct AppRowView: View {
     let app: AppItem
     let onSelect: () -> Void
 
+    private var running: Bool {
+        AppSwitcher.isRunning(bundleID: app.bundleID)
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             icon
@@ -129,12 +133,28 @@ struct AppRowView: View {
                 .background(Color.green.opacity(0.12))
                 .clipShape(Capsule())
             }
-            Image(systemName: "chevron.right")
+            Button {
+                AppSwitcher.activate(bundleID: app.bundleID, path: app.path)
+            } label: {
+                Image(systemName: running ? "arrow.up.left.and.arrow.down.right" : "play.fill")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+            .help(running ? "\(app.name) 전면으로" : "\(app.name) 실행")
+            Image(systemName: app.isHidden ? "eye.slash" : "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+        .opacity(app.isHidden ? 0.55 : 1)
+        .contextMenu {
+            if app.isHidden {
+                Button("숨기기 해제") { store.toggleHidden(app) }
+            } else {
+                Button("숨기기") { store.toggleHidden(app) }
+            }
+        }
         .onTapGesture {
             onSelect()
         }

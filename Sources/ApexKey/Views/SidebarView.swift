@@ -15,19 +15,21 @@ struct SidebarView: View {
                     .tag(MainWindowView.SidebarSelection.all)
             }
 
-            // 카테고리 — 섹션 헤더 + 카운트 배지 (Pearcleaner "사용자(18)/시스템(34)")
+            // 카테고리 — 섹션 헤더 + 카운트 배지. 비어 있는(앱이 없는) 카테고리는 숨김
             Section("카테고리") {
                 ForEach(store.categoryOrder()) { category in
-                    categoryRow(category)
+                    if store.visibleApps().contains(where: { $0.category == category }) {
+                        categoryRow(category)
+                    }
                 }
             }
 
             Section("도구") {
-                Label("스크립트", systemImage: "terminal")
-                    .badge(store.scripts.count)
-                    .tag(MainWindowView.SidebarSelection.script)
+                Label("동작", systemImage: "square.stack.3d.up.fill")
+                    .badge(store.shortcuts.count)
+                    .tag(MainWindowView.SidebarSelection.tool(.shortcut))
                 Label("시스템", systemImage: "gearshape.2")
-                    .tag(MainWindowView.SidebarSelection.system)
+                    .tag(MainWindowView.SidebarSelection.tool(.system))
             }
         }
         .listStyle(.sidebar)
@@ -39,16 +41,7 @@ struct SidebarView: View {
 
     private func categoryRow(_ category: AppCategory) -> some View {
         let count = store.visibleApps().filter { $0.category == category }.count
-        let label: Label<Text, Image>
-        switch category {
-        case .browser:       label = Label("브라우저", systemImage: "globe")
-        case .developer:     label = Label("개발", systemImage: "chevron.left.forwardslash.chevron.right")
-        case .productivity:  label = Label("생산성", systemImage: "checklist")
-        case .communication: label = Label("커뮤니케이션", systemImage: "bubble.left.and.bubble.right")
-        case .media:         label = Label("미디어", systemImage: "play.rectangle")
-        case .uncategorized: label = Label("기타", systemImage: "square.grid.3x3")
-        }
-        return label
+        return Label(category.displayName, systemImage: category.symbolName)
             .badge(count)
             .tag(MainWindowView.SidebarSelection.category(category))
     }
@@ -56,17 +49,38 @@ struct SidebarView: View {
     private var permissionFooter: some View {
         VStack(alignment: .leading, spacing: 6) {
             Divider()
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(PermissionHelper.isAccessibilityTrusted ? Color.green : Color.red)
-                    .frame(width: 8, height: 8)
-                Text(PermissionHelper.isAccessibilityTrusted ? "Accessibility 허용됨" : "Accessibility 필요")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            if PermissionHelper.isAccessibilityTrusted {
+                summaryRow
+            } else {
+                Button {
+                    PermissionHelper.requestAccessibility()
+                } label: {
+                    summaryRow
+                }
+                .buttonStyle(.plain)
+                .help("손쉬운 사용 권한이 필요합니다. 클릭하여 활성화하세요.")
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
         }
         .background(.thinMaterial)
+    }
+
+    private var summaryRow: some View {
+        let bindingCount = store.bindings.count
+        return HStack(spacing: 6) {
+            Circle()
+                .fill(PermissionHelper.isAccessibilityTrusted ? Color.secondary.opacity(0.4) : Color.red)
+                .frame(width: 8, height: 8)
+            if PermissionHelper.isAccessibilityTrusted {
+                Text("단축키 \(bindingCount)개 · 동작 \(store.shortcuts.count)개")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("손쉬운 사용 권한 필요 — 활성화")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
     }
 }

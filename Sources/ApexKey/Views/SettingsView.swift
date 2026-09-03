@@ -28,6 +28,7 @@ struct SettingsView: View {
                         applyLaunchAtLogin(newValue)
                     }
                 Toggle("숨김 앱 표시", isOn: $store.showHiddenApps)
+                Toggle("시스템 앱 표시", isOn: $store.showSystemApps)
             }
 
             Section("패널 단축키") {

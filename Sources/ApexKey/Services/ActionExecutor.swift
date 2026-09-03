@@ -74,6 +74,19 @@ final class ActionExecutor {
         return binding.target == frontmostBundleID
     }
 
+    /// 단축어(동작) 실행 — 단계를 순서대로 재생
+    @discardableResult
+    func execute(_ shortcut: ShortcutItem) -> Bool {
+        Logger.info("ActionExecutor", "동작 실행 시작: \(shortcut.name) (\(shortcut.steps.count)단계)")
+        for (index, step) in shortcut.steps.enumerated() {
+            let binding = step.toBinding()
+            Logger.info("ActionExecutor", "동작 \(shortcut.name) — 단계 \(index + 1)/\(shortcut.steps.count): \(step.type.displayName)")
+            execute(binding)
+        }
+        Logger.info("ActionExecutor", "동작 실행 완료: \(shortcut.name)")
+        return true
+    }
+
     private func runScript(_ command: String) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/zsh")
@@ -160,9 +173,11 @@ final class ActionExecutor {
 
     private func runMacro(_ target: String) {
         let keyCodes = target.components(separatedBy: ",").compactMap { UInt32($0.trimmingCharacters(in: .whitespaces)) }
+        guard !keyCodes.isEmpty else { return }
         Logger.info("ActionExecutor", "매크로 실행: \(keyCodes.count)개 키")
         for keyCode in keyCodes {
             simulateKeyCode(keyCode)
+            Thread.sleep(forTimeInterval: 0.06)
         }
     }
 

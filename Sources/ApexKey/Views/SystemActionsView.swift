@@ -47,7 +47,7 @@ struct SystemActionsView: View {
                 Text("시스템 동작")
                     .font(.title3)
                     .fontWeight(.semibold)
-                Text("화면 잠금 · 음소거 · 다크 모드")
+                Text("시스템 동작에 글로벌 단축키를 할당")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

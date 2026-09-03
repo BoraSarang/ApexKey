@@ -6,22 +6,31 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
     case lock
     case mute
     case darkMode
+    case sleep
+    case displaySleep
+    case screenSaver
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .lock:     return "화면 잠금"
-        case .mute:     return "음소거 토글"
-        case .darkMode: return "다크 모드 토글"
+        case .lock:         return "화면 잠금"
+        case .mute:         return "음소거 토글"
+        case .darkMode:     return "다크 모드 토글"
+        case .sleep:        return "수면"
+        case .displaySleep: return "디스플레이 꺼짐"
+        case .screenSaver:  return "화면 보호기"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .lock:     return "lock"
-        case .mute:     return "speaker.slash"
-        case .darkMode: return "moon"
+        case .lock:         return "lock"
+        case .mute:         return "speaker.slash"
+        case .darkMode:     return "moon"
+        case .sleep:        return "moon.zzz"
+        case .displaySleep: return "display"
+        case .screenSaver:  return "sparkles.tv"
         }
     }
 }
@@ -37,7 +46,10 @@ enum SystemActionExecutor {
             set volume output volume 60
         end if
         """,
-        .darkMode: "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode"
+        .darkMode: "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode",
+        .sleep: "do shell script \"pmset sleepnow\"",
+        .displaySleep: "do shell script \"pmset displaysleepnow\"",
+        .screenSaver: "do shell script \"open -a ScreenSaverEngine\""
     ]
 
     /// 시스템 동작 실행. 성공 여부 반환.

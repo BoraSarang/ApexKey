@@ -27,6 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Logger.info("AppDelegate", "[APP] ApexKey 시작 (macOS \(ProcessInfo.processInfo.operatingSystemVersionString))")
+        // SwiftUI WindowGroup({ EmptyView })이 시작 시 만드는 빈 주 윈도우를 닫는다.
+        // 설정 창은 AppKit showSettingsPanel(⌘,)가 전담하므로 Settings scene을 제거했고,
+        // Cmd+, 가 빈 설정창을 띄우는 충돌 없이 실제 설정창이 열린다.
+        closeBootWindow()
         let store = ConfigStore()
         self.store = store
 
@@ -63,6 +67,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Logger.info("AppDelegate", "[APP] ApexKey 종료")
+    }
+
+    // 시작 시점에 우리가 만든 창은 아직 없으므로, SwiftUI WindowGroup({ EmptyView })이
+    // 생성한 표준(NSPanel 아님) 빈 주 윈도우만 닫는다.
+    private func closeBootWindow() {
+        for window in NSApp.windows
+        where !(window is NSPanel) && window.isVisible {
+            window.close()
+            Logger.info("AppDelegate", "[WIN] SwiftUI 빈 주 윈도우 종료: \(window.title)")
+        }
     }
 
     // MARK: - 상태 아이템 (showInMenuBar 구동)
@@ -180,7 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.level = store.alwaysOnTop ? .floating : .normal // 기본 항상 위에
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
-        panel.minSize = NSSize(width: 720, height: 480)
+        panel.minSize = NSSize(width: 760, height: 500)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.toolbarStyle = .unified // 통합 툴바 — 타이틀바 공유
 
@@ -189,6 +203,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         panelHosting = hosting
         panel.contentViewController = hosting
+
+        // contentViewController 설정 시 콘텐츠 fittingSize로 리사이즈될 수 있어,
+        // 처음 열리는 크기를 명시적으로 재적용해 사이드바·상세 영역이 부족하지 않게 한다.
+        panel.setContentSize(NSSize(width: 900, height: 620))
 
         // 화면 중앙 첫 배치
         if let screen = NSScreen.main {

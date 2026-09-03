@@ -10,6 +10,14 @@ struct AppDetailView: View {
     @State private var recordingTarget: MenuItem?
     @State private var menuSearchText = ""
     @State private var recordingLaunch = false
+    @State private var running = false
+    @State private var urlSchemes: [String] = []
+    @State private var recordingScheme: String?
+
+    /// 저장소의 최신 앱 상태 (카테고리 변경 등 즉시 반영용)
+    private var liveApp: AppItem {
+        store.apps.first(where: { $0.id == app.id }) ?? app
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,6 +27,7 @@ struct AppDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     launchSection
+                    urlSchemeSection
                     configuredSection
                     menuSection
                 }
@@ -27,6 +36,8 @@ struct AppDetailView: View {
         }
         .frame(minWidth: 440, minHeight: 480)
         .task {
+            running = AppSwitcher.isRunning(bundleID: app.bundleID)
+            urlSchemes = AppFinder.urlSchemes(for: app.path)
             reloadMenu()
         }
         .sheet(item: $recordingTarget) { target in
@@ -63,6 +74,19 @@ struct AppDetailView: View {
             }
             .environmentObject(store)
         }
+        .sheet(isPresented: Binding(
+            get: { recordingScheme != nil },
+            set: { if !$0 { recordingScheme = nil } }
+        )) {
+            HotKeyRecorderView(
+                title: "\(app.name) (\(recordingScheme ?? "")://)",
+                subtitle: "URL 열기",
+                onTest: { _ in if let s = recordingScheme { NSWorkspace.shared.open(URL(string: "\(s)://")!) }; return true }
+            ) { combo in
+                if let s = recordingScheme { onRecord(combo: combo, scheme: s) }
+            }
+            .environmentObject(store)
+        }
     }
 
     // MARK: - 헤더 (앱 헤더 카드, back)
@@ -91,12 +115,36 @@ struct AppDetailView: View {
                     .lineLimit(1)
             }
             Spacer()
-            Text(app.category.displayName)
-                .font(.caption)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.accentColor.opacity(0.15))
-                .clipShape(Capsule())
+            Button {
+                AppSwitcher.activate(bundleID: app.bundleID, path: app.path)
+            } label: {
+                Image(systemName: running ? "arrow.up.left.and.arrow.down.right" : "play.fill")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+            .help(running ? "\(app.name) 전면으로" : "\(app.name) 실행")
+            Menu {
+                ForEach(AppCategory.allCases) { category in
+                    Button {
+                        store.updateCategory(for: app.id, to: category)
+                    } label: {
+                        if category == liveApp.category {
+                            Label(category.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(category.displayName)
+                        }
+                    }
+                }
+            } label: {
+                Text(liveApp.category.displayName)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.accentColor.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+            .menuStyle(.borderlessButton)
+            .help("카테고리 변경")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -329,6 +377,64 @@ struct AppDetailView: View {
                 isLoadingMenu = false
             }
         }
+    }
+
+    // MARK: - 3) 앱 URL scheme (보기 + 테스트 + 단축키)
+
+    private var urlSchemeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("URL Scheme", systemImage: "link")
+            if urlSchemes.isEmpty {
+                Text(app.path.isEmpty
+                     ? "앱 경로가 확인되지 않아 URL scheme을 읽을 수 없습니다."
+                     : "이 앱은 URL scheme을 지원하지 않습니다.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(urlSchemes, id: \.self) { scheme in
+                        HStack(spacing: 8) {
+                            Text("\(scheme)://")
+                                .font(.system(.body, design: .monospaced))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.accentColor.opacity(0.15))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Spacer()
+                            Button {
+                                NSWorkspace.shared.open(URL(string: "\(scheme)://")!)
+                            } label: {
+                                Label("실행", systemImage: "play.fill")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("\(scheme):// 열어보기")
+                            Button {
+                                recordingScheme = scheme
+                            } label: {
+                                Label("단축키", systemImage: "command")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("이 scheme을 여는 단축키 설정")
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+            }
+        }
+    }
+
+    private func onRecord(combo: HotKeyCombo, scheme: String) {
+        guard !combo.isEmpty else { return }
+        store.addBinding(HotKeyBinding(
+            combo: combo,
+            actionType: .url,
+            target: "\(scheme)://",
+            title: "\(app.name) (\(scheme))",
+            onlyWhenAppActive: false
+        ))
     }
 
     private func onRecord(combo: HotKeyCombo, menuItem: MenuItem) {

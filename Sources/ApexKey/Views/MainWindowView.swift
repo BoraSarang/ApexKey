@@ -4,23 +4,25 @@ import SwiftUI
 struct MainWindowView: View {
     @EnvironmentObject var store: ConfigStore
     @State private var selectedCategory: AppCategory?      // nil = 전체
-    @State private var isScriptStation = false
-    @State private var isSystemStation = false
+    @State private var selectedTool: ToolSelection?
     @State private var selectedApp: AppItem?
     @State private var searchText = ""
+
+    enum ToolSelection: Hashable {
+        case shortcut
+        case system
+    }
 
     enum SidebarSelection: Hashable {
         case all
         case category(AppCategory)
-        case script
-        case system
+        case tool(ToolSelection)
     }
 
     private var sidebarSelection: Binding<SidebarSelection?> {
         Binding(
             get: {
-                if isScriptStation { return .script }
-                if isSystemStation { return .system }
+                if let t = selectedTool { return .tool(t) }
                 if let c = selectedCategory { return .category(c) }
                 return .all
             },
@@ -29,20 +31,13 @@ struct MainWindowView: View {
                 switch newValue {
                 case .all:
                     selectedCategory = nil
-                    isScriptStation = false
-                    isSystemStation = false
+                    selectedTool = nil
                 case .category(let c):
                     selectedCategory = c
-                    isScriptStation = false
-                    isSystemStation = false
-                case .script:
+                    selectedTool = nil
+                case .tool(let t):
                     selectedCategory = nil
-                    isScriptStation = true
-                    isSystemStation = false
-                case .system:
-                    selectedCategory = nil
-                    isScriptStation = false
-                    isSystemStation = true
+                    selectedTool = t
                 }
                 selectedApp = nil
             }
@@ -66,6 +61,12 @@ struct MainWindowView: View {
             }
             // 항상 위에 토글 (활성/비활성 아이콘) + 설정 (우측 끝)
             ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    store.reclassifyCategories()
+                } label: {
+                    Label("카테고리 재분류", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .help("앱 카테고리 자동 재분류 (수동으로 바꾼 앱은 유지)")
                 Button {
                     store.alwaysOnTop.toggle()
                 } label: {
@@ -99,25 +100,27 @@ struct MainWindowView: View {
 
         // 여러 앱이 매칭되면 목록에서 검색 필터 유지 (상세 이동 없음)
         guard matches.count == 1, let only = matches.first else {
-            isScriptStation = false
-            isSystemStation = false
+            selectedTool = nil
             selectedCategory = nil
             selectedApp = nil
             return
         }
-        isScriptStation = false
-        isSystemStation = false
+        selectedTool = nil
         selectedCategory = nil
         selectedApp = only
     }
 
     @ViewBuilder
-    private var detailContent: some View {        if isScriptStation {
-            ScriptsStationView()
-                .environmentObject(store)
-        } else if isSystemStation {
-            SystemActionsView()
-                .environmentObject(store)
+    private var detailContent: some View {
+        if let tool = selectedTool {
+            switch tool {
+            case .shortcut:
+                ShortcutStationView()
+                    .environmentObject(store)
+            case .system:
+                SystemActionsView()
+                    .environmentObject(store)
+            }
         } else if let app = selectedApp {
             AppDetailView(app: app) {
                 selectedApp = nil
