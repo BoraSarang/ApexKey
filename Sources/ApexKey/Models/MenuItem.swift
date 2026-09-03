@@ -11,6 +11,8 @@ struct MenuItem: Identifiable, Hashable {
     var children: [MenuItem]
     /// 최상위 메뉴 title부터 이 항목까지의 경로 (예: ["파일", "새 창"]) — 실행 시 메뉴를 경로대로 열기 위함
     var menuPath: [String]
+    /// 메뉴 계층 깊이 (최상위 메뉴 항목 0, 서브메뉴 자식은 1, 그 아래 2...) — HUD 들여쓰기 표시용
+    var depth: Int
 
     init(
         title: String,
@@ -19,7 +21,8 @@ struct MenuItem: Identifiable, Hashable {
         isSeparator: Bool = false,
         isSubmenu: Bool = false,
         children: [MenuItem] = [],
-        menuPath: [String] = []
+        menuPath: [String] = [],
+        depth: Int = 0
     ) {
         self.title = title
         self.commandChar = commandChar
@@ -28,6 +31,7 @@ struct MenuItem: Identifiable, Hashable {
         self.isSubmenu = isSubmenu
         self.children = children
         self.menuPath = menuPath
+        self.depth = depth
     }
 
     /// 실제 키 조합(단축키)이 있는 메뉴 항목인가

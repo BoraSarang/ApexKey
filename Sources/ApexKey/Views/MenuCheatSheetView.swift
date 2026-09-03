@@ -196,19 +196,12 @@ struct MenuCheatSheetView: View {
 
     private func row(_ item: MenuItem) -> some View {
         HStack(spacing: 12) {
+            indentSpacer(item)
             Text(item.title)
                 .font(.system(.body))
                 .lineLimit(1)
             Spacer(minLength: 12)
-            if item.hasKeyEquivalent {
-                Text(item.keyEquivalentDisplay)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundColor(.accentColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-            }
+            trailingSlot(item)
         }
         .contentShape(Rectangle())
         .onTapGesture { run(item) }
@@ -218,20 +211,13 @@ struct MenuCheatSheetView: View {
 
     private func selectableRow(_ item: MenuItem, isSelected: Bool) -> some View {
         HStack(spacing: 12) {
+            indentSpacer(item)
             Text(item.title)
                 .font(.system(.body))
                 .lineLimit(1)
                 .foregroundColor(isSelected ? Color.accentColor : .primary)
             Spacer(minLength: 12)
-            if item.hasKeyEquivalent {
-                Text(item.keyEquivalentDisplay)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundColor(.accentColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(isSelected ? Color.accentColor.opacity(0.25) : Color.accentColor.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-            }
+            trailingSlot(item)
         }
         .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -239,6 +225,38 @@ struct MenuCheatSheetView: View {
         .onTapGesture { run(item) }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
+    }
+
+    /// 서브메뉴 자식만 depth만큼 들여쓰기 (부모/최상위는 0이라 공간 없음)
+    @ViewBuilder
+    private func indentSpacer(_ item: MenuItem) -> some View {
+        if item.depth > 0 {
+            Text("")
+                .frame(width: CGFloat(item.depth) * 14)
+        }
+    }
+
+    /// macOS 표준대로 단축키를 오른쪽에 배치.
+    /// 서브메뉴 부모는 '▸' 화살표, 단축키 있으면 keycap, 없으면 고정 빈칸.
+    @ViewBuilder
+    private func trailingSlot(_ item: MenuItem) -> some View {
+        if item.isSubmenu {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.secondary)
+                .frame(minWidth: 24)
+        } else if item.hasKeyEquivalent {
+            Text(item.keyEquivalentDisplay)
+                .font(.system(.body, design: .monospaced))
+                .foregroundColor(.accentColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.accentColor.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+        } else {
+            Text("")
+                .frame(width: 24)
+        }
     }
 
     private var emptyState: some View {
@@ -281,6 +299,7 @@ struct MenuCheatSheetView: View {
     }
 
     private func run(_ item: MenuItem) {
+        guard !item.isSubmenu else { return }
         onRun(item)
     }
 }

@@ -3,6 +3,70 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-03 macos — 빈 창 제거(AppKit @main 전환) + 패널 토글 개선 + 전체화면 HUD 정렬 (A·B·C·D)
+
+> **목표**: (A) SwiftUI `WindowGroup { EmptyView() }`가 만드는 시작 빈 창 근본 제거, (B) '뒤로 숨은' 패널을 메뉴바 클릭 한 번으로 앞으로 가져오기, (C·D) 전체화면 HUD 정렬 개선.
+> BUILD SUCCEEDED · `./build_and_run.sh test macos unit` 통과(신규 회귀 포함 36/37, 기존 1건은 환경 의존 실패 무관).
+
+- **A (빈 창 제거) — 순수 AppKit `@main` 전환** — `Sources/ApexKey/ApexKeyApp.swift`(`@main struct ApexKeyApp: App` + `WindowGroup { EmptyView() }`, 빈 창 원본) 삭제하고 `Sources/ApexKey/main.swift` 신규:
+  ```swift
+  MainActor.assumeIsolated {
+      let app = NSApplication.shared
+      let delegate = AppDelegate()
+      app.delegate = delegate
+      app.run()
+  }
+  ```
+  - 이미 AppKit(`NSPanel`/`NSStatusItem`)이 모든 창·메뉴바를 담당하므로 SwiftUI scene 불필요. `@main`과 top-level `main.swift` 공존 충돌 방지를 위해 `ApexKeyApp` 제거.
+  - **`closeBootWindow()` 폐기** — WindowGroup이 사라져 시작 시 빈 창 자체가 생성되지 않음 (기존엔 `applicationDidFinishLaunching` 시점에 SwiftUI 창이 아직 없어 닫지 못하는 타이밍 문제로 잔류했음).
+  - **`applicationShouldHandleReopen(_:hasVisibleWindows:)` 구현** — 파인더/Dock 재실행(open) 시 새 빈 창을 만들지 않고 메뉴바만 유지(선택 a). `hasVisibleWindows==true`면 기존 패널을 앞으로, 그 외엔 activate만.
+- **B (패널 토글 개선) — `togglePanel`이 '뒤로 숨은 패널'을 앞으로 가져오기** — 기존 `if panel.isVisible`은 `hidesOnDeactivate=false`라 다른 앱 뒤로 숨은 패널(`isVisible=true`)도 '닫힘'으로 오판 → 첫 클릭이 반응 없음처럼 보임. `if panel.isVisible && (panel.isKeyWindow || NSApp.keyWindow === panel)`이면 닫고, 그 외엔 `activate + makeKeyAndOrderFront + orderFrontRegardless`로 앞으로 가져오기 (`AppDelegate.swift`)
+- **C (전체화면 HUD 단일 메뉴 왼쪽 정렬) — 4열 틀 유지 + 좌측 정렬** — `MenuHUDOverlayView.grid`의 `HStack`이 중앙 정렬이라 메뉴 1개(첫 열·240폭)가 왼쪽 25%가 아니라 중앙(두 번째 칸 위치)에 옴. `ScrollView(.vertical)`로 명시(양방향 무한 폭 제안 회피) + `HStack`에 `.frame(maxWidth:.infinity, alignment:.leading)` 적용 → 4열 틀과 빈 칸은 유지하되 첫 열이 화면 가장 왼쪽에 (메뉴 1개 = 첫 칸 표시) (`MenuHUDOverlayView.swift`)
+- **D (전체화면 HUD 단축키 없는 항목 keycap 자리 유지) — 고정 빈칸** — `row`/`selectableRow`가 `if hasKeyEquivalent { keycap }`이라 단축키 없는 항목은 keycap 자체가 사라져 `Text(title)`이 왼쪽 끝으로 밀려 정렬이 깨짐. 공용 `@ViewBuilder func shortcutSlot(_:)`으로 단축키 있으면 `keycap`, 없으면 **`Text("").frame(width:52, height:22)` 고정 빈칸**으로 텍스트 시작 위치(단축키 열) 세로 정렬 유지. ⚠️ 시행착오: `Color.clear.frame(minWidth:52)`는 flex 팽창으로 HStack 레이아웃을 깨뜨려(메뉴 오른쪽 밀림·빈 칸) 부적합, `Text("없음")` 배지는 정렬은 되나 어색 → **고정 크기 빈칸**으로 확정 (`MenuHUDOverlayView.swift`)
+- **E (전 앱에서 시스템 '서비스' 메뉴 제거) — Services 서브메뉴 통째 제외** — 계산기 등 모든 앱에 macOS가 주입하는 표준 Services 메뉴(제목 '서비스'/영문 'Services')는 단축키 실행에 무의미하고 목록을 오염시킴. `MenuEnumerator.menuItems(from:)` 자식 재귀에서 title이 `"서비스"`/`"Services"`인 서브메뉴와 그 하위 전체를 건너뜀 (하드코딩 없이 전 앱 일관 제거) (`MenuEnumerator.swift`)
+- **F (HUD macOS 표준 레이아웃: 메뉴명 … 단축키 + 서브메뉴 indent) — 단축키를 오른쪽으로** — 기존 HUD가 KeyCue식 '단축키 : 메뉴명'(단축키 왼쪽)이라 맥 표준과 어긋나고 들여쓰기가 어색했음. `row`/`selectableRow`를 **`메뉴명 … 단축키(오른쪽)`** 로 전환(전체화면+플로팅 모두). 서브메뉴 부모는 오른쪽 `▸`, 단축키는 오른쪽 keycap/고정 빈칸. `MenuItem`에 `depth` 필드 추가 + `flattenedWithDepth`(서브메뉴 부모 노드 포함·깊이 보존 평탄화, 최상위 메뉴 노드는 그룹 헤더와 중복이라 생략)로 HUD groups 구성 변경 → 서브메뉴 자식은 메뉴명 왼쪽에서 depth만큼 들여쓰기 (`MenuItem.swift`/`MenuEnumerator.swift`/`AppDelegate.swift`/`MenuHUDOverlayView.swift`/`MenuCheatSheetView.swift`)
+- **G (HUD 서브메뉴 부모 클릭 크래시 수정) — SIGTRAP 방지** — `flattenedWithDepth`가 최상위 메뉴 부모 노드(menuPath 단일)를 HUD 행으로 노출시켜 클릭 시 `performAction`의 `path[1..<(path.count-1)]` = `path[1..<0]` 잘못된 범위 접근으로 크래시(EXC_BREAKPOINT/SIGTRAP). ① 최상위 depth 0 노드 생략, ② `performAction` 서브메뉴 체인 루프를 `path.count > 1`로 가드, ③ HUD/플로팅 모든 실행 진입점에서 `!item.isSubmenu` 가드로 서브메뉴 부모 클릭/Enter 실행 차단 (`MenuEnumerator.swift`/`MenuHUDOverlayView.swift`/`MenuCheatSheetView.swift`)
+- **검증** — `open`으로 첫 실행·재실행 모두 창 count 0(빈 창 없음) + unified log `[APP] ApexKey 시작`/`No windows open yet` 확인. 핫키 `⇧⌥A`로 `[PANEL] 열기/닫기` 분기 검증. 전체화면 HUD(⇧⌥S, `pref.menuHUDStyle=fullscreen`) 메뉴 1개·5항목 표시·정상 닫힘 확인
+- **참고(배경)** — 저장된 `NSWindow Frame SwiftUI.EmptyView-1-AppWindow-1` default 프레임 잔재는 더 이상 사용되지 않음(WindowGroup 제거로)
+
+## 2026-09-03 macos — 흐름·자동화·AI 실행 심층 감사 버그 수정 (B8~B19, P1)
+
+> 깊이 있는 코드 감사(4개 병렬 탐색)로 확인된 **확정 버그** 체계 수정 + 회귀 단위 테스트 19건 추가.
+> BUILD SUCCEEDED · `./build_and_run.sh test macos unit` 통과(신규 19건 + 기존 모델 12건 0실패, 기존 1건은 환경 의존 실패 무관).
+
+- **B13 (E-MAC-FLOW) — 반복 인덱스/항목이 특수변수 해석 안 됨** — `Repeat` 루프가 `repeatIndex`/`repeatItem`을 `context.setOutput`(stepOutputs)에만 저장했으나, `SpecialVariable.repeatIndex/repeatItem`은 `ResolveContext.repeatIndex/repeatItem`을 읽어 항상 null. `ExecutionContext`에 `repeatIndex/repeatItem` 상태 추가 + `executeRepeatCountEach`가 설정 + `makeResolveContext`가 전달 (`ExecutionEngine.swift`/`UseModelExecutor.swift`)
+- **B14 — `notEquals`가 rightOperand 없을 때 항상 true** — `rightValue == nil || leftValue != rightValue` → 이항 비교로 수정(`rightValue nil/null이면 false`) (`FlowControlModels.swift`)
+- **B15 — If 조건의 `ConditionOperand.specialVariable` 항상 null** — 조건 평가를 `[UUID:VariableValue]` 대신 `ResolveContext` 기반으로 전환, specialVariable(`repeatIndex`/`lastResult` 등)·magicVariable(`stepOutputs`) 해석 (`FlowControlModels.swift`/`ExecutionEngine.swift`)
+- **B8 — `whileLoop` 0회 조용한 실패** — 매치 없이 `count ?? 0`=0회 실행 → 1회 폴백 + `E-MAC-FLOW-7008` 경고 (`ExecutionEngine.swift`)
+- **B9 — Choose from Menu `NSAlert.runModal()` 비메인 스레드 호출** — 메인 스레드 보장(`main.sync`) (`ExecutionEngine.swift`)
+- **B16 — `runPauseUntilInput`가 no-op(등록만 하고 복귀)** — 실제로 ⌘⇧↩ 입력까지 블로킹. 로컬 모니터는 메인 런루프에 등록, 호출 스레드는 세마포어 대기 (`ActionExecutor.swift`)
+- **B17 — `runWait` 메인 스레드 `Thread.sleep` 블로킹** — 메인 스레드 시 백그라운드로 대기 분기 (`ActionExecutor.swift`)
+- **B10 — 충전기 트리거 양쪽(연결/해제) 지정 시 한쪽만 평가** — `switch _ where` 분기가 첫 매치만 실행 → 각 eventType 독립 `if` 평가 (`AutomationManager.swift`)
+- **B11 — 폴더 트리거 이벤트가 무조건 `.added`** — FSEvent 플래그(파생)로 `added/renamed/removed/modified` 판정 + 트리거 `eventTypes` 필터 (`AutomationManager.swift`)
+- **B19 — 실행 통계가 실패에도 증가** — `executeShortcutStats`/`runAutomation`을 `execute` 성공 시에만 `runCount`/`lastRunAt` 갱신 (`ConfigStore.swift`)
+- **B18 — 자동화 재등록** — `updateShortcutAutomations`가 `AutomationManager.unregister+register` 호출 확인(기존 커버), 위험 요소 없음 확인
+- **신규 발견 — `VariableResolver.stringValue` 숫자 포맷** — `String(Double)`이 정수를 "2.0"으로 표시 → 정수는 "2"로 출력 (`VariableResolver.swift`)
+- **도구 — `build_and_run.sh test macos {smoke|unit|full}` 서브커맨드 추가** (기존 빌드 게이트 문서상의 `test` 커맨드 부재 해소)
+- **테스트 — `ApexKeyFlowTests` 19건 추가** — B13(B13 반복 인덱스 저장)/B15(LastResult 특수변수 조건 분기) 통합 회귀 + `Condition`(equals/notEquals/특수/매직/greaterThan/contains/isEmpty) + `VariableResolver`(토큰/마법 치환) + `RepeatRule`(평일/주말/매일) + `VariableValue`(Codable 왕복/타입 변환)
+- **미해결 (문서화)** — B12 `RepeatRule.weekly/monthly/custom` 항상 true(요일/날짜 저장 필드 부재 → 모델 확장 필요), B7 일반 액션 `toBinding`이 `outputVariables`/`actionParameters` 탈락(R5 리팩터, 블록 편집 R1과 함께 별도 작업)
+
+## 2026-09-03 macos — 동작을 iPhone 단축어 방식으로 전환 (v0.3, Phase 1~8)
+
+- **변경** — '동작(단축어)'을 단순 순차 단계 나열에서 iPhone Shortcuts 방식으로 업그레이드
+  - **도메인 모델(T-101)** — `ActionType` 12카테고리(앱/문서/웹/메시지/스크립트/파일/시스템/효율/개발/AI/흐름제어/기타), `Variable`/`FlowControl`/`AutomationTrigger`/`ShortcutPermissions` 모델, `ShortcutItem.combo/automations/variables`, `PersistedShortcut` JSON 데이터 컬럼(steps/triggers/variables/permissions)
+  - **편집 UI(T-102)** — `ActionCatalogView`(액션 카탈로그)+`VariablePanelView`(변수 패널)+`StepRowView`/`BlockStepRow`/`StepListView`(계층 단계)+`ShortcutEditorView` 3열 편집기+`StepSettingsView`(T-107)+`AutomationSettingsView`(T-107)
+  - **AI 통합(T-103)** — `AIAvailabilityManager`+`UseModelExecutor`/`WritingToolExecutor`/`ImagePlaygroundExecutor`(FoundationModels `#if canImport`+`#available(macOS 26)` 폴백), 커스텀 Logger 전환, 배터리(IOKit)/Wi-Fi(CoreWLAN) 조회
+  - **흐름 제어(T-104)** — `ExecutionEngine`(If/Otherwise, Repeat/Repeat Each, Choose from Menu, Stop Shortcut, Set/Output Variable, Run Shortcut)
+  - **자동화(T-105)** — `AutomationManager`(시간/폴더/FSEvents+3s debounce/배터리/충전기), 등록·해제·재등록, `runAutomation` 콜백
+  - **변수 해석(T-106)** — `VariableResolver` ({매직변수}/{특수변수:name}, 배터리/Wi-Fi, 변수·단계출력·마지막출력 컨텍스트)
+- **검증** — Phase 1~7 빌드 성공 후 Phase 8에서 `./build_and_run.sh build macos` → `** BUILD SUCCEEDED **`, `./build_and_run.sh debug macos` → 설치 완료 `~/Applications/ApexKey.app` (손상 없음)
+- **Phase 8 하이라이트(T-108)** —
+  - 단축키(combo)→단축어 실행 경로 확인(`handleHotKey`/`repeatLastBinding`) + 실행 시 `lastRunAt`/`runCount` 통계 갱신(`executeShortcutStats`)
+  - RunShortcut 완성 — `ExecutionEngine.shortcutProvider`(ConfigStore에서 주입)로 실제 단축어 조회·재귀 실행 (`step.target`=UUID)
+  - `syncShortcut`이 automations/variables/permissions 등 전 필드 영속화(기존 name/combo/steps만), 접근 제한 `private`→`internal`로 에디터 확장 메서드(`updateShortcutSteps/_Name/_Description/_Automations/_Variables`)에서 호출 가능하게 변경
+  - `executeSetVariable`에 VariableResolver 변수 치환 + 값 타입 추론(숫자/불리언/텍스트)
+- **문서** — `docs/TODO.md` v0.3 섹션(T-101~108) 기록, 'iPhone 단축어 방식 재검토' 백로그 항목 구현 완료로 제거
+
 ## 2026-09-03 macos — 동작 메뉴 명령 단계: 앱/메뉴 선택 UI (T-036)
 
 - **증상** — 동작(단축어)에서 '메뉴 명령' 단계가 실행되지 않음

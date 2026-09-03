@@ -27,10 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Logger.info("AppDelegate", "[APP] ApexKey 시작 (macOS \(ProcessInfo.processInfo.operatingSystemVersionString))")
-        // SwiftUI WindowGroup({ EmptyView })이 시작 시 만드는 빈 주 윈도우를 닫는다.
-        // 설정 창은 AppKit showSettingsPanel(⌘,)가 전담하므로 Settings scene을 제거했고,
-        // Cmd+, 가 빈 설정창을 띄우는 충돌 없이 실제 설정창이 열린다.
-        closeBootWindow()
+        // 설정 창은 AppKit showSettingsPanel(⌘,)가 전담한다. SwiftUI scene 없이
+        // AppKit @main으로 기동하므로 시작 시 빈 창이 생성되지 않는다.
         let store = ConfigStore()
         self.store = store
 
@@ -69,14 +67,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Logger.info("AppDelegate", "[APP] ApexKey 종료")
     }
 
-    // 시작 시점에 우리가 만든 창은 아직 없으므로, SwiftUI WindowGroup({ EmptyView })이
-    // 생성한 표준(NSPanel 아님) 빈 주 윈도우만 닫는다.
-    private func closeBootWindow() {
-        for window in NSApp.windows
-        where !(window is NSPanel) && window.isVisible {
-            window.close()
-            Logger.info("AppDelegate", "[WIN] SwiftUI 빈 주 윈도우 종료: \(window.title)")
+    // Dock/파인더 등에서 재실행(open) 시 빈 창을 만들지 않도록, 존재하는 창 중 하나를
+    // 앞으로 가져오거나(창이 있을 때) 아무것도 만들지 않는다(메뉴바 앱).
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        Logger.info("AppDelegate", "[REOPEN] 재실행 수신 (hasVisibleWindows=\(flag))")
+        if flag {
+            if panel?.isVisible == true {
+                NSApp.activate(ignoringOtherApps: true)
+                panel?.orderFrontRegardless()
+            }
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
         }
+        return true
     }
 
     // MARK: - 상태 아이템 (showInMenuBar 구동)
@@ -223,13 +226,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func togglePanel() {
         guard let panel else { return }
-        if panel.isVisible {
+        // 전방에 실제로 보이는(key) 경우에만 닫고, 뒤로 숨었거나(다른 앱에 가려짐) 없으면
+        // 앞으로 가져온다. isVisible만 보면 뒤로 숨은 패널을 "닫힘"으로 오판해
+        // 첫 클릭이 반응 없음처럼 보이는 문제를 방지한다.
+        if panel.isVisible && (panel.isKeyWindow || NSApp.keyWindow === panel) {
             Logger.info("AppDelegate", "[PANEL] 닫기")
             panel.orderOut(nil)
         } else {
-            Logger.info("AppDelegate", "[PANEL] 열기")
-            panel.makeKeyAndOrderFront(nil)
+            Logger.info("AppDelegate", panel.isVisible ? "[PANEL] 앞으로 가져오기" : "[PANEL] 열기")
             NSApp.activate(ignoringOtherApps: true)
+            panel.makeKeyAndOrderFront(nil)
+            panel.orderFrontRegardless()
         }
     }
 
@@ -473,8 +480,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         let items = MenuEnumerator.shared.enumerateMenuItems(bundleID: bundleID)
-        // 서브메뉴는 펼쳐 잎(실제 명령) 항목만 평면화 — 단축키 유무 무관 전체 대상
-        let menuEntries = MenuEnumerator.shared.allItems(in: items)
+        // 서브메뉴는 부모 노드 포함, 깊이 보존해서 평탄화 — HUD 계층(indent) 표시용
+        let menuEntries = MenuEnumerator.shared.flattenedWithDepth(in: items)
         // 메뉴(first 경로)별 그룹화 — 단축키 유무 무관, 모든 메뉴 항목 포함
         var groups: [(menu: String, items: [MenuItem])] = []
         var indexByMenu: [String: Int] = [:]

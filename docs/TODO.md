@@ -76,9 +76,46 @@
 - [x] 시트 내용 상단 정렬 — '새 동작' 이름 입력 시트와 단계 편집 시트가 수직 중앙 정렬 → `.frame`에 `alignment: .topLeading` 추가 (`ShortcutStationView.swift`)
 - [x] T-036: **동작(단축어) 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리)
 
+## v0.3 — 동작을 iPhone 단축어(Shortcuts) 방식으로 전환 (2026-09-03, 8 Phase)
+
+- [x] T-101: 도메인 모델 확장 — `ActionType` 12카테고리(앱/문서/웹/메시지/스크립트/파일/시스템/효율/개발/AI/흐름제어/기타) + `Variable`/`FlowControl`/`AutomationTrigger`/`ShortcutPermissions` + `ShortcutItem.combo/automations/variables` + `PersistedShortcut` JSON 데이터 컬럼(steps/triggers/variables/permissions)
+- [x] T-102: 편집 UI — `ActionCatalogView`(액션 카탈로그)+`VariablePanelView`(변수 패널)+`StepRowView`/`BlockStepRow`/`StepListView`(계층 단계)+`ShortcutEditorView` 3열 편집기(카탈로그 | 단계 | 순서), `ShortcutStationView` 갱신
+- [x] T-103: AI 통합 — `AIAvailabilityManager`(macOS 26 Gate)+`UseModelExecutor`/`WritingToolExecutor`/`ImagePlaygroundExecutor` (FoundationModels `#if canImport`+`#available` 폴백), 커스텀 Logger 전환, 배터리(IOKit)/Wi-Fi(CoreWLAN) 조회
+- [x] T-104: 흐름 제어 엔진 — `ExecutionEngine` (If/Otherwise, Repeat/Repeat Each, Choose from Menu, Stop Shortcut, Set/Output Variable, Run Shortcut stub)
+- [x] T-105: 자동화 트리거 — `AutomationManager` (시간/폴더(파일 변경 FSEvents+3s debounce)/배터리/충전기), 등록/해제/재등록, `runAutomation` 콜백
+- [x] T-106: 변수 해석기 — `VariableResolver` (`{매직변수}`, `{특수변수:name}` 치환, 배터리/Wi-Fi, 변수 사전/단계 출력/마지막 출력 컨텍스트)
+- [x] T-107: 단계/자동화/변수 설정 UI — `StepSettingsView`(유형별 설정 시트: If/Repeat/Choose/UseModel/WritingTool/ImagePlayground/SetVariable/Comment 등)+`AutomationSettingsView`(트리거 추가/삭제)+`createDefaultStep`/`saveAutomations`/`saveVariables` 연동
+- [x] T-108: **Phase 8 실행/영속화 통합** — ① 단축키(combo)→단축어 실행 경로 확인(`handleHotKey`/`repeatLastBinding`) + 실행 통계(`lastRunAt`/`runCount`) 갱신 ② RunShortcut 완성(`ExecutionEngine.shortcutProvider` = ConfigStore에서 주입하여 실제 단축어 조회·실행) ③ `syncShortcut`이 automations/variables/permissions 등 전 필드 영속화 + 에디터 확장 메서드(`updateShortcutSteps/_Name/_Description/_Automations/_Variables`)가 `syncShortcut` 호출 ④ `executeSetVariable`에 VariableResolver 변수 치환 + 값 타입 추론(숫자/불리언)
+
+- [x] 이번 v0.3 작업으로 'iPhone 단축어 방식 재검토' 백로그 항목 구현 완료(아래 백로그에서 제거)
+
+## v0.3.1 — 흐름·자동화·AI 실행 심층 감사 버그 수정 (2026-09-03, P1)
+
+- [x] T-110: B13 반복 인덱스/항목 특수변수 해석 — `ExecutionContext.repeatIndex/repeatItem` 추가 + `executeRepeatCountEach` 설정 + `makeResolveContext` 전달
+- [x] T-111: B14 `notEquals` rightOperand 없을 때 항상 true 수정 + B15 If 조건 특수변수(`ResolveContext` 기반 평가 전환)
+- [x] T-112: B8 whileLoop 0회 조용한 실패→1회 폴백 + E-MAC-FLOW-7008, B9 Choose from Menu `NSAlert` 메인 스레드 강제
+- [x] T-113: B16 `runPauseUntilInput` no-op→실제 블로킹, B17 `runWait` 메인 스레드 블로킹→백그라운드 분기
+- [x] T-114: B10 충전기 트리거 연결/해제 독립 평가, B11 폴더 이벤트 타입 FSEvent 플래그 파생+필터
+- [x] T-115: B19 실행 통계 실패 시 미증가, B18 자동화 재등록 커버 확인
+- [x] T-116: `VariableResolver.stringValue` 정수 포맷("2.0"→"2") + `build_and_run.sh test` 서브커맨드 추가
+- [x] T-117: 단위 테스트 19건 추가(`ApexKeyFlowTests`) + 전체 통과 검증
+
+## v0.3.2 — 빈 창 제거 + 패널 토글 + 전체화면 HUD 정렬 (2026-09-03)
+
+- [x] T-118: A — SwiftUI `WindowGroup{EmptyView()}` 빈 창 근본 제거 — `ApexKeyApp.swift` 삭제 + `main.swift`(AppKit `@main`) 전환 + `applicationShouldHandleReopen` 재실행 시 빈 창 방지
+- [x] T-119: B — `togglePanel` '뒤로 숨은 패널'을 앞으로 가져오기(`isKeyWindow` 기반 분기 + `orderFrontRegardless`)
+- [x] T-120: C — 전체화면 HUD 단일 메뉴 그리드 좌측 정렬(4열 틀 유지, `.frame(maxWidth:.infinity, alignment:.leading)`)
+- [x] T-121: D — 전체화면 HUD 단축키 없는 항목 keycap 자리 유지(`shortcutSlot` 빈 자리 추가)
+- [x] T-122: 검증 — 빌드 SUCCEEDED + `open` 첫 실행/재실행 창 0 + `[PANEL] 열기/닫기` 분기 + 전체화면 HUD 표시/닫기 + unit 테스트 36/37(기존 1건 환경 의존 무관)
+- [x] T-123: E — 전 앱에서 시스템 '서비스' 메뉴(Services/submenu, 제목 '서비스') 통째 제외 — 전 앱 일관 제거
+- [x] T-124: F — HUD macOS 표준 레이아웃 '메뉴명 … 단축키(오른쪽)' 전환 + 서브메뉴 indent(부모 ▸ + 자식 depth 들여쓰기) — 전체화면+플로팅, `MenuItem.depth`+`flattenedWithDepth`
+- [x] T-125: G — HUD 서브메뉴 부모 클릭 크래시(SIGTRAP, `path[1..<0]`) 수정 — 최상위 depth 0 노드 생략 + `path.count>1` 가드 + `!isSubmenu` 실행 차단
+- [x] T-126: 검증 — 빌드 SUCCEEDED + HUD macOS 표준 배치·indent·서비스 제거 정상 + 크래시 없음 + unit 테스트 36/37(기존 1건 환경 의존 무관)
+
 ## 다음 백로그
 
 - [ ] 단축키 프로필/빠른 전환
-- [ ] **iPhone 단축어(Shortcuts)와 동일한 방식 재검토** — 현재 '동작(단축어)'은 단순 순차 단계 나열(ShortcutStep: type/target/title/menuPath). iPhone 단축어는 액션 카탈로그+매직 변수+플로우 편집기. 사용자 조사 자료 위치/구현 범위 미확정 (2026-09-03 대화에서 언급, 미결)
+- [ ] Run Shortcut 호출 시 ConfigStore 자동화 UI에서 조회 단계 연결 (multishortcut 재귀 공유 변수 전달)
+- [ ] Choose from Menu/Use Model 등 단계 저장값(actionParameters) UI 연동 세부 다듬기
 - [ ] 오프라인/큐(비해당 — 로컬 앱)
-- [ ] macOS 14 런타임에서 SwiftUI 빈 윈도우 숨김 완화 (현재 macOS 26 검증 범위) — 배포 타깃 14 컴파일만 보장
+- [ ] macOS 14 런타임 실기 검증 (v0.3.2로 SwiftUI 빈 윈도우 근본 제거, macOS 26에서 검증 완료) — 배포 타깃 14 컴파일만 보장

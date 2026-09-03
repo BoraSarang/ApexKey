@@ -57,7 +57,7 @@ struct MenuHUDOverlayView: View {
         .onChange(of: searchText) { _, _ in selectedIndex = 0 }
         .onKeyPress(.escape) { onClose(); return .handled }
         .onKeyPress(.return) {
-            if let item = currentItem { onRun(item) }
+            if let item = currentItem, !item.isSubmenu { onRun(item) }
             return .handled
         }
         .onKeyPress(.downArrow) { moveSelection(1); return .handled }
@@ -128,7 +128,10 @@ struct MenuHUDOverlayView: View {
     private var grid: some View {
         // 4개의 세로 열로 메뉴 분할 — 위→아래로 차곡차곡(상단 정렬), 열끼리 독립이라
         // "이동"이 "OpenCode" 바로 아래 세로로 이어지고 중간에 빈 공간이 생기지 않는다.
-        ScrollView {
+        // 4열 틀(빈 칸 포함)을 유지하되 첫 열이 화면 가장 왼쪽에 오도록 좌측 정렬한다.
+        // ScrollView는 세로 전용으로 명시해, 가로로는 패널 폭에 고정되어 HStack의
+        // maxWidth:.infinity(좌측 정렬용)가 안전하게 동작한다.
+        ScrollView(.vertical) {
             HStack(alignment: .top, spacing: 30) {
                 ForEach(menuColumns.indices, id: \.self) { index in
                     let column = menuColumns[index]
@@ -142,6 +145,7 @@ struct MenuHUDOverlayView: View {
                 }
             }
             .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
@@ -202,38 +206,73 @@ struct MenuHUDOverlayView: View {
 
     private func row(_ item: MenuItem) -> some View {
         HStack(spacing: 10) {
-            if item.hasKeyEquivalent {
-                keycap(item.keyEquivalentDisplay)
-            }
+            indentSpacer(item)
             Text(item.title)
                 .font(.system(size: 13))
                 .lineLimit(1)
                 .foregroundColor(.white)
                 .truncationMode(.tail)
             Spacer(minLength: 4)
+            trailingSlot(item)
         }
         .contentShape(Rectangle())
-        .onTapGesture { onRun(item) }
+        .onTapGesture { if !item.isSubmenu { onRun(item) } }
         .padding(.vertical, 2)
     }
 
     private func selectableRow(_ item: MenuItem, isSelected: Bool) -> some View {
         HStack(spacing: 10) {
-            if item.hasKeyEquivalent {
-                keycap(item.keyEquivalentDisplay)
-            }
+            indentSpacer(item)
             Text(item.title)
                 .font(.system(size: 13))
                 .lineLimit(1)
                 .foregroundColor(isSelected ? Color.orange : .white)
             Spacer(minLength: 4)
+            trailingSlot(item)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(isSelected ? Color.orange.opacity(0.2) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
-        .onTapGesture { onRun(item) }
+        .onTapGesture { if !item.isSubmenu { onRun(item) } }
+    }
+
+    /// 서브메뉴 자식만 depth만큼 들여쓰기 (부모/최상위는 0이라 공간 없음)
+    /// Text("") 고정 프레임 — Color.clear는 flex 팽창으로 행 레이아웃을 깨뜨림
+    @ViewBuilder
+    private func indentSpacer(_ item: MenuItem) -> some View {
+        if item.depth > 0 {
+            Text("")
+                .frame(width: CGFloat(item.depth) * 16)
+        }
+    }
+
+    /// 행 오른쪽(트레일링) 슬롯 — macOS 표준대로 단축키를 오른쪽에 배치.
+    /// 서브메뉴 부모는 '▸' 화살표, 단축키 있으면 keycap, 없으면 같은 폭/높이의 고정 빈칸.
+    @ViewBuilder
+    private func trailingSlot(_ item: MenuItem) -> some View {
+        if item.isSubmenu {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white.opacity(0.4))
+                .frame(width: 52, height: 22)
+        } else {
+            shortcutSlot(item)
+        }
+    }
+
+    /// 단축키가 있는 항목은 keycap을, 없는 항목은 같은 폭/높이의 고정 빈칸을 둬서
+    /// 메뉴 이름 시작 위치가 항목 간 세로 정렬을 유지하게 한다.
+    /// (frame(width:) 고정 — Color.clear+minWidth는 flex로 팽창해 레이아웃을 깨뜨림)
+    @ViewBuilder
+    private func shortcutSlot(_ item: MenuItem) -> some View {
+        if item.hasKeyEquivalent {
+            keycap(item.keyEquivalentDisplay)
+        } else {
+            Text("")
+                .frame(width: 52, height: 22)
+        }
     }
 
     /// 단축키 키캡 — KeyCue 스타일 (회색 캡슐)

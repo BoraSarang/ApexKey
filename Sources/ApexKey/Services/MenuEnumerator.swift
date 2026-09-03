@@ -66,6 +66,34 @@ final class MenuEnumerator {
         return result
     }
 
+    /// 서브메뉴 **부모 노드를 포함**해 깊이(depth)를 보존하면서 평탄화 — HUD 계층(indent) 표시용.
+    /// 부모도 항목으로 남고, 자식은 depth+1로 들여쓰기되어 계층이 시각적으로 유지된다.
+    /// 최상위 메뉴 노드(depth 0)는 메뉴 그룹 헤더로 이미 중복 표시되므로 생략하고,
+    /// 그 아래 서브메뉴 부모부터(depth 1) 포함한다.
+    func flattenedWithDepth(in items: [MenuItem], depth: Int = 0) -> [MenuItem] {
+        var result: [MenuItem] = []
+        for item in items {
+            if depth == 0 {
+                // 최상위 메뉴 노드 자체는 생략 — 서브메뉴 부모(및 잎)만 depth 1부터 포함
+                if item.isSubmenu {
+                    result.append(contentsOf: flattenedWithDepth(in: item.children, depth: 1))
+                } else {
+                    var deeper = item
+                    deeper.depth = depth
+                    result.append(deeper)
+                }
+            } else {
+                var deeper = item
+                deeper.depth = depth
+                result.append(deeper)
+                if item.isSubmenu {
+                    result.append(contentsOf: flattenedWithDepth(in: item.children, depth: depth + 1))
+                }
+            }
+        }
+        return result
+    }
+
     /// 메뉴 항목 실행 (글로벌 핫키로 트리거)
     /// 대상 앱을 전면으로 가져온 뒤, 저장된 경로(menuPath)를 따라
     /// System Events AppleScript 메뉴 클릭으로 실행한다.
@@ -91,6 +119,11 @@ final class MenuEnumerator {
         // (빈 AXMenu 레벨은 AppleScript 계층에서 자동으로 처리되므로 명시할 필요 없음)
         var path = item.menuPath
         if path.isEmpty { path = [item.title] }
+        // 서브메뉴 부모(실행 명령이 아닌 컨테이너)는 실행 대상이 아님 — 단순 보호
+        if item.isSubmenu && path.count == 1 {
+            Logger.info("MenuEnumerator", "서브메뉴 부모 — 실행 생략: \(item.title)")
+            return .menuNotFound
+        }
         Logger.info("MenuEnumerator", "메뉴 실행 경로: \(path.joined(separator: " > "))")
 
         // 대상 앱을 전면으로 활성화 후 메뉴바가 준비될 시간 대기 (System Events도 전면 앱 접근이 안정적)
@@ -100,11 +133,15 @@ final class MenuEnumerator {
         // System Events 클릭 스크립트 구성:
         //   tell process "P" to click menu item "마지막" of menu 1 of menu bar item "첫번째" of menu bar 1
         // 서브메뉴(3단계 이상)는 "menu 1 of menu item ... of" 체인으로 표현.
+        // path.count == 1이면 경로가 단일 메뉴 항목뿐이라 서브메뉴 체인 루프는 생략한다.
+        // (path.count >= 2일 때 path[1 ..< (count-1)]가 유효한 범위)
         var script = "tell application \"System Events\"\n"
         script += "  tell process \(appleScriptQuoted(processName))\n"
         script += "    click menu item \(appleScriptQuoted(path[path.count - 1]))"
-        for seg in path[1..<(path.count - 1)].reversed() {
-            script += " of menu 1 of menu item \(appleScriptQuoted(seg))"
+        if path.count > 1 {
+            for seg in path[1..<(path.count - 1)].reversed() {
+                script += " of menu 1 of menu item \(appleScriptQuoted(seg))"
+            }
         }
         script += " of menu 1 of menu bar item \(appleScriptQuoted(path[0])) of menu bar 1\n"
         script += "  end tell\n"
@@ -171,6 +208,7 @@ final class MenuEnumerator {
 
     /// 요소(및 하위 재귀)를 MenuItem 배열로 변환.
     /// - Parameter parentPath: 이 요소의 **부모까지**의 경로 (자신 title은 여기서 붙임)
+    /// - Parameter depth: 이 요소의 계층 깊이 (최상위 메뉴 항목 0)
     ///
     /// 빈 title인 서브메뉴 컨테이너(AXMenu 등)는 실제 계층의 한 레벨이지만
     /// 앱마다 유무가 달라 경로가 불안정하고, 트리에 "(하위 메뉴)" 노드로 숨어
@@ -178,14 +216,18 @@ final class MenuEnumerator {
     /// 그 자식들을 상위로 끌어올린다(flatten). menuPath는 빈 단계를 포함하지 않아
     /// 앱 간 구조 차이와 무관하게 일관된 경로를 만든다.
     /// (실행 탐색 child(named:)는 빈 AXMenu를 자동으로 파고들므로 호환된다.)
-    private func menuItems(from element: AXUIElement, parentPath: [String]) -> [MenuItem] {
+    private func menuItems(from element: AXUIElement, parentPath: [String], depth: Int = 0) -> [MenuItem] {
         let title = elementTitle(of: element)
         let ownPath = title.isEmpty ? parentPath : parentPath + [title]
 
         // 자식 재귀 — 빈 AXMenu 컨테이너도 그 안의 실질 항목까지 내려가 flatten
         var childItems: [MenuItem] = []
         for sub in children(of: element) {
-            childItems.append(contentsOf: menuItems(from: sub, parentPath: ownPath))
+            // 시스템 주입 Services 메뉴(제목 "서비스"/"Services")는 모든 앱 공통이고
+            // 단축키 실행에 무의미하므로 통째로 제외한다.
+            let childTitle = elementTitle(of: sub)
+            if childTitle == "서비스" || childTitle == "Services" { continue }
+            childItems.append(contentsOf: menuItems(from: sub, parentPath: ownPath, depth: depth + 1))
         }
 
         let combo = keyEquivalent(from: element, title: title)
@@ -205,7 +247,8 @@ final class MenuEnumerator {
                 commandModifiers: combo.modifiers,
                 isSubmenu: !childItems.isEmpty,
                 children: childItems,
-                menuPath: ownPath
+                menuPath: ownPath,
+                depth: depth
             )
         ]
     }
