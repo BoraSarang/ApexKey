@@ -238,13 +238,13 @@ struct MenuHUDOverlayView: View {
         .onTapGesture { if !item.isSubmenu { onRun(item) } }
     }
 
-    /// 서브메뉴 자식만 depth만큼 들여쓰기 (부모/최상위는 0이라 공간 없음)
+    /// 서브메뉴의 자식(depth ≥ 2)만 들여쓰기. 최상위 메뉴 직속 항목(depth 1)은 indent 없음.
     /// Text("") 고정 프레임 — Color.clear는 flex 팽창으로 행 레이아웃을 깨뜨림
     @ViewBuilder
     private func indentSpacer(_ item: MenuItem) -> some View {
-        if item.depth > 0 {
+        if item.depth > 1 {
             Text("")
-                .frame(width: CGFloat(item.depth) * 16)
+                .frame(width: CGFloat(item.depth - 1) * 16)
         }
     }
 

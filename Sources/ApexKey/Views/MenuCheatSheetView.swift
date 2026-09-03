@@ -227,12 +227,12 @@ struct MenuCheatSheetView: View {
         .padding(.vertical, 4)
     }
 
-    /// 서브메뉴 자식만 depth만큼 들여쓰기 (부모/최상위는 0이라 공간 없음)
+    /// 서브메뉴의 자식(depth ≥ 2)만 들여쓰기. 최상위 메뉴 직속 항목(depth 1)은 indent 없음.
     @ViewBuilder
     private func indentSpacer(_ item: MenuItem) -> some View {
-        if item.depth > 0 {
+        if item.depth > 1 {
             Text("")
-                .frame(width: CGFloat(item.depth) * 14)
+                .frame(width: CGFloat(item.depth - 1) * 14)
         }
     }
 
