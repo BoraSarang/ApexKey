@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+*.swp
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# xcodegen
+*.xcodeproj/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# 시크릿/환경변수
+.env
+.env.local
+.env.*.local
+
+# 시크릿 (OAuth 등)
+key_files/
+
+# 린트/포맷
+.swiftlint.yml
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# 테스트
+coverage/
+playwright-report/
+test-results/
+
+# 로그
+*.log
+logs/
+
+# 스크린샷 (로컬 산출물 — 커밋 제외)
+docs/screenshots/
+
+# 세션/임시
+.agent/
