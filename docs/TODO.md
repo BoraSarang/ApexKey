@@ -71,8 +71,14 @@
 
 - [x] T-035: **현재 전면 앱의 모든 메뉴 단축키를 플로팅 HUD로 표시** — KeyCue 스타일. 호출 `⌃⌥S`(Control+Option+S, 표준 비충돌) 글로벌 핫키. 전면 앱 감지(`NSWorkspace.frontmostApplication`) → `MenuEnumerator.enumerateMenuItems` → 메뉴별 그룹 배치. 닫힘: ESC/토글/외부 클릭. 설정에서 HUD 표시 방식(플로팅/전체 보기)+핫키 변경. (ConfigStore 예약ID, AppDelegate NSPanel, MenuCheatSheetView/MenuHUDOverlayView, SettingsView 섹션) — 후속: 4열 고정 그리드(`i % 4`) + 단축키 없는 메뉴 포함(`allItems` 잎 평탄화) + 모디파이어/제목 폴백 수정 + HUD 헤더 범례/토글 (아래 T-035-2/-3/-4 반영)
 
+## v0.2.6 — 시트 상단 정렬 + 동작 메뉴 명령 단계 (2026-09-03)
+
+- [x] 시트 내용 상단 정렬 — '새 동작' 이름 입력 시트와 단계 편집 시트가 수직 중앙 정렬 → `.frame`에 `alignment: .topLeading` 추가 (`ShortcutStationView.swift`)
+- [x] T-036: **동작(단축어) 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리)
+
 ## 다음 백로그
 
 - [ ] 단축키 프로필/빠른 전환
+- [ ] **iPhone 단축어(Shortcuts)와 동일한 방식 재검토** — 현재 '동작(단축어)'은 단순 순차 단계 나열(ShortcutStep: type/target/title/menuPath). iPhone 단축어는 액션 카탈로그+매직 변수+플로우 편집기. 사용자 조사 자료 위치/구현 범위 미확정 (2026-09-03 대화에서 언급, 미결)
 - [ ] 오프라인/큐(비해당 — 로컬 앱)
 - [ ] macOS 14 런타임에서 SwiftUI 빈 윈도우 숨김 완화 (현재 macOS 26 검증 범위) — 배포 타깃 14 컴파일만 보장
