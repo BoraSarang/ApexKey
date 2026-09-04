@@ -4,6 +4,7 @@ import ServiceManagement
 /// 설정 창 (일반 설정 전용) — 메뉴바/Dock 표시 토글 포함
 struct SettingsView: View {
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @State private var showGuardAlert = false
     @State private var recordingPanelHotkey = false
@@ -15,11 +16,11 @@ struct SettingsView: View {
                 Toggle("메뉴바에 표시", isOn: menuBarBinding)
                 Text("끄면 메뉴바 아이콘이 사라집니다.")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
                 Toggle("Dock에 표시", isOn: dockBinding)
                 Text("켜면 Dock 아이콘으로도 접근할 수 있습니다.")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
 
             Section {
@@ -39,12 +40,12 @@ struct SettingsView: View {
                         .font(.system(.body, design: .monospaced))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.gray.opacity(0.15))
+                        .background(theme.tertiaryBackground.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
                 Text("메인 패널을 열고 닫는 전역 단축키 (⇧⌥A 기본).")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
                 Button("단축키 변경") {
                     recordingPanelHotkey = true
                 }
@@ -61,12 +62,12 @@ struct SettingsView: View {
                         .font(.system(.body, design: .monospaced))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.gray.opacity(0.15))
+                        .background(theme.tertiaryBackground.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
                 Text("현재 전면 앱의 모든 메뉴 단축키를 표시 (⇧⌥S 기본).")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
                 Picker("표시 방식", selection: Binding(
                     get: { store.menuHUDStyle },
                     set: { store.setMenuHUDStyle($0) }
@@ -94,10 +95,15 @@ struct SettingsView: View {
                 }
                 Text("메뉴 단축키 열거·실행과 타 앱 제어에 필요합니다.")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
+            }
+
+            Section("테마") {
+                ThemeSettingsView()
             }
         }
         .formStyle(.grouped)
+        .background(theme.primaryBackground)
         .frame(minWidth: 560, minHeight: 400)
         .sheet(isPresented: $recordingPanelHotkey) {
             HotKeyRecorderView(

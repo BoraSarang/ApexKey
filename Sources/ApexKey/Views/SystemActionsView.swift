@@ -3,6 +3,7 @@ import SwiftUI
 /// 시스템 동작 탭 — 화면 잠금/음소거/다크모드에 글로벌 단축키 할당
 struct SystemActionsView: View {
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -12,7 +13,7 @@ struct SystemActionsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("아이콘을 클릭해 시스템 동작에 글로벌 단축키를 할당하거나 직접 실행할 수 있습니다.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                     VStack(spacing: 8) {
                         ForEach(SystemActionType.allCases) { type in
                             row(for: type)
@@ -24,6 +25,7 @@ struct SystemActionsView: View {
             }
         }
         .frame(minWidth: 440, minHeight: 480)
+        .background(theme.primaryBackground)
         .sheet(item: $recordingType) { type in
             HotKeyRecorderView(
                 title: "\(type.displayName) 단축키",
@@ -49,7 +51,7 @@ struct SystemActionsView: View {
                     .fontWeight(.semibold)
                 Text("시스템 동작에 글로벌 단축키를 할당")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             Spacer()
         }
@@ -93,14 +95,14 @@ struct SystemActionsView: View {
                     store.removeBinding(bindings.first!)
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                 }
                 .buttonStyle(.borderless)
                 .help("단축키 삭제")
             }
         }
         .padding(10)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(theme.inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 

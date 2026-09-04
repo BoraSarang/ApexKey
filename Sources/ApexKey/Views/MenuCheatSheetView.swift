@@ -13,6 +13,7 @@ struct MenuCheatSheetView: View {
     let onRun: (MenuItem) -> Void
 
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
 
     @State private var searchText = ""
     @State private var selectedIndex = 0
@@ -37,7 +38,7 @@ struct MenuCheatSheetView: View {
         for group in visibleGroups { all.append(contentsOf: group.items) }
         return all.filter {
             !$0.isSeparator
-                && ($0.title.lowercased().contains(query)
+                && (KoreanSearch.matches(query: query, in: $0.title)
                     || $0.keyEquivalentDisplay.lowercased().contains(query))
         }
     }
@@ -62,13 +63,13 @@ struct MenuCheatSheetView: View {
             footer
         }
         .frame(width: 460, height: 420)
-        .background(Color(.windowBackgroundColor).opacity(0.97))
+        .background(theme.cardBackground.opacity(0.97))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                .stroke(theme.secondaryBorder.opacity(0.2), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.35), radius: 24, x: 0, y: 10)
+        .shadow(color: theme.shadowColor.opacity(0.35), radius: 24, x: 0, y: 10)
         .onAppear {
             isSearchFocused = true
         }
@@ -104,14 +105,14 @@ struct MenuCheatSheetView: View {
             } else {
                 Image(systemName: "app")
                     .font(.system(size: 16))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(appName)
                     .font(.headline)
                 Text(isSearching ? "검색 결과 \(searchResults.count)개" : "메뉴 단축키 \(totalCount)개")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             Spacer()
         }
@@ -122,7 +123,7 @@ struct MenuCheatSheetView: View {
     private var searchBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
             TextField("단축키 / 명령 검색 (Enter 실행)", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
@@ -131,14 +132,14 @@ struct MenuCheatSheetView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                 }
                 .buttonStyle(.borderless)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+        .background(theme.inputBackground.opacity(0.6))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
@@ -163,7 +164,7 @@ struct MenuCheatSheetView: View {
                 if searchResults.isEmpty {
                     Text("일치하는 항목이 없습니다")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                         .frame(maxWidth: .infinity)
                         .padding(24)
                 } else {
@@ -181,7 +182,7 @@ struct MenuCheatSheetView: View {
             Text(group.menu)
                 .font(.caption)
                 .fontWeight(.semibold)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
                 .textCase(.uppercase)
             ForEach(group.items) { item in
                 if item.isSeparator {
@@ -215,11 +216,11 @@ struct MenuCheatSheetView: View {
             Text(item.title)
                 .font(.system(.body))
                 .lineLimit(1)
-                .foregroundColor(isSelected ? Color.accentColor : .primary)
+                .foregroundColor(isSelected ? theme.accentColor : .primary)
             Spacer(minLength: 12)
             trailingSlot(item)
         }
-        .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+        .background(isSelected ? theme.accentColor.opacity(0.12) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
         .onTapGesture { run(item) }
@@ -243,15 +244,15 @@ struct MenuCheatSheetView: View {
         if item.isSubmenu {
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
                 .frame(minWidth: 24)
         } else if item.hasKeyEquivalent {
             Text(item.keyEquivalentDisplay)
                 .font(.system(.body, design: .monospaced))
-                .foregroundColor(.accentColor)
+                .foregroundColor(theme.accentColor)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
-                .background(Color.accentColor.opacity(0.12))
+                .background(theme.accentColor.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 5))
         } else {
             Text("")
@@ -263,10 +264,10 @@ struct MenuCheatSheetView: View {
         VStack(spacing: 8) {
             Image(systemName: "command")
                 .font(.system(size: 28))
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
             Text("단축키가 있는 메뉴 항목을 찾지 못했습니다")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(40)
@@ -275,7 +276,7 @@ struct MenuCheatSheetView: View {
     private var footer: some View {
         Text("ESC 또는 ⇧⌥S로 닫기 · Enter로 실행")
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(theme.secondaryText)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity)
     }

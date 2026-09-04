@@ -2,6 +2,8 @@ import SwiftUI
 
 /// 별도 정보(About) 창
 struct AboutView: View {
+    @Environment(\.theme) private var theme
+
     private var version: String {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
         let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
@@ -28,25 +30,26 @@ struct AboutView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
                 Text("애펙스키")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
 
             Text("버전 \(version)")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
 
             Divider()
                 .frame(width: 200)
 
             Text("최상위(정점)에 오른 글로벌 단축키 매니저")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
 
             Text("© 2026 BoRaSaRang")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(theme.tertiaryText)
         }
         .frame(width: 360, height: 320)
         .padding()
+        .background(theme.primaryBackground)
     }
 }

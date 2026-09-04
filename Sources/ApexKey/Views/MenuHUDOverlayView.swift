@@ -12,6 +12,7 @@ struct MenuHUDOverlayView: View {
     let onRun: (MenuItem) -> Void
 
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
 
     @State private var searchText = ""
     @State private var selectedIndex = 0
@@ -40,7 +41,7 @@ struct MenuHUDOverlayView: View {
         for group in visibleGroups { all.append(contentsOf: group.items) }
         return all.filter {
             !$0.isSeparator
-                && ($0.title.lowercased().contains(query)
+                && (KoreanSearch.matches(query: query, in: $0.title)
                     || $0.keyEquivalentDisplay.lowercased().contains(query))
         }
     }
@@ -67,7 +68,7 @@ struct MenuHUDOverlayView: View {
     private var panel: some View {
         VStack(spacing: 0) {
             header
-            Divider().overlay(Color.white.opacity(0.2))
+            Divider().overlay(theme.secondaryBorder)
             if visibleGroups.isEmpty {
                 emptyState
             } else if isSearching {
@@ -75,17 +76,17 @@ struct MenuHUDOverlayView: View {
             } else {
                 grid
             }
-            Divider().overlay(Color.white.opacity(0.2))
+            Divider().overlay(theme.secondaryBorder)
             searchBar
         }
         .frame(maxWidth: 1120, maxHeight: 700)
-        .background(Color.black.opacity(0.72))
+        .background(theme.cardBackground.opacity(0.85))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                .stroke(theme.cardBorder.opacity(0.3), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.5), radius: 40, x: 0, y: 16)
+        .shadow(color: theme.shadowColor.opacity(0.5), radius: 40, x: 0, y: 16)
     }
 
     private var header: some View {
@@ -97,28 +98,28 @@ struct MenuHUDOverlayView: View {
             } else {
                 Image(systemName: "app")
                     .font(.system(size: 18))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(appName)
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(theme.primaryText)
                 Text(isSearching ? "검색 결과 \(searchResults.count)개" : "메뉴 단축키 \(totalCount)개")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(theme.secondaryText)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Text("⌘ CMD  ·  ⌃ Ctrl  ·  ⇧ Shift  ·  ⌥ Option  ·  🌐 지구본")
                     .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.45))
+                    .foregroundColor(theme.tertiaryText)
                 Toggle("단축키 없는 메뉴 표시", isOn: Binding(
                     get: { store.showNoShortcutItems },
                     set: { store.showNoShortcutItems = $0 }
                 ))
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(theme.secondaryText)
             }
         }
         .padding(.horizontal, 20)
@@ -166,14 +167,14 @@ struct MenuHUDOverlayView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(menu.menu)
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(theme.primaryText)
             Rectangle()
-                .fill(Color.white.opacity(0.25))
+                .fill(theme.secondaryBorder)
                 .frame(height: 1.5)
             ForEach(menu.items) { item in
                 if item.isSeparator {
                     Rectangle()
-                        .fill(Color.white.opacity(0.12))
+                        .fill(theme.secondaryBorder.opacity(0.5))
                         .frame(height: 1)
                         .padding(.vertical, 2)
                 } else {
@@ -190,7 +191,7 @@ struct MenuHUDOverlayView: View {
                 if searchResults.isEmpty {
                     Text("일치하는 항목이 없습니다")
                         .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundColor(theme.tertiaryText)
                         .frame(maxWidth: .infinity)
                         .padding(28)
                 } else {
@@ -210,7 +211,7 @@ struct MenuHUDOverlayView: View {
             Text(item.title)
                 .font(.system(size: 13))
                 .lineLimit(1)
-                .foregroundColor(.white)
+                .foregroundColor(theme.primaryText)
                 .truncationMode(.tail)
             Spacer(minLength: 4)
             trailingSlot(item)
@@ -226,13 +227,13 @@ struct MenuHUDOverlayView: View {
             Text(item.title)
                 .font(.system(size: 13))
                 .lineLimit(1)
-                .foregroundColor(isSelected ? Color.orange : .white)
+                .foregroundColor(isSelected ? theme.accentColor : theme.primaryText)
             Spacer(minLength: 4)
             trailingSlot(item)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        .background(isSelected ? Color.orange.opacity(0.2) : Color.clear)
+        .background(isSelected ? theme.accentColor.opacity(0.2) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
         .onTapGesture { if !item.isSubmenu { onRun(item) } }
@@ -255,7 +256,7 @@ struct MenuHUDOverlayView: View {
         if item.isSubmenu {
             Image(systemName: "chevron.right")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundColor(theme.tertiaryText)
                 .frame(width: 52, height: 22)
         } else {
             shortcutSlot(item)
@@ -279,12 +280,12 @@ struct MenuHUDOverlayView: View {
     private func keycap(_ display: String) -> some View {
         Text(display)
             .font(.system(size: 12, weight: .medium, design: .monospaced))
-            .foregroundColor(.white)
+            .foregroundColor(theme.primaryText)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(Color.white.opacity(0.14))
+            .background(theme.primaryText.opacity(0.14))
             .overlay(
-                RoundedRectangle(cornerRadius: 5).stroke(Color.white.opacity(0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 5).stroke(theme.primaryText.opacity(0.1), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 5))
             .frame(minWidth: 52, alignment: .leading)
@@ -294,10 +295,10 @@ struct MenuHUDOverlayView: View {
         VStack(spacing: 8) {
             Image(systemName: "command")
                 .font(.system(size: 28))
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundColor(theme.tertiaryText)
             Text("단축키가 있는 메뉴 항목을 찾지 못했습니다")
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(theme.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(40)
@@ -306,27 +307,27 @@ struct MenuHUDOverlayView: View {
     private var searchBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(theme.secondaryText)
             TextField("단축키 / 명령 검색 (Enter 실행)", text: $searchText)
                 .textFieldStyle(.plain)
-                .foregroundColor(.white)
+                .foregroundColor(theme.primaryText)
                 .focused($isSearchFocused)
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(theme.secondaryText)
                 }
                 .buttonStyle(.borderless)
             }
             Text("ESC로 닫기")
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundColor(theme.tertiaryText)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.08))
+        .background(theme.inputBackground.opacity(0.6))
     }
 
     private var currentItem: MenuItem? {

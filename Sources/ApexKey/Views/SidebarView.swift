@@ -3,6 +3,7 @@ import SwiftUI
 /// 왼쪽 사이드바 — 기능 스테이션 + 카테고리(카운트 배지). Pearcleaner 스타일, 전체 행 클릭.
 struct SidebarView: View {
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
     @Binding var selection: MainWindowView.SidebarSelection?
     @Binding var searchText: String
 
@@ -33,6 +34,8 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(theme.sidebarBackground)
         .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 320)
         .safeAreaInset(edge: .bottom) {
             permissionFooter
@@ -48,7 +51,7 @@ struct SidebarView: View {
 
     private var permissionFooter: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Divider()
+            SettingsDivider()
             if PermissionHelper.isAccessibilityTrusted {
                 summaryRow
             } else {
@@ -61,23 +64,30 @@ struct SidebarView: View {
                 .help("손쉬운 사용 권한이 필요합니다. 클릭하여 활성화하세요.")
             }
         }
-        .background(.thinMaterial)
+        .background(
+            LinearGradient(
+                colors: [theme.tertiaryBackground.opacity(0.9), theme.sidebarBackground.opacity(0.9)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .overlay(alignment: .top) { SettingsDivider() }
     }
 
     private var summaryRow: some View {
         let bindingCount = store.bindings.count
         return HStack(spacing: 6) {
             Circle()
-                .fill(PermissionHelper.isAccessibilityTrusted ? Color.secondary.opacity(0.4) : Color.red)
+                .fill(PermissionHelper.isAccessibilityTrusted ? theme.successColor.opacity(0.6) : theme.errorColor)
                 .frame(width: 8, height: 8)
             if PermissionHelper.isAccessibilityTrusted {
                 Text("단축키 \(bindingCount)개 · 동작 \(store.shortcuts.count)개")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             } else {
                 Text("손쉬운 사용 권한 필요 — 활성화")
                     .font(.caption)
-                    .foregroundColor(.red)
+                    .foregroundColor(theme.errorColor)
             }
         }
         .padding(.horizontal, 12)

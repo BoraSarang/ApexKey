@@ -10,6 +10,7 @@ import AppKit
 struct HotKeyRecorderView: View {
     @EnvironmentObject var store: ConfigStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
 
     let title: String
     /// 앱 단축키일 때의 보조 설명 (앱 이름). nil이면 "전역에서 실행" 표시.
@@ -109,18 +110,18 @@ struct HotKeyRecorderView: View {
 
     private var keyForeground: Color {
         switch message {
-        case .duplicate, .unavailable, .testFailed: return .red
-        case .testPassed: return .green
-        case .applying: return .green
-        default: return .primary
+        case .duplicate, .unavailable, .testFailed: return theme.errorColor
+        case .testPassed: return theme.successColor
+        case .applying: return theme.successColor
+        default: return theme.primaryText
         }
     }
 
     private var keyBackground: Color {
         switch message {
-        case .duplicate, .unavailable, .testFailed: return Color.red.opacity(0.15)
-        case .testPassed, .applying: return Color.green.opacity(0.12)
-        default: return Color.gray.opacity(0.12)
+        case .duplicate, .unavailable, .testFailed: return theme.errorColor.opacity(0.15)
+        case .testPassed, .applying: return theme.successColor.opacity(0.12)
+        default: return theme.tertiaryBackground.opacity(0.5)
         }
     }
 
@@ -130,37 +131,37 @@ struct HotKeyRecorderView: View {
         case .applying:
             Label("적용되었습니다. 잠시 후 닫힙니다.", systemImage: "checkmark.circle.fill")
                 .font(.caption)
-                .foregroundColor(.green)
+                .foregroundColor(theme.successColor)
                 .transition(.opacity)
         case .duplicate:
             Label("중복된 단축키입니다. 다른 조합을 눌러주세요.", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
-                .foregroundColor(.orange)
+                .foregroundColor(theme.warningColor)
                 .transition(.opacity)
         case .unavailable:
             Label("사용할 수 없는 단축키입니다. 다른 조합을 눌러주세요.", systemImage: "xmark.octagon.fill")
                 .font(.caption)
-                .foregroundColor(.red)
+                .foregroundColor(theme.errorColor)
                 .transition(.opacity)
         case .testing:
             Label("테스트 중 — 이제 단축키를 눌러보세요", systemImage: "dot.radiowaves.left.and.right")
                 .font(.caption)
-                .foregroundColor(.accentColor)
+                .foregroundColor(theme.accentColor)
                 .transition(.opacity)
         case .testPassed:
             Label("테스트 성공! 실제 동작이 실행되었습니다. 저장을 눌러 적용하세요.", systemImage: "checkmark.seal.fill")
                 .font(.caption)
-                .foregroundColor(.green)
+                .foregroundColor(theme.successColor)
                 .transition(.opacity)
         case .testFailed:
             Label("단축키는 감지됐지만 실행에 실패했습니다. 대상 앱 실행·권한을 확인하세요.", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
-                .foregroundColor(.orange)
+                .foregroundColor(theme.warningColor)
                 .transition(.opacity)
         case nil:
             Text(subtitle ?? "전역에서 실행")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
         }
     }
 

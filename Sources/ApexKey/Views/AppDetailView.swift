@@ -3,6 +3,7 @@ import SwiftUI
 /// 선택된 앱의 상세 — 설정된 글로벌 단축키 + 앱의 메뉴 단축키 목록 (Pearcleaner 스타일 섹션)
 struct AppDetailView: View {
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
     let app: AppItem
     var onBack: () -> Void = {}
     @State private var menuItems: [MenuItem] = []
@@ -12,6 +13,7 @@ struct AppDetailView: View {
     @State private var recordingLaunch = false
     @State private var running = false
     @State private var urlSchemes: [String] = []
+    @State private var urlSchemesExpanded = false
     @State private var recordingScheme: String?
 
     /// 저장소의 최신 앱 상태 (카테고리 변경 등 즉시 반영용)
@@ -27,13 +29,14 @@ struct AppDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     launchSection
-                    urlSchemeSection
                     configuredSection
+                    urlSchemeSection
                     menuSection
                 }
                 .padding(16)
             }
         }
+        .background(theme.primaryBackground)
         .frame(minWidth: 440, minHeight: 480)
         .task {
             running = AppSwitcher.isRunning(bundleID: app.bundleID)
@@ -111,7 +114,7 @@ struct AppDetailView: View {
                     .lineLimit(1)
                 Text(app.bundleID)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
                     .lineLimit(1)
             }
             Spacer()
@@ -140,7 +143,7 @@ struct AppDetailView: View {
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color.accentColor.opacity(0.15))
+                    .background(theme.accentColor.opacity(0.12))
                     .clipShape(Capsule())
             }
             .menuStyle(.borderlessButton)
@@ -169,27 +172,31 @@ struct AppDetailView: View {
                         .font(.system(.body, design: .monospaced))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.gray.opacity(0.15))
+                        .background(theme.tertiaryBackground.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                     Button {
                         store.removeBinding(binding)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.secondaryText)
                     }
                     .buttonStyle(.borderless)
                     .help("삭제")
                 } else {
                     Text("없음 — 실행/포커스/토글 단축키를 설정하세요.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                 }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color(NSColor.controlBackgroundColor))
+            .background(theme.inputBackground)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
+        .padding(12)
+        .background(theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.cardBorder.opacity(0.3), lineWidth: 1))
     }
 
     // MARK: - 1) 설정된 글로벌 단축키
@@ -197,12 +204,16 @@ struct AppDetailView: View {
     private var configuredSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("설정된 글로벌 단축키", systemImage: "pin")
-            // 앱 실행/토글 단축키는 위 launchSection에서 다루므로 제외
             let list = store.bindings(for: app.id).filter { $0.actionType != .launchApp }
             if list.isEmpty {
                 Text("설정된 단축키가 없습니다. 아래 메뉴 단축키에서 선택해 추가하세요.")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(theme.inputBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 VStack(spacing: 4) {
                     ForEach(list) { binding in
@@ -211,6 +222,10 @@ struct AppDetailView: View {
                 }
             }
         }
+        .padding(12)
+        .background(theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.cardBorder.opacity(0.3), lineWidth: 1))
     }
 
     private func configuredRow(_ binding: HotKeyBinding) -> some View {
@@ -222,20 +237,20 @@ struct AppDetailView: View {
                 .font(.system(.body, design: .monospaced))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(Color.gray.opacity(0.15))
+                .background(theme.tertiaryBackground.opacity(0.5))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             Button {
                 store.removeBinding(binding)
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             .buttonStyle(.borderless)
             .help("삭제")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(theme.inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
@@ -254,10 +269,9 @@ struct AppDetailView: View {
                 .buttonStyle(.borderless)
                 .help("새로고침")
             }
-            // 메뉴 명령 검색
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
                 TextField("메뉴 명령 검색", text: $menuSearchText)
                     .textFieldStyle(.plain)
                 if !menuSearchText.isEmpty {
@@ -265,17 +279,21 @@ struct AppDetailView: View {
                         menuSearchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.secondaryText)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+            .background(theme.inputBackground.opacity(0.6))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             menuList
         }
+        .padding(12)
+        .background(theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.cardBorder.opacity(0.3), lineWidth: 1))
     }
 
     private var menuList: some View {
@@ -288,16 +306,14 @@ struct AppDetailView: View {
                      ? "메뉴 단축키를 찾을 수 없습니다. 앱을 실행해두세요."
                      : "Accessibility 권한이 필요합니다.")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             } else if query.isEmpty {
-                // 검색어 없음 → 전체 메뉴를 펼침/접기 트리로 표시
                 MenuTreeView(
                     items: menuItems,
                     alreadySet: { item in store.bindings(for: app.id).contains { $0.title == item.title } },
                     onRecord: { recordingTarget = $0 }
                 )
             } else {
-                // 검색어 있음 → 단축키 항목만 평면 검색 결과로 표시
                 let flat = MenuEnumerator.shared.allItems(in: menuItems)
                 let items = flat.filter {
                     $0.title.lowercased().contains(query) || $0.keyEquivalentDisplay.lowercased().contains(query)
@@ -305,7 +321,7 @@ struct AppDetailView: View {
                 if items.isEmpty {
                     Text("검색 결과가 없습니다.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                 } else {
                     VStack(spacing: 4) {
                         ForEach(items) { item in
@@ -326,11 +342,11 @@ struct AppDetailView: View {
             if !item.keyEquivalentDisplay.isEmpty {
                 Text(item.keyEquivalentDisplay)
                     .font(.system(.body, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             if alreadySet {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(theme.successColor)
             }
             Button {
                 recordingTarget = item
@@ -342,7 +358,7 @@ struct AppDetailView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(theme.inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
@@ -351,7 +367,7 @@ struct AppDetailView: View {
     private func sectionHeader(_ title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(.secondary)
+            .foregroundColor(theme.secondaryText)
             .padding(.bottom, 2)
     }
 
@@ -383,47 +399,67 @@ struct AppDetailView: View {
 
     private var urlSchemeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("URL Scheme", systemImage: "link")
             if urlSchemes.isEmpty {
+                sectionHeader("URL Scheme", systemImage: "link")
                 Text(app.path.isEmpty
                      ? "앱 경로가 확인되지 않아 URL scheme을 읽을 수 없습니다."
                      : "이 앱은 URL scheme을 지원하지 않습니다.")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(theme.inputBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                VStack(spacing: 6) {
-                    ForEach(urlSchemes, id: \.self) { scheme in
-                        HStack(spacing: 8) {
-                            Text("\(scheme)://")
-                                .font(.system(.body, design: .monospaced))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.accentColor.opacity(0.15))
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                            Spacer()
-                            Button {
-                                NSWorkspace.shared.open(URL(string: "\(scheme)://")!)
-                            } label: {
-                                Label("실행", systemImage: "play.fill")
+                DisclosureGroup(isExpanded: $urlSchemesExpanded) {
+                    VStack(spacing: 6) {
+                        ForEach(urlSchemes, id: \.self) { scheme in
+                            HStack(spacing: 8) {
+                                Text("\(scheme)://")
+                                    .font(.system(.body, design: .monospaced))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(theme.accentColor.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                Spacer()
+                                Button {
+                                    NSWorkspace.shared.open(URL(string: "\(scheme)://")!)
+                                } label: {
+                                    Label("실행", systemImage: "play.fill")
+                                }
+                                .buttonStyle(.borderless)
+                                .help("\(scheme):// 열어보기")
+                                Button {
+                                    recordingScheme = scheme
+                                } label: {
+                                    Label("단축키", systemImage: "command")
+                                }
+                                .buttonStyle(.borderless)
+                                .help("이 scheme을 여는 단축키 설정")
                             }
-                            .buttonStyle(.borderless)
-                            .help("\(scheme):// 열어보기")
-                            Button {
-                                recordingScheme = scheme
-                            } label: {
-                                Label("단축키", systemImage: "command")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("이 scheme을 여는 단축키 설정")
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(theme.inputBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .padding(.top, 4)
+                } label: {
+                    HStack {
+                        sectionHeader("URL Scheme", systemImage: "link")
+                        Spacer()
+                        Text("\(urlSchemes.count)개")
+                            .font(.caption)
+                            .foregroundColor(theme.secondaryText)
                     }
                 }
             }
         }
+        .padding(12)
+        .background(theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.cardBorder.opacity(0.3), lineWidth: 1))
     }
 
     private func onRecord(combo: HotKeyCombo, scheme: String) {
@@ -470,6 +506,7 @@ private struct MenuTreeView: View {
 
 /// 재귀 트리 노드 — 각 노드가 고유한 펼침 상태를 가짐
 private struct MenuTreeNode: View {
+    @Environment(\.theme) private var theme
     let item: MenuItem
     let alreadySet: (MenuItem) -> Bool
     let onRecord: (MenuItem) -> Void
@@ -513,7 +550,7 @@ private struct MenuTreeNode: View {
                         Spacer()
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(theme.secondaryText)
                     }
                     .padding(.vertical, 3)
                     .contentShape(Rectangle())
@@ -533,11 +570,11 @@ private struct MenuTreeNode: View {
             if !item.keyEquivalentDisplay.isEmpty {
                 Text(item.keyEquivalentDisplay)
                     .font(.system(.body, design: .monospaced))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             if alreadySet(item) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(theme.successColor)
             }
             Button {
                 onRecord(item)
@@ -549,7 +586,7 @@ private struct MenuTreeNode: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(theme.inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }

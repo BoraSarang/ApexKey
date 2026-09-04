@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quickLauncherWindow: NSPanel?
     private var menuHUDWindow: NSPanel?
     private var menuHUDOverlayWindow: NSPanel?
+    private var editorWindow: NSWindow?
+    private var stepSettingsWindow: NSWindow?
     // NSWindow.contentViewController는 strong(직접 참조 유지)이지만, NSHostingController가
     // 창 dealloc보다 먼저 해제되는 것을 막기 위해 슈퍼타입으로 안전하게 보관해 둔다.
     private var panelHosting: NSViewController?
@@ -22,6 +24,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quickLauncherHosting: NSViewController?
     private var menuHUDHosting: NSViewController?
     private var menuHUDOverlayHosting: NSViewController?
+    private var editorHosting: NSViewController?
+    private var stepSettingsHosting: NSViewController?
     private var store: ConfigStore?
     private var cancellables = Set<AnyCancellable>()
 
@@ -202,7 +206,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.toolbarStyle = .unified // 통합 툴바 — 타이틀바 공유
 
         let hosting = NSHostingController(rootView:
-            MainWindowView().environmentObject(store)
+            ThemedRoot { MainWindowView() }.environmentObject(store)
         )
         panelHosting = hosting
         panel.contentViewController = hosting
@@ -258,7 +262,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.minSize = NSSize(width: 560, height: 400)
             win.isReleasedWhenClosed = false // 재사용되는 동안 dealloc 방지
             let hosting = NSHostingController(rootView:
-                SettingsView().environmentObject(store)
+                ThemedRoot { SettingsView() }.environmentObject(store)
             )
             settingsHosting = hosting
             win.contentViewController = hosting
@@ -290,7 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.title = "ApexKey 정보"
             win.styleMask.remove(.resizable)
             win.isReleasedWhenClosed = false
-            let hosting = NSHostingController(rootView: AboutView())
+            let hosting = NSHostingController(rootView: ThemedRoot { AboutView() })
             aboutHosting = hosting
             win.contentViewController = hosting
             win.setContentSize(NSSize(width: 380, height: 320))
@@ -318,7 +322,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.title = "ApexKey 디버그 로그"
             win.minSize = NSSize(width: 480, height: 300)
             win.isReleasedWhenClosed = false
-            let hosting = NSHostingController(rootView: DebugLogView())
+            let hosting = NSHostingController(rootView: ThemedRoot { DebugLogView() })
             debugHosting = hosting
             win.contentViewController = hosting
             win.setContentSize(NSSize(width: 640, height: 460))
@@ -335,6 +339,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func terminateApp(_ sender: Any?) {
         NSApp.terminate(nil)
+    }
+
+    // MARK: - 동작(단축어) 편집기 / 단계 설정 독립 창
+
+    /// 동작(단축어) 3컬럼 편집기를 독립 창으로 표시
+    func showEditor(for shortcut: ShortcutItem) {
+        guard let store else { return }
+        Logger.info("AppDelegate", "[EDITOR] 동작 편집 창: \(shortcut.name)")
+        NSApp.activate(ignoringOtherApps: true)
+        let win: NSWindow
+        if let existing = editorWindow {
+            win = existing
+        } else {
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            w.title = "동작 편집"
+            w.isReleasedWhenClosed = false // 재사용 동안 dealloc 방지
+            w.delegate = self
+            editorWindow = w
+            win = w
+        }
+        // 편집 대상 단축어가 바뀔 수 있으므로 매번 새 호스팅 컨트롤러로 rootView 교체
+        let hosting = NSHostingController(rootView:
+            ThemedRoot { ShortcutEditorView(shortcut: shortcut) }.environmentObject(store)
+        )
+        editorHosting = hosting
+        win.contentViewController = hosting
+        win.setContentSize(NSSize(width: 900, height: 600))
+        win.level = store.alwaysOnTop ? .floating : .normal
+        win.center()
+        win.contentView?.layoutSubtreeIfNeeded()
+        win.makeKeyAndOrderFront(nil)
+    }
+
+    /// 단계 상세 설정을 독립 창으로 표시 — 전달된 Binding이 편집기의 steps 요소를 가리킴
+    func showStepSettings(for stepBinding: Binding<ShortcutStep>) {
+        Logger.info("AppDelegate", "[EDITOR] 단계 설정 창")
+        NSApp.activate(ignoringOtherApps: true)
+        let win: NSWindow
+        if let existing = stepSettingsWindow {
+            win = existing
+        } else {
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 480, height: 560),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            w.title = "단계 설정"
+            w.isReleasedWhenClosed = false
+            w.delegate = self
+            stepSettingsWindow = w
+            win = w
+        }
+        // 편집 대상 단계가 바뀔 수 있으므로 매번 새 호스팅 컨트롤러로 rootView 교체
+        let hosting = NSHostingController(rootView: ThemedRoot { StepSettingsView(step: stepBinding) })
+        stepSettingsHosting = hosting
+        win.contentViewController = hosting
+        win.setContentSize(NSSize(width: 480, height: 560))
+        win.center()
+        win.contentView?.layoutSubtreeIfNeeded()
+        win.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - URL Scheme 처리
@@ -441,7 +511,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.styleMask = [.borderless]
 
             guard let store else { return }
-            let hosting = NSHostingController(rootView: QuickLauncherView().environmentObject(store))
+            let hosting = NSHostingController(rootView: ThemedRoot { QuickLauncherView() }.environmentObject(store))
             quickLauncherHosting = hosting
             win.contentViewController = hosting
 
@@ -514,7 +584,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } onRun: { [weak self] item in
             self?.runMenuItem(item, in: bundleID)
         }
-        let hosting = NSHostingController(rootView: view.environmentObject(store))
+        let hosting = NSHostingController(rootView: ThemedRoot { view }.environmentObject(store))
         menuHUDHosting = hosting
 
         if menuHUDWindow == nil {
@@ -555,7 +625,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } onRun: { [weak self] item in
             self?.runMenuItem(item, in: bundleID)
         }
-        let hosting = NSHostingController(rootView: view.environmentObject(store))
+        let hosting = NSHostingController(rootView: ThemedRoot { view }.environmentObject(store))
         menuHUDOverlayHosting = hosting
 
         if menuHUDOverlayWindow == nil {

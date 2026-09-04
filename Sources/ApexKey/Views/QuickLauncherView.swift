@@ -3,6 +3,7 @@ import SwiftUI
 /// Quick Launcher 오버레이 — ⌥⌘Space로 실행, 매크로 이름으로 검색·실행
 struct QuickLauncherView: View {
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
     @FocusState private var isSearchFocused: Bool
     @State private var searchText = ""
     @State private var selectedIndex = 0
@@ -26,7 +27,7 @@ struct QuickLauncherView: View {
         }
         .frame(width: 480)
         .frame(maxHeight: 360)
-        .background(Color(.windowBackgroundColor))
+        .background(theme.primaryBackground)
         .cornerRadius(12)
         .shadow(radius: 20)
         .onAppear {
@@ -44,7 +45,7 @@ struct QuickLauncherView: View {
     private var searchBar: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
             TextField("매크로 이름으로 검색...", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
@@ -53,7 +54,7 @@ struct QuickLauncherView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                 }
                 .buttonStyle(.borderless)
             }
@@ -76,7 +77,7 @@ struct QuickLauncherView: View {
     private func resultRow(binding: HotKeyBinding, index: Int, isSelected: Bool) -> some View {
         HStack(spacing: 10) {
             Image(systemName: binding.actionType.systemImage)
-                .foregroundColor(.accentColor)
+                .foregroundColor(theme.accentColor)
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(binding.title)
@@ -84,18 +85,18 @@ struct QuickLauncherView: View {
                     .lineLimit(1)
                 Text(binding.actionType.displayName)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
             }
             Spacer()
             if !binding.combo.displayString.isEmpty {
                 Text(binding.combo.displayString)
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(theme.accentColor)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+        .background(isSelected ? theme.accentColor.opacity(0.15) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .onTapGesture {
             store.executeBinding(binding)
@@ -110,10 +111,10 @@ struct QuickLauncherView: View {
         VStack(spacing: 8) {
             Image(systemName: "xmark.circle")
                 .font(.system(size: 32))
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
             Text("일치하는 매크로를 찾을 수 없습니다")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(40)

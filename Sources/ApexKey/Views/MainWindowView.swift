@@ -91,11 +91,7 @@ struct MainWindowView: View {
         let query = q.lowercased()
         // AppsContentView.filteredApps와 동일한 매칭 로직
         let matches = store.visibleApps()
-            .filter {
-                $0.name.lowercased().contains(query) ||
-                $0.bundleID.lowercased().contains(query) ||
-                store.bindings(for: $0.id).contains { $0.combo.displayString.lowercased().contains(query) }
-            }
+            .filter { store.appMatchesSearch($0, query: query) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
         // 여러 앱이 매칭되면 목록에서 검색 필터 유지 (상세 이동 없음)
@@ -137,29 +133,35 @@ struct MainWindowView: View {
 
 /// 툴바 검색 필드
 struct SearchField: View {
+    @Environment(\.theme) private var theme
     @Binding var text: String
     var onSubmit: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.tertiaryText)
             TextField("앱 검색", text: $text)
                 .textFieldStyle(.plain)
+                .foregroundColor(theme.primaryText)
                 .onSubmit(onSubmit)
             if !text.isEmpty {
                 Button {
                     text = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.tertiaryText)
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+        .background(theme.tertiaryBackground.opacity(0.7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(theme.primaryBorder.opacity(0.5), lineWidth: 1)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }

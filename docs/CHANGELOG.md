@@ -3,6 +3,28 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-04 macos — osaurus 기반 전면 테마 리디자인 (Phases 1~7)
+
+> **목표**: 기존 하드코딩 시스템 색상을 버리고 osaurus 프로젝트의 테마 기반 디자인 시스템을 ApexKey 전 창(메인/설정/About/HUD/런처/편집기)에 이식.
+> BUILD SUCCEEDED · `./build_and_run.sh test macos unit` 통과(55건 중 0 신규 실패, 기존 1건은 MovistPro 환경 의존 실패 무관).
+
+- **Phase 1 — 테마 시스템 이식** — `Models/Theme/`에 `Theme.swift`(ThemeProtocol + LightTheme/DarkTheme + CustomizableTheme + ThemeManager 싱글턴 + `\.theme` 환경키), `CustomTheme.swift`(색상/글래스/타이포/애니메이션/섀도우/배경/메시지/보더 모델 + Dark/Light/Neon/Nord/Paper/Terminal/Osaurus Dark·Light 내장 프리셋 8종 + `Color(themeHex:)` 캐시), `SystemAccentColor.swift`(시스템 액센트 추출 + `followsSystemAccent` 재도출), `ThemeConfigurationStore.swift`(App Support 테마 영속화 + schema 6 내장 설치). `ThemeManager.shared`가 시스템/라이트/다크 전환·커스텀 테마·fontScale(0.5~2.0) 담당.
+- **Phase 2 — 공용 프리미티브** — `Views/Common/`에 `SettingsSection`/`SettingsField`/`SettingsSubsection`/`StyledSettingsTextField`/`SettingsToggle`/`SettingsDivider`/`SettingsButtonStyle`(카드+대문자 헤더), `SidebarNavigation`(System Settings 스타일 240/64pt 확장·접기 + 검색 + collapsible 섹션 + 호버/선택), `ThemedBackgroundLayer`(solid/gradient/image), `ThemedRoot`(창 루트 테마 주입 + 기본 색상 스킴), `ThemedBackgroundModifier`/`ThemedCardModifier`.
+- **Phase 3 — 메인 창** — `AppDelegate`의 모든 NSHostingController 루트를 `ThemedRoot { }`로 감싸 전 창 테마 주입(패널/설정/About/디버그/편집기/단계/런처/HUD 2종). `MainWindowView.SearchField`·`SidebarView`·`AppsContentView`·`AppRowView`를 테마 토큰(primaryText/secondaryText/cardBackground/border)으로 전환.
+- **Phase 4 — 편집기/스테이션** — `ShortcutStationView`·`ShortcutEditorView`·`StepSettingsView`·`ActionCatalogView`·`VariablePanelView` 하드코딩 색상을 theme 토큰으로 교체 + `primaryBackground`/`cardBackground` 배경.
+- **Phase 5 — HUD/런처** — `QuickLauncherView`(`Color(.windowBackgroundColor)`→`theme.primaryBackground`), `MenuHUDOverlayView`·`MenuCheatSheetView`(어둡기 고정 → 테마 카드/보더 + 글래스 유지), 색상·키캡 상태색(성공/경고/에러) theme 토큰화.
+- **Phase 6 — 설정/About + 테마 탭** — `SettingsView`·`SystemActionsView`·`AboutView` 테마 적용 + 신규 `ThemeSettingsView`(외형 모드 시그먼트 + 내장 프리셋 칩 + 폰트 스케일)를 SettingsView "테마" 섹션에 통합.
+- **검증** — 신규 테마 코드+UI 변경 모두 컴파일(전체 빌드 SUCCEEDED), 단위 테스트 55건 중 0 신규 실패(기존 환경 의존 1건만). 기능 로직(상태/바인딩/시트/핸들러)은 전부 보존.
+
+## 2026-09-04 macos — 테마 보강 + 앱 상세·동작 UI 버그수정 (A·B·C)
+
+> **목표**: 리디자인 후속 점검에서 발견된 3건 수정 + 누락된 뷰 테마 보강.
+> BUILD SUCCEEDED · 단위 테스트 회귀 없음.
+
+- **A (앱 상세 빈 내용 100% 폭)** — '앱 실행/토글' 카드처럼 '설정된 글로벌 단축키'·'URL Scheme'의 **빈 상태 텍스트에 전체 폭 행 배경**(inputBackground + 라운드 6)을 적용해 가로 100%로 정렬 (`AppDetailView.swift`)
+- **B (동작 삭제 컨펌)** — 동작 스테이션 휴지통 버튼에 `confirmationDialog` 추가(단계 수·되돌릴 수 없음 안내, 삭제/취소). 실수 삭제 방지 (`ShortcutStationView.swift`)
+- **C (동작 편집 창 가운데 테마 미적용) — 누락 뷰 보강** — 중앙 단계 목록 `StepRowView.swift`(`StepRowView`/`BlockStepRowView`/`StepConnectorView`/`StepListView`)가 미테마여서 하드코딩 시스템 색이 남아 있던 것. theme 토큰으로 전환 + 편집기 중앙 패널에 `.background(theme.primaryBackground)` 추가. 부수로 편집기 '자동화'에서 여는 `AutomationSettingsView.swift`도 미테마라 함께 토큰 교체.
+
 ## 2026-09-03 macos — 빈 창 제거(AppKit @main 전환) + 패널 토글 개선 + 전체화면 HUD 정렬 (A·B·C·D)
 
 > **목표**: (A) SwiftUI `WindowGroup { EmptyView() }`가 만드는 시작 빈 창 근본 제거, (B) '뒤로 숨은' 패널을 메뉴바 클릭 한 번으로 앞으로 가져오기, (C·D) 전체화면 HUD 정렬 개선.

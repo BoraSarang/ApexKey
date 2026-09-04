@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 앱 목록 콘텐츠 (선택 카테고리 or 전체 + 검색 필터) — Pearcleaner 스타일 밀도 높은 행
+/// 앱 목록 콘텐츠 (선택 카테고리 or 전체 + 검색 필터) — theamed Pearcleaner 스타일 밀도 높은 행
 struct AppsContentView: View {
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
     let category: AppCategory?
     var searchText: String = ""
     var onSelect: (AppItem) -> Void
@@ -10,13 +11,14 @@ struct AppsContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider()
+            SettingsDivider()
             if filteredApps.isEmpty {
                 emptyState
             } else {
                 appList
             }
         }
+        .background(theme.primaryBackground)
     }
 
     private var title: String {
@@ -28,10 +30,11 @@ struct AppsContentView: View {
             Text(title)
                 .font(.title3)
                 .fontWeight(.semibold)
+                .foregroundColor(theme.primaryText)
             Spacer()
             Text("\(filteredApps.count)개")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.tertiaryText)
             Button {
                 addAppManually()
             } label: {
@@ -50,10 +53,7 @@ struct AppsContentView: View {
         }
         if !searchText.isEmpty {
             let q = searchText.lowercased()
-            apps = apps.filter {
-                $0.name.lowercased().contains(q) || $0.bundleID.lowercased().contains(q) ||
-                store.bindings(for: $0.id).contains { $0.combo.displayString.lowercased().contains(q) }
-            }
+            apps = apps.filter { store.appMatchesSearch($0, query: q) }
         }
         return apps.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
@@ -64,18 +64,21 @@ struct AppsContentView: View {
                 onSelect(app)
             }
             .environmentObject(store)
+            .listRowBackground(theme.cardBackground)
         }
-        .listStyle(.inset)
+        .listStyle(.plain)
+        .background(theme.primaryBackground)
+        .scrollContentBackground(.hidden)
     }
 
     private var emptyState: some View {
         VStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.tertiaryText)
             Text("앱이 없습니다")
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundColor(theme.tertiaryText)
             Button("앱 추가") {
                 addAppManually()
             }
@@ -99,6 +102,7 @@ struct AppsContentView: View {
 /// 앱 한 줄 — 아이콘 + 이름/번들ID + 단축키 배지. 전체 행 클릭.
 struct AppRowView: View {
     @EnvironmentObject var store: ConfigStore
+    @Environment(\.theme) private var theme
     let app: AppItem
     let onSelect: () -> Void
 
@@ -112,9 +116,10 @@ struct AppRowView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(app.name)
                     .lineLimit(1)
+                    .foregroundColor(theme.primaryText)
                 Text(app.bundleID)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.tertiaryText)
                     .lineLimit(1)
             }
             Spacer()
@@ -123,14 +128,14 @@ struct AppRowView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "command")
                         .font(.caption)
-                        .foregroundColor(.green)
+                        .foregroundColor(theme.successColor)
                     Text("\(bindings.count)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(theme.secondaryText)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color.green.opacity(0.12))
+                .background(theme.successColor.opacity(0.12))
                 .clipShape(Capsule())
             }
             Button {
@@ -143,11 +148,17 @@ struct AppRowView: View {
             .help(running ? "\(app.name) 전면으로" : "\(app.name) 실행")
             Image(systemName: app.isHidden ? "eye.slash" : "chevron.right")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(theme.tertiaryText)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
         .contentShape(Rectangle())
         .opacity(app.isHidden ? 0.55 : 1)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(theme.cardBackground)
+                .shadow(color: theme.shadowColor.opacity(theme.shadowOpacity), radius: 4, x: 0, y: 1)
+        )
         .contextMenu {
             if app.isHidden {
                 Button("숨기기 해제") { store.toggleHidden(app) }
