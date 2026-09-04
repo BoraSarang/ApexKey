@@ -25,6 +25,17 @@
 - **B (동작 삭제 컨펌)** — 동작 스테이션 휴지통 버튼에 `confirmationDialog` 추가(단계 수·되돌릴 수 없음 안내, 삭제/취소). 실수 삭제 방지 (`ShortcutStationView.swift`)
 - **C (동작 편집 창 가운데 테마 미적용) — 누락 뷰 보강** — 중앙 단계 목록 `StepRowView.swift`(`StepRowView`/`BlockStepRowView`/`StepConnectorView`/`StepListView`)가 미테마여서 하드코딩 시스템 색이 남아 있던 것. theme 토큰으로 전환 + 편집기 중앙 패널에 `.background(theme.primaryBackground)` 추가. 부수로 편집기 '자동화'에서 여는 `AutomationSettingsView.swift`도 미테마라 함께 토큰 교체.
 
+## 2026-09-04 macos — 저장소 공개 준비 (README·랜딩·릴리즈 CI)
+
+> **목표**: GitHub(BoraSarang/ApexKey) 공개 배포 인프라 구축 + 원격 저장소 연결.
+> 신규 파일: README.md(한)·README.en.md(영)·LICENSE(MIT), `website/`(GitHub Pages 랜딩), `.github/workflows/`(ci·pages·release).
+
+- **README(한·영)** — 소개/기능 표/설치/사용법/빌드/문서 링크.
+- **랜딩 페이지** — `website/index.html`(반응형 다크 단일 페이지, 기능·3단계 시작·다운로드, 최신 릴리즈 자동 연결), `styles.css`, `script.js`.
+- **GitHub Actions** — `ci.yml`(push/PR 빌드+테스트), `pages.yml`(website→GitHub Pages 배포), `release.yml`(`v*` 태그 → Release 빌드 + ZIP/DMG + 선택적 노타라이즈 + GitHub Release).
+- **라이선스** — MIT (BoraSarang).
+- 원격 저장소 `origin` 연결 및 `main` 초기 push. 후속 커밋은 그대로 push 가능.
+
 ## 2026-09-03 macos — 빈 창 제거(AppKit @main 전환) + 패널 토글 개선 + 전체화면 HUD 정렬 (A·B·C·D)
 
 > **목표**: (A) SwiftUI `WindowGroup { EmptyView() }`가 만드는 시작 빈 창 근본 제거, (B) '뒤로 숨은' 패널을 메뉴바 클릭 한 번으로 앞으로 가져오기, (C·D) 전체화면 HUD 정렬 개선.
