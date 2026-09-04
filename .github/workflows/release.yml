@@ -1,0 +1,117 @@
+name: Release
+
+# 커밋된 태그(vX.Y.Z)를 누르면 macOS Release 빌드 + GitHub Release 생성
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release (macOS)
+    runs-on: macos-latest
+    env:
+      APP_NAME: ApexKey
+      BUNDLE_ID: com.borasarang.ApexKey
+      DEVELOPMENT_TEAM: 6GPJQ7BQC9
+      ARCHIVE_DIR: /tmp/apexkey-release
+      NOTARIZE: ${{ secrets.APPLE_ID != '' && secrets.APPLE_TEAM_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && 'true' || 'false' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Xcode 버전 확인
+        run: xcodebuild -version
+
+      - name: xcodegen 설치
+        run: brew install xcodegen
+
+      - name: 프로젝트 생성
+        run: xcodegen generate --spec project.yml
+
+      - name: Release 빌드 (서명 없음 — CI)
+        run: |
+          xcodebuild \
+            -project "${APP_NAME}.xcodeproj" \
+            -scheme "${APP_NAME}" \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
+            build
+
+      - name: 단위 테스트
+        run: |
+          xcodebuild test \
+            -project "${APP_NAME}.xcodeproj" \
+            -scheme "${APP_NAME}" \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
+            2>&1 | tail -30
+
+      - name: 앱 번들 준비
+        run: |
+          APP_PATH="build/Build/Products/Release/${APP_NAME}.app"
+          mkdir -p "${ARCHIVE_DIR}"
+          cp -R "${APP_PATH}" "${ARCHIVE_DIR}/${APP_NAME}.app"
+          # 문구용 버전
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Info.plist 버전 동기화
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" \
+            "${ARCHIVE_DIR}/${APP_NAME}.app/Contents/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" \
+            "${ARCHIVE_DIR}/${APP_NAME}.app/Contents/Info.plist" 2>/dev/null || true
+
+      - name: ZIP 패키징
+        run: |
+          cd "${ARCHIVE_DIR}"
+          ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}-${GITHUB_REF_NAME#v}-macOS.zip"
+
+      - name: DMG 생성 (create-dmg)
+        run: |
+          brew install create-dmg || true
+          create-dmg \
+            --volname "${APP_NAME}" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "${APP_NAME}.app" 175 190 \
+            --hide-extension "${APP_NAME}.app" \
+            --app-drop-link 425 190 \
+            "${ARCHIVE_DIR}/${APP_NAME}-${GITHUB_REF_NAME#v}-macOS.dmg" \
+            "${ARCHIVE_DIR}/${APP_NAME}.app" || \
+            echo "WARN: DMG 생성 실패 (ZIP만 릴리즈에 포함됨)"
+
+      - name: 노타라이즈 (선택 — 시크릿 설정 시)
+        if: env.NOTARIZE == 'true'
+        run: |
+          APP_PATH="${ARCHIVE_DIR}/${APP_NAME}.app"
+          ZIP="${ARCHIVE_DIR}/notarize-upload.zip"
+          # 코드 서명 (Developer ID — 설치된 인증서 사용)
+          IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+          if [ -z "${IDENTITY}" ]; then
+            echo "WARN: Developer ID 인증서 없음 — 노타라이즈 건너뜀"
+          else
+            codesign --force --options runtime --sign "${IDENTITY}" --deep "${APP_PATH}"
+            ditto -c -k --keepParent "${APP_PATH}" "${ZIP}"
+            xcrun notarytool submit "${ZIP}" \
+              --apple-id "${{ secrets.APPLE_ID }}" \
+              --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+              --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
+              --wait
+            xcrun stapler staple "${APP_PATH}" || true
+          fi
+
+      - name: GitHub Release 생성 및 업로드
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.ARCHIVE_DIR }}/${{ env.APP_NAME }}-${{ github.ref_name }}*-macOS.zip
+            ${{ env.ARCHIVE_DIR }}/${{ env.APP_NAME }}-${{ github.ref_name }}*-macOS.dmg
+          generate_release_notes: true

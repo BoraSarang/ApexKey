@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    name: Build & Test (macOS)
+    runs-on: macos-latest
+    env:
+      APP_NAME: ApexKey
+      DEVELOPMENT_TEAM: 6GPJQ7BQC9
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: xcodegen 설치
+        run: brew install xcodegen
+
+      - name: 프로젝트 생성
+        run: xcodegen generate --spec project.yml
+
+      - name: Debug 빌드
+        run: |
+          xcodebuild \
+            -project "${APP_NAME}.xcodeproj" \
+            -scheme "${APP_NAME}" \
+            -configuration Debug \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
+            build
+
+      - name: 단위 테스트
+        run: |
+          xcodebuild test \
+            -project "${APP_NAME}.xcodeproj" \
+            -scheme "${APP_NAME}" \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
+            2>&1 | tail -30
