@@ -9,6 +9,8 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
     case sleep
     case displaySleep
     case screenSaver
+    case dockRestart
+    case finderRestart
 
     var id: String { rawValue }
 
@@ -20,6 +22,8 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .sleep:        return "수면"
         case .displaySleep: return "디스플레이 꺼짐"
         case .screenSaver:  return "화면 보호기"
+        case .dockRestart:  return "Dock 재시작"
+        case .finderRestart: return "Finder 재시작"
         }
     }
 
@@ -31,6 +35,8 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .sleep:        return "moon.zzz"
         case .displaySleep: return "display"
         case .screenSaver:  return "sparkles.tv"
+        case .dockRestart:  return "dock.rectangle"
+        case .finderRestart: return "folder"
         }
     }
 }
@@ -49,7 +55,9 @@ enum SystemActionExecutor {
         .darkMode: "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode",
         .sleep: "do shell script \"pmset sleepnow\"",
         .displaySleep: "do shell script \"pmset displaysleepnow\"",
-        .screenSaver: "do shell script \"open -a ScreenSaverEngine\""
+        .screenSaver: "do shell script \"open -a ScreenSaverEngine\"",
+        .dockRestart: "do shell script \"killall Dock\"",
+        .finderRestart: "do shell script \"killall Finder\""
     ]
 
     /// 시스템 동작 실행. 성공 여부 반환.

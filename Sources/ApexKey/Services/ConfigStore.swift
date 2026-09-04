@@ -242,6 +242,55 @@ final class ConfigStore: ObservableObject {
         if showSystemApps {
             addSystemAppsIfMissing()
         }
+        configureAutomationManager()
+    }
+
+    // MARK: - 개인 자동화 연동
+
+    /// AutomationManager에 단축어 트리거 등록 + 콜백 연결 + RunShortcut 조회 주입
+    private func configureAutomationManager() {
+        let automationManager = AutomationManager.shared
+        automationManager.onTriggerFired = { [weak self] shortcutID, trigger, event in
+            self?.runAutomation(shortcutID: shortcutID, trigger: trigger, input: event.toVariableValue())
+        }
+        ExecutionEngine.shared.shortcutProvider = { [weak self] shortcutID in
+            self?.shortcuts.first(where: { $0.id == shortcutID })
+        }
+        automationManager.unregisterAll()
+        for shortcut in shortcuts where !shortcut.automations.isEmpty {
+            automationManager.register(shortcut: shortcut)
+        }
+        Logger.info("ConfigStore", "자동화 트리거 등록: \(automationManager.registeredCount)개")
+    }
+
+    /// 자동화 트리거로 단축어 실행
+    func runAutomation(shortcutID: UUID, trigger: AutomationTrigger, input: VariableValue) {
+        guard let shortcut = shortcuts.first(where: { $0.id == shortcutID }) else {
+            Logger.error("E-MAC-AUTO-8001", "자동화 대상 단축어 없음: \(shortcutID.uuidString.prefix(8))")
+            return
+        }
+        Logger.info("ConfigStore", "개인 자동화 실행: \(shortcut.name) (트리거: \(trigger.displayName))")
+
+        var context = UseModelExecutor.ExecutionContext()
+        context.shortcutInput = input
+        // 트리거 입력을 단축어 입력 변수로 연결
+        let inputID = UUID(uuidString: "00000000-0000-0000-0000-000000000000") ?? UUID()
+        context.setOutput(input, for: inputID)
+        context.variables[inputID] = input
+        // 사용자 정의 변수 기본값 주입
+        for variable in shortcut.variables where variable.type == .manual {
+            if let defaultValue = variable.defaultValue {
+                context.variables[variable.id] = defaultValue
+            }
+        }
+
+        let result = ExecutionEngine.shared.execute(shortcut, context: &context)
+        if result.success, let idx = shortcuts.firstIndex(where: { $0.id == shortcutID }) {
+            shortcuts[idx].lastRunAt = Date()
+            shortcuts[idx].runCount += 1
+            syncShortcut(shortcuts[idx])
+        }
+        Logger.info("ConfigStore", "자동화 실행 결과: success=\(result.success)")
     }
 
     /// 디스크에서 지워진 앱을 목록·저장에서 자동 정리 (경로가 비어있지 않은데 파일이 없으면 제거)
@@ -560,7 +609,7 @@ final class ConfigStore: ObservableObject {
         syncShortcut(shortcuts[idx])
     }
 
-    private func syncShortcut(_ shortcut: ShortcutItem) {
+    func syncShortcut(_ shortcut: ShortcutItem) {
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == shortcut.id })
         if let found = try? context.fetch(fetch).first {
@@ -569,6 +618,19 @@ final class ConfigStore: ObservableObject {
             found.comboModifiers = shortcut.combo.modifiers
             found.comboDisplayString = shortcut.combo.displayString
             found.stepsData = (try? JSONEncoder().encode(shortcut.steps)) ?? Data()
+            found.iconRaw = shortcut.icon.displayName
+            found.colorRaw = shortcut.color.rawValue
+            found.aiModelRaw = shortcut.aiModel.rawValue
+            found.descriptionText = shortcut.description
+            found.showInSystemShortcuts = shortcut.showInSystemShortcuts
+            found.folderName = shortcut.folder
+            found.isShareable = shortcut.isShareable
+            found.modifiedAt = shortcut.modifiedAt
+            found.lastRunAt = shortcut.lastRunAt
+            found.runCount = shortcut.runCount
+            found.triggersData = (try? JSONEncoder().encode(shortcut.automations)) ?? Data()
+            found.variablesData = (try? JSONEncoder().encode(shortcut.variables)) ?? Data()
+            found.permissionsData = (try? JSONEncoder().encode(shortcut.permissions)) ?? Data()
         }
         try? context.save()
     }
@@ -716,6 +778,11 @@ final class ConfigStore: ObservableObject {
 
     private func registerAllBindings() {
         bindings.forEach { _ = hotKeyService.register($0.id, combo: $0.combo) }
+        shortcuts.forEach { shortcut in
+            if !shortcut.combo.isEmpty {
+                _ = hotKeyService.register(shortcut.id, combo: shortcut.combo)
+            }
+        }
     }
 
     private func handleHotKey(_ bindingID: UUID) {
@@ -723,7 +790,7 @@ final class ConfigStore: ObservableObject {
         if let shortcut = shortcuts.first(where: { $0.id == bindingID }) {
             Logger.info("ConfigStore", "[HOTKEY] 동작 실행: \(shortcut.name)")
             lastExecutedBindingID = bindingID
-            actionExecutor.execute(shortcut)
+            executeShortcutStats(shortcut)
             return
         }
         guard let binding = bindings.first(where: { $0.id == bindingID }) else {
@@ -740,6 +807,17 @@ final class ConfigStore: ObservableObject {
         }
     }
 
+    /// 단축어 실행 + 실행 통계 갱신 (성공 시에만)
+    /// () -> Void 형태로 호출 시점을 지정
+    private func executeShortcutStats(_ shortcut: ShortcutItem) {
+        let success = actionExecutor.execute(shortcut)
+        if success, let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
+            shortcuts[idx].lastRunAt = Date()
+            shortcuts[idx].runCount += 1
+            syncShortcut(shortcuts[idx])
+        }
+    }
+
     /// 마지막으로 실행된 바인딩을 반복 실행 (⌘⇧↩)
     func repeatLastBinding() {
         guard let lastID = lastExecutedBindingID else {
@@ -747,7 +825,7 @@ final class ConfigStore: ObservableObject {
             return
         }
         if let shortcut = shortcuts.first(where: { $0.id == lastID }) {
-            actionExecutor.execute(shortcut)
+            executeShortcutStats(shortcut)
             Logger.info("ConfigStore", "[REPEAT] 반복 실행: \(shortcut.name)")
             return
         }
@@ -774,14 +852,25 @@ final class ConfigStore: ObservableObject {
         showQuickLauncher = false
     }
 
-    /// 이름으로 바인딩 검색 (부분 매칭)
+    /// 이름으로 바인딩 검색 (부분 매칭 + 한글 초성 매칭)
     func binding(matching query: String) -> [HotKeyBinding] {
         let q = query.lowercased()
         return bindings.filter {
-            $0.title.lowercased().contains(q)
-                || $0.actionType.displayName.lowercased().contains(q)
+            KoreanSearch.matches(query: q, in: $0.title)
+                || KoreanSearch.matches(query: q, in: $0.actionType.displayName)
                 || $0.combo.displayString.lowercased().contains(q)
         }.sorted { $0.title < $1.title }
+    }
+
+    /// 앱이 주어진 검색어와 매칭되는지 (앱 목록/메인 검색 공용)
+    /// - 앱 이름: 초성+일반 매칭
+    /// - 번들ID: 일반 substring 매칭
+    /// - 설정된 글로벌 단축키 조합: 일반 substring 매칭
+    func appMatchesSearch(_ app: AppItem, query: String) -> Bool {
+        let q = query.lowercased()
+        return KoreanSearch.matches(query: q, in: app.name)
+            || app.bundleID.lowercased().contains(q)
+            || bindings(for: app.id).contains { $0.combo.displayString.lowercased().contains(q) }
     }
 
     /// 바인딩 복제

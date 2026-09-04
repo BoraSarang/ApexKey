@@ -65,6 +65,9 @@ final class ActionExecutor {
         case .macro:
             runMacro(binding.target)
             return true
+        default:
+            Logger.error("E-MAC-ACT-3005", "미구현 액션 타입: \(binding.actionType.rawValue)")
+            return false
         }
     }
 
@@ -74,17 +77,18 @@ final class ActionExecutor {
         return binding.target == frontmostBundleID
     }
 
-    /// 단축어(동작) 실행 — 단계를 순서대로 재생
+    /// 단축어(동작) 실행 — 단계를 순서대로 재생 (흐름 제어 포함)
     @discardableResult
     func execute(_ shortcut: ShortcutItem) -> Bool {
         Logger.info("ActionExecutor", "동작 실행 시작: \(shortcut.name) (\(shortcut.steps.count)단계)")
-        for (index, step) in shortcut.steps.enumerated() {
-            let binding = step.toBinding()
-            Logger.info("ActionExecutor", "동작 \(shortcut.name) — 단계 \(index + 1)/\(shortcut.steps.count): \(step.type.displayName)")
-            execute(binding)
+        var context = UseModelExecutor.ExecutionContext()
+        // 사용자 정의 변수의 기본값을 실행 컨텍스트에 주입
+        for variable in shortcut.variables where variable.type == .manual {
+            if let defaultValue = variable.defaultValue {
+                context.variables[variable.id] = defaultValue
+            }
         }
-        Logger.info("ActionExecutor", "동작 실행 완료: \(shortcut.name)")
-        return true
+        return ExecutionEngine.shared.execute(shortcut, context: &context).success
     }
 
     private func runScript(_ command: String) {
@@ -102,10 +106,10 @@ final class ActionExecutor {
 
     private func runPaste(_ target: String) {
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
 
         let text: String
         if target == "clipboard" {
+            // 클립보드 내용을 활성 앱으로 붙여넣기 — clear 전에 먼저 읽어야 함
             text = pasteboard.string(forType: .string) ?? ""
         } else {
             text = target
@@ -116,6 +120,7 @@ final class ActionExecutor {
             return
         }
 
+        pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         simulateKeyCombo(keyCode: 9, modifiers: [.maskCommand])
         Logger.info("ActionExecutor", "붙여넣기 실행: \(text.count)자")
@@ -126,8 +131,20 @@ final class ActionExecutor {
     private func runWait(_ target: String) {
         let seconds = Double(target) ?? 1.0
         Logger.info("ActionExecutor", "대기 시작: \(seconds)초")
-        Thread.sleep(forTimeInterval: max(0, seconds))
+        // 메인 스레드 블로킹 방지 — 대표 애니메이션/UI 멈춤 유발
+        if Thread.isMainThread {
+            dispatchWaitOnBackground(seconds: max(0, seconds))
+        } else {
+            Thread.sleep(forTimeInterval: max(0, seconds))
+        }
         Logger.info("ActionExecutor", "대기 완료")
+    }
+
+    /// 메인 스레드에서 호출 시 백그라운드로 대기를 넘기고 즉시 복귀
+    private func dispatchWaitOnBackground(seconds: TimeInterval) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            Thread.sleep(forTimeInterval: seconds)
+        }
     }
 
     // MARK: - 좌표 클릭
@@ -151,22 +168,30 @@ final class ActionExecutor {
     private func runPauseUntilInput() {
         Logger.info("ActionExecutor", "사이보그 모드 시작 — ⌘⇧↩로 계속")
 
-        var monitorRef: Any?
-        monitorRef = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
-            let combo = KeyboardUtil.combo(from: event)
-            if combo.keyCode == 36
-                && combo.modifiers & KeyboardUtil.cmdMask != 0
-                && combo.modifiers & KeyboardUtil.shiftMask != 0 {
-                if let monitor = monitorRef {
-                    NSEvent.removeMonitor(monitor)
+        let semaphore = DispatchSemaphore(value: 0)
+
+        // 로컬 모니터는 메인 런루프에서만 이벤트를 수신하므로 메인 스레드에 등록
+        DispatchQueue.main.async {
+            var monitorRef: Any?
+            monitorRef = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self else { return event }
+                let combo = KeyboardUtil.combo(from: event)
+                if combo.keyCode == 36
+                    && combo.modifiers & KeyboardUtil.cmdMask != 0
+                    && combo.modifiers & KeyboardUtil.shiftMask != 0 {
+                    if let monitor = monitorRef {
+                        NSEvent.removeMonitor(monitor)
+                    }
+                    Logger.info("ActionExecutor", "사이보그 모드: 입력 감지 — 계속")
+                    semaphore.signal()
+                    return nil
                 }
-                monitorRef = nil
-                Logger.info("ActionExecutor", "사이보그 모드: 입력 감지 — 계속")
-                return nil
+                return event
             }
-            return event
         }
+
+        // 호출 스레드 블로킹 (백그라운드) — 메인 런루프는 자유로워 이벤트 수신 가능
+        semaphore.wait()
     }
 
     // MARK: - 매크로

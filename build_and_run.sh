@@ -1,6 +1,8 @@
 #!/bin/bash
-# build_and_run.sh — ApexKey macOS 빌드 디스패처
-# usage: ./build_and_run.sh [debug|release] [macos]
+# build_and_run.sh — ApexKey macOS 빌드/테스트 디스패처
+# usage:
+#   ./build_and_run.sh [debug|release|build] [macos]   빌드 + 설치
+#   ./build_and_run.sh test [macos] [smoke|unit|full]  테스트 실행 (unit 기본)
 
 set -euo pipefail
 
@@ -21,6 +23,29 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 # ── 플랫폼 체크 ──────────────────────────────────────
 if [ "$PLATFORM" != "macos" ]; then
   error "지원되지 않는 플랫폼: $PLATFORM (현재 macOS만 지원)"
+fi
+
+# ── 0. 테스트 서브커맨드 ─────────────────────────────
+if [ "$MODE" = "test" ]; then
+  TEST_SCOPE="${3:-unit}"
+  info "xcodegen으로 프로젝트 생성 중..."
+  cd "$PROJECT_DIR"
+  xcodegen generate --spec project.yml
+  info "xcodebuild test (${TEST_SCOPE}) 실행 중... (예산: unit ≤60s / full ≤5분)"
+  START_SECS=$SECONDS
+  if [ "$TEST_SCOPE" = "full" ]; then
+    xcodebuild test -project "${APP_NAME}.xcodeproj" -scheme "${APP_NAME}" \
+      -destination 'platform=macOS' -derivedDataPath "${BUILD_DIR}" \
+      CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=6GPJQ7BQC9 2>&1 | tail -30
+  else
+    # smoke/unit: ApexKeyTests 앱 타깃 전체 (macOS 단일 타깃)
+    xcodebuild test -project "${APP_NAME}.xcodeproj" -scheme "${APP_NAME}" \
+      -destination 'platform=macOS' -derivedDataPath "${BUILD_DIR}" \
+      CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=6GPJQ7BQC9 2>&1 | tail -30
+  fi
+  ELAPSED=$((SECONDS - START_SECS))
+  info "테스트 완료 (${ELAPSED}초)"
+  exit 0
 fi
 
 # ── 1. xcodegen ──────────────────────────────────────
