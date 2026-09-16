@@ -112,6 +112,51 @@
 - [x] T-125: G — HUD 서브메뉴 부모 클릭 크래시(SIGTRAP, `path[1..<0]`) 수정 — 최상위 depth 0 노드 생략 + `path.count>1` 가드 + `!isSubmenu` 실행 차단
 - [x] T-126: 검증 — 빌드 SUCCEEDED + HUD macOS 표준 배치·indent·서비스 제거 정상 + 크래시 없음 + unit 테스트 36/37(기존 1건 환경 의존 무관)
 
+## v0.3.3 — 스크립트 동작 쉽게 만들기 (2026-09-16)
+
+- [x] T-130: 셸 실행 강화 — `ActionExecutor.runShellScript`가 Homebrew/Android SDK PATH 자동 포함 + 출력/종료코드 로그 + 성공 여부 반환. `.runScriptInShell` 미구현(E-MAC-ACT-3005) 해소. `ExecutionEngine`에 `.script`/`.runScriptInShell` 명시 분기(변수 토큰 치환 후 실행)
+- [x] T-131: 스크립트 전용 설정 UI — `ScriptSettingsView`(제목+여러 줄 명령+테스트 실행 버튼). `ShortcutEditorView.selectStep`이 스크립트 단계도 설정 창 열도록 연결 (기존엔 설정 창이 안 열려 target 비어있는 채로 방치됨)
+- [x] T-132: `ADB Wi-Fi 연결` 샘플 동작 자동 제공 — 첫 실행이 아닌 기존 사용자도 이름 기준 1회 생성 (`ConfigStore.ensureADBWifiSample`)
+- [x] T-133: 스크립트 테스트 결과 표시 — `runShellScriptResult`가 출력/종료코드 반환, `ScriptSettingsView`에 성공·실패 배지 + 결과 텍스트 표시. `ApexKeyScriptTests` 7건(ADB 실기 end-to-end 포함)
+- [x] T-134: Cmd+C/V/X/A/Z 미동작 — 메인 메뉴에 앱 메뉴만 있고 편집 메뉴가 없어 first responder로 전달 불가. `AppDelegate.makeMainMenu`에 편집 메뉴(실행 취소/다시 실행/잘라내기/복사/붙여넣기/지우기/모두 선택, target nil=responder chain) 추가. `ApexKeyMenuTests` 회귀 테스트
+- [x] T-135: 동작 고정 프리셋 — 시스템 탭(SystemActionType)과 동급 취급. `BuiltInShortcutPresets`(Android Untether/Mirror 2개, 단축키 없음·삭제 가능)에 코드 고정 + `ensureBuiltInShortcuts`가 설치·업데이트 후 이름 기준 자동 보충. 구 `ADB Wi-Fi 연결`명 재생성 중단 (중복 방지). 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영
+- [x] T-136: 편집기 빨간 X 저장 유실 — 단계 설정 수정 후 윈도우 닫기(빨간 X)로 닫으면 저장 없이 유실 (헤더 X만 저장). `ShortcutEditorView`에 `.onDisappear` 저장(단계/이름/설명/자동화/변수) 추가. `build_and_run.sh debug`에 기존 앱 종료+재시작(5/5) 추가
+
+## v0.4 — 깊은 리팩터 R1 (2026-09-16, PLAN_v0.4_refactor)
+
+- [x] R-01: 엔진 default 실패 전파 + 변수 치환 (단계 실패가 전체 success에 반영되도록 루프에 ok 추적 추가)
+- [x] R-02: wait 순서 버그 (호출 스레드 동기 sleep + 메인 경고 E-MAC-ACT-3006)
+- [x] R-03: pauseUntilInput 메인 교착 가드 (메인 호출 시 백그라운드 전환)
+- [x] R-04: MenuEnumerator 타입ID 비교 + unsafeDowncast (as! 제거, E-MAC-MENU-3004)
+- [x] R-05: saveContext/fetchContext/StoreCoding 헬퍼 (try? 저장·조회·JSON 30여 곳 묵살 해소, E-MAC-STORE-5001/5002/5003/5004)
+- [x] R-06: 죽은 코드 삭제 (runScript 래퍼, debugInfo, toModelContext, value(forName:)) — executeFollowUp는 Follow-Up 토글 UI용이라 유지
+- [x] R-07: PATH 상수 단일화 (ShellEnvironment)
+- [x] R-08: 카테고리 매핑 정합 (5종 .variables 귀속 + automationRun/trigger 목록 완성)
+- [x] R-09: ActionType 메타데이터 테이블화 (ActionMetadata.swift 152항목) + 정합성 테스트
+- [x] R-10: ConfigStore 영역별 분할 (동일 클래스 extension 9파일, API 동결, private→internal)
+- [x] R-11: summary 반복 nil "0회"→"반복"
+
+## v0.5 — 다국어 지원 (i18n, PLAN_v0.5_i18n)
+
+- [x] T-140: Localizable.strings(ko/en) 생성 + LanguageManager 싱글턴 + ConfigStore appLanguage 저장
+- [x] T-141: SettingsView 언어 선택 섹션(Picker: 시스템/한국어/영어) + 재시작 필요 안내
+- [x] T-142: 전체 UI 문자열 키 추출·ko/en 번역 + Text(LocalizedStringKey) 치환 + ActionMetadata 연계
+
+## v0.6 — 잔여 문자열 다국어화 (PLAN_v0.6_l10n)
+
+- [x] L-01: 키 "variable.*" 추가 + VariableModels displayName 로컬라이즈
+- [x] L-02: 키 "condition.op.*"·"flow.*" 추가 + FlowControlModels 로컬라이즈
+- [x] L-03: 키 "category.app.*" 추가 + AppItem AppCategory 로컬라이즈
+- [x] L-04: 키 "system.action.*"·"color.name.*" 추가 + SystemActionType/ShortcutColor 로컬라이즈
+- [x] L-05: 키 "step.*" 추가 + Shortcut.summary/runCount/lastRun 로컬라이즈
+- [x] L-06: 키 "error.user.*" 추가 + ExecutionEngine/ActionExecutor/AIAvailability 사용자 에러 로컬라이즈
+- [x] L-07: ConfigStore(+Preferences/+Macro/+Bindings) + Views(ThemeSettings/SidebarNavigation/StepSettings/MenuHUD/HotKeyRecorder) + AppDelegate 창 타이틀 로컬라이즈
+- [x] L-08: ApexKeyModelTests를 키 기반 비교로 재작성 (언어 무관)
+- [x] L-09: 검증 — strings 문법(plutil OK) + 코드 참조 키 526 전수 존재 + build_and_run test smoke 통과(compile) + 현지화 가드 0건 통과
+- [x] L-10: 서비스 출력 로컬라이즈 — WritingToolExecutor(8) / ImagePlaygroundExecutor(2) / VariableResolver(3) / MenuEnumerator 상태(4)
+- [x] L-11: LLM 프롬프트 로컬라이즈 — UseModelExecutor FollowUp 대화 헤더·역할 (3키)
+- [x] L-12: 가드 스크립트 `scripts/check-localizable.py` 추가 + `build_and_run.sh` 게이트 연결
+
 ## 다음 백로그
 
 - [ ] 단축키 프로필/빠른 전환

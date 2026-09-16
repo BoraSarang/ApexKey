@@ -44,3 +44,6 @@ docs/screenshots/
 
 # 세션/임시
 .agent/
+__pycache__/
+Sources/extracted_*.json
+Sources/extracted_*.txt

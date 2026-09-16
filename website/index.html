@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ApexKey — 전역 핫키 macOS 메뉴바 런처</title>
-<meta name="description" content="ApexKey: macOS 메뉴바 유틸리티. 어떤 앱의 메뉴 명령도 전역 단축키로 실행하세요. URL scheme, 동작 스테이션, 메뉴 단축키 HUD, 8가지 테마." />
+<title>ApexKey — The apex of global hotkeys</title>
+<meta name="description" content="ApexKey is a global-hotkey macOS menu bar launcher. Enumerate any app's menu, assign a shortcut to any command, and run it from anywhere. Shortcut Station, automation, AI actions, 8 themes." />
 <meta property="og:title" content="ApexKey" />
-<meta property="og:description" content="전역 핫키 기반 macOS 메뉴바 런처 — 어떤 앱의 메뉴 명령도 단축키로." />
+<meta property="og:description" content="The apex of global hotkeys — trigger any app's menu command with a shortcut." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://borasarang.github.io/ApexKey/" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -17,119 +16,206 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="#">
-      <span class="brand-mark">⌨️</span>
+      <span class="brand-mark">⌘</span>
       <span class="brand-name">ApexKey</span>
     </a>
     <nav class="nav-links">
-      <a href="#features">기능</a>
-      <a href="#how">사용법</a>
-      <a href="#download">다운로드</a>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
       <a href="https://github.com/BoraSarang/ApexKey" target="_blank" rel="noopener">GitHub</a>
+      <span class="lang-toggle">
+        <a href="index.html" class="active">EN</a>
+        <a href="ko/index.html">KO</a>
+      </span>
     </nav>
   </div>
 </header>
 
 <section class="hero">
   <div class="hero-inner">
-    <p class="eyebrow">macOS 메뉴바 유틸리티 · macOS 14+</p>
-    <h1 class="hero-title">어떤 앱의 메뉴 명령도<br /><span class="grad">전역 단축키로.</span></h1>
+    <div class="keycap-hero" role="img" aria-label="Command key"></div>
+    <p class="eyebrow">macOS menu bar utility · macOS 14+</p>
+    <h1 class="hero-title">The <span class="grad">apex</span> of global hotkeys.</h1>
     <p class="hero-sub">
-      ApexKey는 메뉴바에 상주하며, 화면 어디에서나 다른 앱의 메뉴 명령·URL scheme·나만의 동작을
-      한 번의 단축키로 실행하게 해줍니다.
+      ApexKey lives in your menu bar. Enumerate any app's menu, assign a global
+      shortcut to any command, and run it from anywhere on screen.
     </p>
     <div class="hero-actions">
-      <a class="btn btn-primary" href="#download">무료 다운로드</a>
-      <a class="btn btn-ghost" href="#features">기능 살펴보기</a>
+      <a class="btn btn-primary" href="#download">Free Download</a>
+      <a class="btn btn-ghost" href="#how">How it works</a>
     </div>
     <div class="hero-kbd">
       <span class="kbd">⌥</span><span class="plus">+</span><span class="kbd">⇧</span><span class="plus">+</span><span class="kbd">A</span>
-      <span class="hero-kbd-label">패널 열기/닫기</span>
+      <span class="hero-kbd-label">Open the panel</span>
     </div>
   </div>
 </section>
 
-<section class="features" id="features">
-  <div class="wrap">
-    <h2 class="section-title">모든 것이 단축키로.</h2>
-    <p class="section-sub">반복되는 메뉴 클릭을 줄이고, 키보드에서 손을 떼지 마세요.</p>
-
-    <div class="grid">
-      <article class="card">
-        <span class="card-icon">⚡</span>
-        <h3>메뉴 명령 단축키</h3>
-        <p>실행 중인 앱의 메뉴 항목을 열거해 원하는 명령에 전역 단축키를 지정하세요.</p>
-      </article>
-      <article class="card">
-        <span class="card-icon">📦</span>
-        <h3>동작 스테이션</h3>
-        <p>앱 열기 · 키 입력 · 스크립트 · 붙여넣기를 단계로 쌓아 나만의 동작을 만듭니다.</p>
-      </article>
-      <article class="card">
-        <span class="card-icon">🔗</span>
-        <h3>URL Scheme</h3>
-        <p>어떤 scheme이든 단축키 하나로 즉시 엽니다.</p>
-      </article>
-      <article class="card">
-        <span class="card-icon">🧭</span>
-        <h3>메뉴 단축키 HUD</h3>
-        <p>현재 앱의 모든 단축키를 전체화면·플로팅으로 한눈에 표시합니다.</p>
-      </article>
-      <article class="card">
-        <span class="card-icon">🔀</span>
-        <h3>흐름 제어·자동화</h3>
-        <p>If · 반복 · 메뉴 선택, 변수, 시간·폴더 조건 기반 트리거까지.</p>
-      </article>
-      <article class="card">
-        <span class="card-icon">🎨</span>
-        <h3>8가지 테마</h3>
-        <p>라이트·다크·네온·노드·페이퍼·터미널·오사우루스 — 폰트 크기까지.</p>
-      </article>
-    </div>
-  </div>
+<section class="app-preview">
+  <img src="img/main_en.png" alt="ApexKey main panel — English" loading="lazy" />
 </section>
 
-<section class="how" id="how">
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">O</span><span class="marquee-label">Open File</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">P</span><span class="marquee-label">Print</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">Z</span><span class="marquee-label">Undo</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">S</span><span class="marquee-label">Save</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">F</span><span class="marquee-label">Find</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">N</span><span class="marquee-label">New Document</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">W</span><span class="marquee-label">Close</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">,</span><span class="marquee-label">Preferences</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">E</span><span class="marquee-label">Reveal in Finder</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">R</span><span class="marquee-label">Rotate</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">G</span><span class="marquee-label">Find Next</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">C</span><span class="marquee-label">Copy</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">V</span><span class="marquee-label">Paste</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">Q</span><span class="marquee-label">Quit</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">Space</span><span class="marquee-label">Spotlight</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">B</span><span class="marquee-label">Bold</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">T</span><span class="marquee-label">New Tab</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">1</span><span class="marquee-label">First Space</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">H</span><span class="marquee-label">Hide App</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">A</span><span class="marquee-label">Select All</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">+</span><span class="marquee-label">Zoom In</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">,</span><span class="marquee-label">Settings</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">E</span><span class="marquee-label">Use Selection for Find</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">R</span><span class="marquee-label">Show in Finder</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">N</span><span class="marquee-label">New Note</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">M</span><span class="marquee-label">Minimize</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">D</span><span class="marquee-label">Bookmark</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">L</span><span class="marquee-label">Address Bar</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">K</span><span class="marquee-label">Command Palette</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">I</span><span class="marquee-label">Get Info</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">O</span><span class="marquee-label">Open File</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">P</span><span class="marquee-label">Print</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">Z</span><span class="marquee-label">Undo</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">S</span><span class="marquee-label">Save</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">F</span><span class="marquee-label">Find</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">N</span><span class="marquee-label">New Document</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">W</span><span class="marquee-label">Close</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">,</span><span class="marquee-label">Preferences</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">E</span><span class="marquee-label">Reveal in Finder</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">R</span><span class="marquee-label">Rotate</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">G</span><span class="marquee-label">Find Next</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">C</span><span class="marquee-label">Copy</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">V</span><span class="marquee-label">Paste</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">Q</span><span class="marquee-label">Quit</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">Space</span><span class="marquee-label">Spotlight</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">B</span><span class="marquee-label">Bold</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">T</span><span class="marquee-label">New Tab</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">1</span><span class="marquee-label">First Space</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">H</span><span class="marquee-label">Hide App</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">A</span><span class="marquee-label">Select All</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">+</span><span class="marquee-label">Zoom In</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">,</span><span class="marquee-label">Settings</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">E</span><span class="marquee-label">Use Selection for Find</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">R</span><span class="marquee-label">Show in Finder</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">N</span><span class="marquee-label">New Note</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">M</span><span class="marquee-label">Minimize</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">D</span><span class="marquee-label">Bookmark</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">L</span><span class="marquee-label">Address Bar</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">K</span><span class="marquee-label">Command Palette</span></span>
+    <span class="marquee-item"><span class="kbd-sm gold">⌘</span><span class="kbd-sm">I</span><span class="marquee-label">Get Info</span></span>
+  </div>
+</div>
+
+<section id="how">
   <div class="wrap">
-    <h2 class="section-title">3단계로 시작</h2>
+    <h2 class="section-title">One shortcut to rule them.</h2>
+    <p class="section-sub">Every app exposes its menus. ApexKey puts them on your fingertips.</p>
+
     <ol class="steps">
-      <li>
-        <span class="step-num">1</span>
+      <li class="step">
+        <span class="step-keycap">⌘</span>
         <div>
-          <h3>설치 & 권한</h3>
-          <p>Releases에서 받아 응용 프로그램에 넣고, 손쉬운 사용 권한을 허용합니다.</p>
+          <h3>Enumerate the menu</h3>
+          <p>Run ApexKey, pick an app, and ApexKey reads its menu tree — every command, every submenu.</p>
         </div>
       </li>
-      <li>
-        <span class="step-num">2</span>
+      <li class="step">
+        <span class="step-keycap">+</span>
         <div>
-          <h3>단축키 지정</h3>
-          <p><span class="kbd">⇧⌥A</span> 로 패널을 열고, 앱의 메뉴 명령에 <code>+</code> 를 눌러 녹음합니다.</p>
+          <h3>Record a shortcut</h3>
+          <p>Tap the <span class="kbd">+</span> button on any command and press your keys. ApexKey records the globe.</p>
         </div>
       </li>
-      <li>
-        <span class="step-num">3</span>
+      <li class="step">
+        <span class="step-keycap">⚡</span>
         <div>
-          <h3>바로 실행</h3>
-          <p>어디서든 그 단축키를 누르면 메뉴 명령이 실행됩니다. <span class="kbd">⇧⌥S</span> 로 HUD 표시.</p>
+          <h3>Run from anywhere</h3>
+          <p>Press the shortcut from any app. The menu command fires instantly — no clicks, no hunting.</p>
         </div>
       </li>
     </ol>
   </div>
 </section>
 
-<section class="download" id="download">
+<section id="features">
   <div class="wrap">
-    <h2 class="section-title">지금 다운로드</h2>
-    <p class="section-sub">macOS 14(Sonoma) 이상 · Apple Silicon & Intel</p>
+    <h2 class="section-title">Built for the keyboard.</h2>
+    <p class="section-sub">Twelve categories, 152 actions, zero mouse required.</p>
+
+    <div class="feature-grid">
+      <article class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <h3>Menu command shortcuts</h3>
+        <p>Enumerate any running app's menu and assign a global hotkey to any command — launch it from anywhere.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">🧩</span>
+        <h3>Shortcut Station</h3>
+        <p>Chain steps into one action — open an app, type keys, run a script, paste, wait, click, repeat.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">🔀</span>
+        <h3>Flow control &amp; variables</h3>
+        <p>If / repeat / choose-from-menu, plus variables and output-to-variable wiring between steps.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <h3>AI actions</h3>
+        <p>Use a model, run writing tools, or generate images — bind any of them to a hotkey.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">🧭</span>
+        <h3>Menu Shortcut HUD</h3>
+        <p>See every shortcut of the frontmost app in a fullscreen or floating overlay.</p>
+      </article>
+      <article class="feature-card">
+        <span class="feature-icon">🎨</span>
+        <h3>8 built-in themes</h3>
+        <p>From terminal green to paper white — Light, Dark, Neon, Nord, Paper, Terminal, and Osaurus presets.</p>
+      </article>
+    </div>
+
+    <h3 class="section-sub" style="margin-top:48px;">Themes</h3>
+    <div class="theme-strip">
+      <span class="theme-chip"><span class="theme-swatch" style="background:#f5f5f2;"></span>Light</span>
+      <span class="theme-chip"><span class="theme-swatch" style="background:#171923;"></span>Dark</span>
+      <span class="theme-chip"><span class="theme-swatch" style="background:linear-gradient(135deg,#ff2d95,#51e898);"></span>Neon</span>
+      <span class="theme-chip"><span class="theme-swatch" style="background:#2e3440;"></span>Nord</span>
+      <span class="theme-chip"><span class="theme-swatch" style="background:#f3e9d2;"></span>Paper</span>
+      <span class="theme-chip"><span class="theme-swatch" style="background:#0d1117;"></span>Terminal</span>
+      <span class="theme-chip"><span class="theme-swatch" style="background:linear-gradient(135deg,#6f7cff,#22d3ee);"></span>Osaurus</span>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2 class="section-title">Download ApexKey</h2>
+    <p class="section-sub">macOS 14 (Sonoma) or later · Apple Silicon &amp; Intel</p>
     <div class="download-actions">
       <a class="btn btn-primary btn-lg" target="_blank" rel="noopener" href="https://github.com/BoraSarang/ApexKey/releases/latest">
-        ⬇ Releases에서 받기
+        ⬇ Get from Releases
       </a>
     </div>
     <p class="download-note">
-      Homebrew(<code>brew install borasarang/tap/apexkey</code>) 배포는 준비 중입니다.
+      Homebrew (<code>brew install borasarang/tap/apexkey</code>) is on the way.
     </p>
-    <pre class="code-block"><code># 빌드 (개발자)
+    <pre class="code-block"><code># Build from source
 brew install xcodegen
 xcodegen generate --spec project.yml
 ./build_and_run.sh debug macos</code></pre>
@@ -138,7 +224,7 @@ xcodegen generate --spec project.yml
 
 <footer class="footer">
   <div class="wrap">
-    <p>© 2026 BoraSarang · <a href="https://github.com/BoraSarang/ApexKey" target="_blank" rel="noopener">GitHub</a></p>
+    <p>⌘ © 2026 BoraSarang · <a href="https://github.com/BoraSarang/ApexKey" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/BoraSarang/ApexKey/blob/main/README.md" target="_blank" rel="noopener">README</a></p>
     <p class="footer-sub">SwiftUI · AppKit · Carbon · XcodeGen</p>
   </div>
 </footer>

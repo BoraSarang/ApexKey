@@ -18,7 +18,7 @@ struct ShortcutStationView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("앱 열기, 키 입력, 스크립트, 붙여넣기 등을 단계로 쌓아 하나의 동작으로 만듭니다. 실행 버튼으로 테스트하고 단축키를 지정할 수 있습니다.")
+                    Text("ui.station.intro".localized)
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -27,12 +27,12 @@ struct ShortcutStationView: View {
                         creatingShortcut = true
                         newShortcutName = ""
                     } label: {
-                        Label("새 동작", systemImage: "plus")
+                        Label("ui.station.new_shortcut".localized, systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
 
                     if store.shortcuts.isEmpty {
-                        Text("등록된 동작이 없습니다. '새 동작'으로 시작하세요.")
+                        Text("ui.station.empty".localized)
                             .font(.caption)
                             .foregroundColor(theme.secondaryText)
                     } else {
@@ -54,16 +54,16 @@ struct ShortcutStationView: View {
         // 새 동작 이름 입력
         .sheet(isPresented: $creatingShortcut) {
             VStack(spacing: 16) {
-                Text("새 동작")
+                Text("ui.station.new_shortcut".localized)
                     .font(.headline)
-                TextField("이름 (예: 작업 시작)", text: $newShortcutName)
+                TextField("ui.station.name_placeholder".localized, text: $newShortcutName)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 300)
                     .onSubmit { confirmCreate() }
                 HStack {
-                    Button("취소") { creatingShortcut = false }
+                    Button("ui.cancel".localized) { creatingShortcut = false }
                     Spacer()
-                    Button("만들기") { confirmCreate() }
+                    Button("ui.station.create".localized) { confirmCreate() }
                         .buttonStyle(.borderedProminent)
                         .disabled(newShortcutName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
@@ -74,8 +74,8 @@ struct ShortcutStationView: View {
         // 단축키 녹음
         .sheet(item: $recordingComboFor) { shortcut in
             HotKeyRecorderView(
-                title: "\(shortcut.name) 실행 단축키",
-                subtitle: "이 단축키를 누르면 전체 \(shortcut.steps.count)단계가 순서대로 실행됩니다",
+                title: "ui.station.hotkey_title".localizedFormat(shortcut.name),
+                subtitle: "ui.station.hotkey_subtitle".localizedFormat(shortcut.steps.count),
                 excludedCombo: shortcut.combo.isEmpty ? nil : shortcut.combo,
                 onTest: { combo in
                     let testShortcut = ShortcutItem(
@@ -103,10 +103,10 @@ struct ShortcutStationView: View {
                 .font(.title3)
                 .foregroundColor(theme.accentColor)
             VStack(alignment: .leading, spacing: 2) {
-                Text("동작")
+                Text("ui.shortcut".localized)
                     .font(.title3)
                     .fontWeight(.semibold)
-                Text("여러 단계를 하나로 묶어 실행·단축키 지정")
+                Text("ui.station.intro2".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             }
@@ -126,7 +126,7 @@ struct ShortcutStationView: View {
                     Text(shortcut.name)
                         .font(.body)
                         .fontWeight(.medium)
-                    Text("\(shortcut.steps.count)단계")
+                    Text("ui.editor.steps_count".localizedFormat(shortcut.steps.count))
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                 }
@@ -164,7 +164,7 @@ struct ShortcutStationView: View {
                     .frame(maxWidth: 260, alignment: .trailing)
                     .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("단계 없음")
+                    Text("ui.station.no_steps".localized)
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                 }
@@ -177,10 +177,10 @@ struct ShortcutStationView: View {
                     Button {
                         runShortcut(shortcut)
                     } label: {
-                        Label("실행", systemImage: "play.fill")
+                        Label("ui.run".localized, systemImage: "play.fill")
                     }
                     .buttonStyle(.borderless)
-                    .help("전체 단계를 순서대로 실행 (테스트)")
+                    .help("ui.station.run_all".localized)
                     if !shortcut.combo.isEmpty {
                         Text(shortcut.combo.displayString)
                             .font(.system(.caption, design: .monospaced))
@@ -191,18 +191,18 @@ struct ShortcutStationView: View {
                 Button {
                     recordingComboFor = shortcut
                 } label: {
-                    Label(shortcut.combo.isEmpty ? "단축키 지정" : "단축키 변경", systemImage: "keyboard")
+                    Label(shortcut.combo.isEmpty ? "ui.station.assign_hotkey".localized : "ui.appdetail.change_hotkey".localized, systemImage: "keyboard")
                 }
                 .buttonStyle(.borderless)
-                .help("글로벌 실행 단축키 지정")
+                .help("ui.station.assign_hotkey_help".localized)
 
                 Button {
                     openEditor(for: shortcut)
                 } label: {
-                    Label("단계 편집", systemImage: "list.number")
+                    Label("ui.station.edit_steps".localized, systemImage: "list.number")
                 }
                 .buttonStyle(.borderless)
-                .help("단계 추가·정렬·삭제")
+                .help("ui.station.edit_steps_help".localized)
 
                 Spacer()
 
@@ -213,24 +213,24 @@ struct ShortcutStationView: View {
                         .foregroundColor(theme.errorColor)
                 }
                 .buttonStyle(.borderless)
-                .help("삭제")
+                .help("ui.delete".localized)
                 .confirmationDialog(
-                    "‘\(shortcut.name)’ 동작을 삭제할까요?",
+                    "ui.station.delete_alert_title".localizedFormat(shortcut.name),
                     isPresented: Binding(
                         get: { pendingDeletion?.id == shortcut.id },
                         set: { if !$0 { pendingDeletion = nil } }
                     ),
                     titleVisibility: .visible
                 ) {
-                    Button("삭제", role: .destructive) {
+                    Button("ui.delete".localized, role: .destructive) {
                         if let s = pendingDeletion {
                             store.removeShortcut(s)
                         }
                         pendingDeletion = nil
                     }
-                    Button("취소", role: .cancel) { pendingDeletion = nil }
+                    Button("ui.cancel".localized, role: .cancel) { pendingDeletion = nil }
                 } message: {
-                    Text("\(shortcut.steps.count)개 단계와 설정된 단축키가 함께 삭제됩니다. 되돌릴 수 없습니다.")
+                    Text("ui.station.delete_alert_message".localizedFormat(shortcut.steps.count))
                 }
             }
         }
@@ -287,7 +287,7 @@ private struct MenuChoiceNode: View {
                 .padding(.leading, 8)
             } label: {
                 HStack(spacing: 8) {
-                    Text(item.title.isEmpty ? "(하위 메뉴)" : item.title)
+                    Text(item.title.isEmpty ? "ui.appdetail.submenu".localized : item.title)
                         .fontWeight(.medium)
                         .lineLimit(1)
                     Spacer()
@@ -303,7 +303,7 @@ private struct MenuChoiceNode: View {
                 onSelect(item)
             } label: {
                 HStack(spacing: 8) {
-                    Text(item.title.isEmpty ? "(분리자)" : item.title)
+                    Text(item.title.isEmpty ? "ui.station.separator".localized : item.title)
                         .lineLimit(1)
                     Spacer()
                     if !item.keyEquivalentDisplay.isEmpty {

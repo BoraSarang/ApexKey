@@ -33,19 +33,19 @@ struct DebugLogView: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            TextField("필터 (E-MAC-… / tag / 단어)", text: $filterText)
+            TextField("ui.log.filter_placeholder".localized, text: $filterText)
                 .textFieldStyle(.roundedBorder)
-            Toggle("자동 스크롤", isOn: $autoScroll)
+            Toggle("ui.log.auto_scroll".localized, isOn: $autoScroll)
                 .toggleStyle(.checkbox)
             Button {
                 Logger.clearBuffer()
             } label: {
-                Label("지우기", systemImage: "trash")
+                Label("ui.clear".localized, systemImage: "trash")
             }
             Button {
                 copyToPasteboard()
             } label: {
-                Label("복사", systemImage: "doc.on.doc")
+                Label("ui.copy".localized, systemImage: "doc.on.doc")
             }
         }
         .padding(8)
@@ -56,7 +56,7 @@ struct DebugLogView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 1) {
                     if filteredLines.isEmpty { // refreshTick 의존 재렌더
-                        Text(refreshTick < 0 ? "" : "로그 없음")
+                        Text(refreshTick < 0 ? "" : "ui.log.no_logs".localized)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(8)

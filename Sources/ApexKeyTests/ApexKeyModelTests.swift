@@ -37,10 +37,10 @@ final class ApexKeyModelTests: XCTestCase {
     }
 
     func testAppCategoryDisplayName() {
-        XCTAssertEqual(AppCategory.utilities.displayName, "유틸리티")
-        XCTAssertEqual(AppCategory.productivity.displayName, "생산성")
-        XCTAssertEqual(AppCategory.photoVideo.displayName, "사진 및 비디오")
-        XCTAssertEqual(AppCategory.socialNetworking.displayName, "소셜 네트워킹")
+        XCTAssertEqual(AppCategory.utilities.displayName, "category.app.utilities".localized)
+        XCTAssertEqual(AppCategory.productivity.displayName, "category.app.productivity".localized)
+        XCTAssertEqual(AppCategory.photoVideo.displayName, "category.app.photo_video".localized)
+        XCTAssertEqual(AppCategory.socialNetworking.displayName, "category.app.social_networking".localized)
     }
 
     func testAppCategoryMigration() {
@@ -80,13 +80,13 @@ final class ApexKeyModelTests: XCTestCase {
     }
 
     func testShortcutStepSummary() {
-        XCTAssertEqual(ShortcutStep(type: .paste, target: "clipboard").summary, "클립보드")
+        XCTAssertEqual(ShortcutStep(type: .paste, target: "clipboard").summary, "ui.editor.step_clipboard".localized)
         XCTAssertEqual(ShortcutStep(type: .paste, target: "안녕").summary, "안녕")
-        XCTAssertEqual(ShortcutStep(type: .wait, target: "3").summary, "3초")
-        XCTAssertEqual(ShortcutStep(type: .macro, target: "36,36").summary, "2키")
+        XCTAssertEqual(ShortcutStep(type: .wait, target: "3").summary, "step.wait_fmt".localizedFormat("3"))
+        XCTAssertEqual(ShortcutStep(type: .macro, target: "36,36").summary, "step.keys_fmt".localizedFormat(2))
         XCTAssertEqual(
             ShortcutStep(type: .system, target: SystemActionType.mute.rawValue).summary,
-            "음소거 토글"
+            "system.action.mute".localized
         )
     }
 

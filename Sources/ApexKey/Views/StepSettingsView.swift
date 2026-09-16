@@ -25,7 +25,7 @@ struct StepSettingsView: View {
                 
                 Spacer()
                 
-                Button("완료") { dismiss() }
+                Button("ui.done".localized) { dismiss() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             }
@@ -52,12 +52,12 @@ struct StepSettingsView: View {
     
     private var commonSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("일반")
+            Text("ui.step_settings.general".localized)
                 .font(.headline)
             
-            Toggle("이 단계 스킵", isOn: $step.isSkipped)
+            Toggle("ui.step_settings.skip".localized, isOn: $step.isSkipped)
             
-            TextField("메모 (선택)", text: Binding(
+            TextField("ui.step_settings.note".localized, text: Binding(
                 get: { step.note ?? "" },
                 set: { step.note = $0.isEmpty ? nil : $0 }
             ))
@@ -114,7 +114,7 @@ struct IfSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("If 조건")
+            Text("ui.step_settings.if_condition".localized)
                 .font(.headline)
             
             let condition = Binding<Condition>(
@@ -132,17 +132,17 @@ struct IfSettingsView: View {
             
             Divider()
             
-            Text("선택 사항")
+            Text("ui.step_settings.optional_mark".localized)
                 .font(.subheadline)
                 .foregroundColor(theme.secondaryText)
             
-            TextField("라벨 (선택)", text: Binding(
+            TextField("ui.label_optional".localized, text: Binding(
                 get: { step.ifBranch?.label ?? "" },
                 set: { step.ifBranch?.label = $0.isEmpty ? nil : $0 }
             ))
             .textFieldStyle(.roundedBorder)
             
-            Text("그 외(Otherwise) 분기는 단계를 If 아래에 삽입해 관리합니다.")
+            Text("ui.step_settings.otherwise_hint".localized)
                 .font(.caption2)
                 .foregroundColor(theme.secondaryText)
         }
@@ -159,7 +159,7 @@ struct ConditionEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // 연산자 선택
-            Picker("연산자", selection: operatorBinding) {
+            Picker("ui.step_settings.operator".localized, selection: operatorBinding) {
                 ForEach(ConditionOperator.allCases) { op in
                     Text(op.displayName).tag(op)
                 }
@@ -168,14 +168,14 @@ struct ConditionEditorView: View {
             .frame(width: 200)
             
             // 왼쪽 값
-            Text("왼쪽 값")
+            Text("ui.step_settings.left_value".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             operandEditor($condition.leftOperand)
             
             // 오른쪽 값
             if condition.operator.requiresRightOperand {
-                Text("오른쪽 값")
+                Text("ui.step_settings.right_value".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
                 operandEditor(Binding(
@@ -196,7 +196,7 @@ struct ConditionEditorView: View {
     @ViewBuilder
     private func operandEditor(_ operand: Binding<ConditionOperand>) -> some View {
         // 변수 선택(간단화: 상수 텍스트만 편집)
-        TextField("값", text: Binding(
+        TextField("ui.condition.value".localized, text: Binding(
             get: {
                 if case .constant(let v) = operand.wrappedValue, case .text(let s) = v {
                     return s
@@ -221,17 +221,17 @@ struct RepeatSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(isForEach ? "반복 (각 항목)" : "반복 (횟수)")
+            Text(isForEach ? "ui.step_settings.repeat_each".localized : "ui.step_settings.repeat_count".localized)
                 .font(.headline)
             
             if isForEach {
-                TextField("컬렉션 변수 (UUID)", text: Binding(
+                TextField("ui.step_settings.collection_uuid".localized, text: Binding(
                     get: { step.repeatLoop?.collectionVariable?.uuidString ?? "" },
                     set: { step.repeatLoop?.collectionVariable = UUID(uuidString: $0) }
                 ))
                 .textFieldStyle(.roundedBorder)
                 
-                Text("컬렉션(리스트)을 소유한 변수의 ID를 입력합니다.")
+                Text("ui.step_settings.collection_hint".localized)
                     .font(.caption2)
                     .foregroundColor(theme.secondaryText)
             } else {
@@ -239,13 +239,13 @@ struct RepeatSettingsView: View {
                     get: { Double(step.repeatLoop?.count ?? 1) },
                     set: { step.repeatLoop?.count = Int($0) }
                 ), in: 1...100) {
-                    Text("반복 횟수: \(step.repeatLoop?.count ?? 1)")
+                    Text("ui.step_settings.repeat_count_value".localizedFormat(step.repeatLoop?.count ?? 1))
                 }
             }
             
             Divider()
             
-            TextField("라벨 (선택)", text: Binding(
+            TextField("ui.label_optional".localized, text: Binding(
                 get: { step.repeatLoop?.label ?? "" },
                 set: { step.repeatLoop?.label = $0.isEmpty ? nil : $0 }
             ))
@@ -265,10 +265,10 @@ struct MenuSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("메뉴 선택")
+            Text("ui.step_settings.menu_select".localized)
                 .font(.headline)
             
-            TextField("프롬프트", text: Binding(
+            TextField("ui.prompt".localized, text: Binding(
                 get: { step.chooseFromMenu?.prompt ?? "" },
                 set: { step.chooseFromMenu?.prompt = $0 }
             ))
@@ -276,7 +276,7 @@ struct MenuSettingsView: View {
             
             Divider()
             
-            Text("옵션")
+            Text("ui.options".localized)
                 .font(.subheadline)
                 .foregroundColor(theme.secondaryText)
             
@@ -296,15 +296,15 @@ struct MenuSettingsView: View {
             }
             
             HStack {
-                TextField("새 옵션", text: $newOptionTitle)
+                TextField("ui.step_settings.new_option".localized, text: $newOptionTitle)
                     .textFieldStyle(.roundedBorder)
-                Button("추가") {
+                Button("ui.add".localized) {
                     guard !newOptionTitle.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                     if step.chooseFromMenu != nil {
                         step.chooseFromMenu?.options.append(MenuOption(title: newOptionTitle))
                     } else {
                         step.chooseFromMenu = ChooseFromMenu(
-                            prompt: "옵션을 선택하세요",
+                            prompt: "ui.select_option".localized,
                             options: [MenuOption(title: newOptionTitle)],
                             allowMultipleSelection: false,
                             showCancelButton: true,
@@ -316,12 +316,12 @@ struct MenuSettingsView: View {
                 .buttonStyle(.bordered)
             }
             
-            Toggle("여러 개 선택 허용", isOn: Binding(
+            Toggle("ui.step_settings.allow_multiple".localized, isOn: Binding(
                 get: { step.chooseFromMenu?.allowMultipleSelection ?? false },
                 set: { step.chooseFromMenu?.allowMultipleSelection = $0 }
             ))
             
-            Toggle("취소 버튼 표시", isOn: Binding(
+            Toggle("ui.step_settings.show_cancel".localized, isOn: Binding(
                 get: { step.chooseFromMenu?.showCancelButton ?? true },
                 set: { step.chooseFromMenu?.showCancelButton = $0 }
             ))
@@ -337,10 +337,10 @@ struct UseModelSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("모델 사용")
+            Text(LocalizedStringKey("action.useModel"))
                 .font(.headline)
             
-            Picker("모델", selection: Binding(
+            Picker("ui.model".localized, selection: Binding(
                 get: { step.useModel?.modelType ?? .onDevice },
                 set: { step.useModel?.modelType = $0 }
             )) {
@@ -350,13 +350,13 @@ struct UseModelSettingsView: View {
             }
             .pickerStyle(.segmented)
             
-            TextField("프롬프트", text: Binding(
+            TextField("ui.prompt".localized, text: Binding(
                 get: { step.useModel?.prompt ?? "" },
                 set: { step.useModel?.prompt = $0 }
             ))
             .textFieldStyle(.roundedBorder)
             
-            Picker("출력 타입", selection: Binding(
+            Picker("ui.output_type".localized, selection: Binding(
                 get: { step.useModel?.outputType ?? .text },
                 set: { step.useModel?.outputType = $0 }
             )) {
@@ -366,7 +366,7 @@ struct UseModelSettingsView: View {
             }
             .pickerStyle(.segmented)
             
-            Toggle("Follow Up (채팅)", isOn: Binding(
+            Toggle("ui.step_settings.follow_up_chat".localized, isOn: Binding(
                 get: { step.useModel?.followUp ?? false },
                 set: { step.useModel?.followUp = $0 }
             ))
@@ -382,10 +382,10 @@ struct WritingToolSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("라이팅 툴")
+            Text(LocalizedStringKey("action.writingTool"))
                 .font(.headline)
             
-            Picker("동작", selection: Binding(
+            Picker("ui.shortcut".localized, selection: Binding(
                 get: { step.writingTool?.action ?? .proofread },
                 set: { step.writingTool?.action = $0 }
             )) {
@@ -396,7 +396,7 @@ struct WritingToolSettingsView: View {
             .pickerStyle(.menu)
             
             if step.writingTool?.action == .changeTone {
-                Picker("톤", selection: Binding(
+                Picker("ui.tone".localized, selection: Binding(
                     get: { step.writingTool?.tone ?? .professional },
                     set: { step.writingTool?.tone = $0 }
                 )) {
@@ -407,7 +407,7 @@ struct WritingToolSettingsView: View {
                 .pickerStyle(.menu)
             }
             
-            TextField("입력 변수 (UUID)", text: Binding(
+            TextField("ui.step_settings.input_uuid".localized, text: Binding(
                 get: { step.writingTool?.inputVariable.uuidString ?? "" },
                 set: { step.writingTool?.inputVariable = UUID(uuidString: $0) ?? UUID() }
             ))
@@ -424,16 +424,16 @@ struct ImagePlaygroundSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("이미지 생성")
+            Text("ui.editor.step_image".localized)
                 .font(.headline)
             
-            TextField("프롬프트", text: Binding(
+            TextField("ui.prompt".localized, text: Binding(
                 get: { step.imagePlayground?.prompt ?? "" },
                 set: { step.imagePlayground?.prompt = $0 }
             ))
             .textFieldStyle(.roundedBorder)
             
-            Picker("스타일", selection: Binding(
+            Picker("ui.style".localized, selection: Binding(
                 get: { step.imagePlayground?.style ?? .animation },
                 set: { step.imagePlayground?.style = $0 }
             )) {
@@ -455,13 +455,13 @@ struct VariableStepSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("변수 설정")
+            Text(LocalizedStringKey("action.setVariable"))
                 .font(.headline)
             
-            TextField("변수 값", text: $step.target)
+            TextField("ui.step_settings.variable_value".localized, text: $step.target)
                 .textFieldStyle(.roundedBorder)
             
-            Text("이 단계는 실행 중 이 값을 변수로 설정합니다. 매직 변수 연결은 변수 패널에서 구성합니다.")
+            Text("ui.step_settings.variable_hint".localized)
                 .font(.caption2)
                 .foregroundColor(theme.secondaryText)
         }
@@ -477,7 +477,7 @@ struct CommentSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("코멘트")
+            Text(LocalizedStringKey("action.comment"))
                 .font(.headline)
             
             TextEditor(text: Binding(
@@ -501,13 +501,13 @@ struct DefaultSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("설정")
+            Text(LocalizedStringKey("settings.title"))
                 .font(.headline)
             
-            TextField("제목", text: $step.title)
+            TextField("ui.title".localized, text: $step.title)
                 .textFieldStyle(.roundedBorder)
             
-            TextField("대상 (값)", text: $step.target)
+            TextField("ui.step_settings.target_value".localized, text: $step.target)
                 .textFieldStyle(.roundedBorder)
         }
         .sectionCard()

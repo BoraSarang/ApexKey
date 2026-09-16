@@ -3,6 +3,92 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-16 macos/web — 메인 화면 스크린샷 추가 (EN·KO)
+
+> `website/img/main_en.png`(EN 패널) · `website/img/main_kr.png`(KO 패널) 추가.
+
+- **README** — `README.md` 배지 하단에 영문 스크린샷(800px 폭) 삽입, `README.ko.md`에 한글 스크린샷 삽입
+- **랜딩 페이지** — `website/index.html`·`ko/index.html` hero 섹션과 마퀴 사이에 `section.app-preview` 삽입 (720px 폭, 둥근 모서리 + 그림자 + lazy loading)
+- **CSS** — `styles.css`에 `.app-preview` 규칙 추가
+
+## 2026-09-16 macos — 잔여 문자열 다국어화 2계층 (PLAN_v0.6_l10n)
+
+> 모델 displayName/displayString/summary + 사용자 노출 에러를 Localizable.strings로 치환.
+> ko/en 각 550→672키(+122, osascript 키 1건은 로그 전용으로 판명되어 제외). 테스트 70개 중 69 통과
+> (1건 실패는 기존 환경 관련 `testRegisteredAppURLResolvedByBundleID`와 무관) · 빌드 성공.
+
+- **신규 키 스키마** — `variable.*`(32: type 3 · special 10+desc 10 · value 9) · `condition.op.*`(13) · `flow.*`(16) · `category.app.*`(9) · `system.action.*`(8) · `color.name.*`(13) · `step.*`(11) · `error.user.*`(4) · `appearance.*`(9) · `macro.title_fmt` · `ui.binding.duplicate_fmt` · `ui.condition.value` · `ui.sidebar.expand/collapse` · `ui.window.settings/about/debug_log`
+- **모델 로컬라이즈** — `VariableModels`(VariableType·SpecialVariable 표시/설명·VariableValueType·ActionOutput.preview), `FlowControlModels`(ConditionOperator·ConditionOperand 상수 표시·IfBranch·RepeatMode·RepeatLoop·ChooseFromMenu), `AppItem`(AppCategory 9종), `Shortcut`(summary 30케이스 정리, runCountFormatted/lastRunFormatted), `ShortcutColor`(13색), `SystemActionType`(8종)
+- **사용자 노출 에러** — `error.user.action_failed_fmt`(ExecutionEngine) · `script_failed`(EE) · `empty_script`(ActionExecutor) · `foundation_models_unavailable`(AIAvailabilityManager) · `ui.cancel` 재사용(EE 알림)
+- **서비스/설정/뷰** — ConfigStore+Preferences(menu_hud.style 재사용)·+Macro(매크로 N키)·+Bindings(복제 접미사), ThemeSettingsView(외형/프리셋/텍스트크기/AppearanceMode), StepSettingsView(값 플레이스홀더), SidebarNavigation(사이드바 help/검색), AppDelegate(설정·정보·디버그 로그 창 타이틀)
+- **테스트** — `testAppCategoryDisplayName`·`testShortcutStepSummary`를 키 기반 비교로 재작성(언어 무관)
+- **보류(계획에 따라)** — 로그 문자열, `{마법변수/변수/마법}` 토큰, 불리언 입력 파싱(참/예/거짓), 시드 데이터(프리셋/예시 단축어), 레거시 마이그레이션 키
+
+## 2026-09-16 macos — 잔여 문자열 다국어화 3계층 + 현지화 가드 (PLAN_v0.6_l10n)
+
+> 2계층에서 미반영된 서비스 출력·LLM 프롬프트·오류 상태 텍스트 + 재발 방지 가드 추가.
+> ko/en 각 672→692키(+20). 코드 참조 키 전수 검증 통과(모두 strings 내 존재). 단위 테스트 69/70 통과(기존 실패 1건 무관). 보안 스캔 통과. 빌드 성공(PID 70319).
+
+- **서비스 출력 로컬라이즈** — WritingToolExecutor: `[교정 결과]/[다시쓰기]` 결과 포맷(2), 톤 접미어 `[전문적]..` 등(6) → `ai.writing.result_*_fmt`·`ai.tone.code_*` / ImagePlaygroundExecutor: 플레이스홀더 `"이미지 생성"`, 배지 `"ImagePlayground - %@"`(2) → `ai.image.placeholder_fmt`·`ai.image.badge_fmt` / VariableResolver: 불리언 `"참"/"거짓"`, 이미지 `"[이미지]"`(3) → `variable.boolean_true/false`·`variable.image`
+- **메뉴 실행 상태** — MenuEnumerator `MenuActionResult.description`(성공/앱 미실행/권한 없음/메뉴 미발견) → `menu.action.status_*` (4)
+- **LLM 프롬프트** — UseModelExecutor FollowUp 대화 헤더 `"이전 대화:"`, 역할 `"사용자"/"AI"` → `ai.prompt.conversation_header`·`role_user/ai` (3)
+- **현지화 가드** — `scripts/check-localizable.py`: 앱 타깃(Sources/ApexKey)에서 `//` 주석·`/* */` 블록 주석·`Logger.`·`.localized`·토큰·불리언 파싱·`"서비스"`·StoreCoding 라벨·카테고리 매칭·시드/레거시 데이터를 제외하고 한글 문자열 리터럴을 전수 검사, 미반영 0건 달성. `build_and_run.sh` 가드(0/5a)로 연결 — 잔여 한글이 0건 미만이면 빌드 실패
+- **보류** — 동일 (로그 문자열·토큰·파싱·시드·레거시)
+
+## 2026-09-16 web — README·랜딩 페이지 리디자인 (영어 메인, Command Key 심볼릭)
+
+> 정적 문서/웹 작업. 빌드·테스트 불필요, HTML 구조 검증 통과.
+
+- **README 언어 전환** — `README.md` 영어 메인, `README.ko.md` 한국어 신설, `README.en.md` 제거. 양방향 링크 + 랜딩 페이지 주소 갱신
+- **랜딩 페이지 리디자인 (Command Key Symbolic)** — 미니멀 다크 · 틸→퍼플 그라디언트 + 골드 ⌘ 키캡 CSS 아트 · 핫키 시퀀스 모티프 · 키캡 마퀴 애니메이션 · 키보드 스텝 / 6개 기능 카드 / 8개 테마 스트립 · 152개 액션 마이크로카피
+- **EN/KO 바이링궐** — `website/index.html`(EN 메인, `/ApexKey/`) + `website/ko/index.html`(KO, `/ApexKey/ko/`). 공용 `styles.css`·`script.js`(언어 감지 릴리즈 라벨) 유지, nav에 언어 토글 추가. `pages.yml` 변경 없이 작동
+
+## 2026-09-16 macos — 중복 제거 리팩터 R2 (이벤트 타입 + 메뉴 팩토리)
+
+> 동작 보존. BUILD SUCCEEDED · unit 70건 중 69 통과(기존 1건 MovistPro 환경 실패 무관).
+
+- **R2-1 이벤트 요약 공통화** — `TriggerEventDisplayable` 프로토콜 + `Sequence.displaySummary` 확장 신설, 9개 `*EventType` 채택. `eventTypes.map(\.displayName).joined(separator: ", ")` 9곳 중복 해소
+- **R2-2 StageManagerEventType 통합** — `FocusEventType`과 정의 완전 동일(켜짐/꺼짐, rawValue 동일)이라 `typealias`로 통합, 중복 enum 정의 12줄 삭제. Codable 저장 호환 유지
+- **R2-3 메뉴 항목 팩토리** — `AppDelegate.makeItem(title:action:key:target:)` 신설, 메인 메뉴 3곳 + 상태 메뉴 5곳의 NSMenuItem 생성·target 지정 보일러플레이트 해소. 편집 메뉴(responder chain, target nil)는 기존 동작 유지 — 메뉴 테스트 통과 확인
+
+## 2026-09-16 macos — 깊은 리팩터 R1 (PLAN_v0.4_refactor, R-01~11)
+
+> 동작 보존 + 버그 수정. 제품 결정(127개 액션 실행 구현 등)은 백로그.
+> BUILD SUCCEEDED · unit 70건 중 69 통과(기존 1건 MovistPro 환경 의존 실패 무관) · 재설치/재실행 후 저장소 무손실 확인.
+
+- **R-01 엔진 실패 전파** — 미구현 액션이 성공으로 둔갑하던 silent 실패 해소. `default` 분기가 변수 토큰 치환 후 실행하고 실패를 `Result(success:false)`로 반환, 단계 루프가 전체 성공도를 추적. 실행 통계·자동화도 실패 시 미증가로 일관
+- **R-02/R-03 대기·입력대기** — `wait`가 호출 스레드에서 동기 sleep(순서 보장), 메인 스레드 호출 시 `E-MAC-ACT-3006` 경고. `pauseUntilInput`은 메인 호출 시 교착 대신 백그라운드 전환
+- **R-04 메뉴바 타입 확인** — `as!` 강제 캐스트를 타입ID 비교 + `unsafeDowncast`로 교체, 불일치 시 `E-MAC-MENU-3004`
+- **R-05 저장 묵살 해소** — `saveContext`/`fetchContext`/`StoreCoding` 헬퍼로 `try?` 30여 곳을 에러 로그付き로 전환 (`E-MAC-STORE-5001` 저장/`5002` 인코딩/`5003` 디코딩/`5004` 조회)
+- **R-06 죽은 코드 삭제** — `runScript` 래퍼, `debugInfo`, `toModelContext`(손실 변환), `value(forName:)` 제거. `executeFollowUp`은 Follow-Up 토글 UI용이라 유지(연결은 백로그)
+- **R-07 PATH 단일화** — `ShellEnvironment` 신설, 앱·테스트가 공유 (adb 탐색 경로 드리프트 방지)
+- **R-08 카테고리 정합** — 변수 5종 `.variables` 귀속(중복 등록 해소), `automationRun`/`trigger`를 automation 목록에 추가. 변수 단계 색상이 cyan으로 통일
+- **R-09 메타데이터 테이블화** — `ActionMetadata.swift`에 152항목 단일 출처, displayName/systemImage/category 3스위치 삭제. `drive`/`oneDrive` 표시명 중복은 값 유지(판단 보류, 백로그)
+- **R-10 ConfigStore 분할** — 1037줄 → 본체 314줄 + 영역별 extension 9파일 (HotKeyDefaults/Preferences/Automation/Apps/Scripts/Shortcuts/Bindings/HotKeys/Macro). public API 동결, 편집기 확장도 Shortcuts 파일로 이관
+- **R-11 표시 수정** — 반복 횟수 미설정 시 "0회"→"반복" (실행 폴백 1회와 일치)
+
+## 2026-09-16 macos — 다국어 지원 (i18n, T-140~142)
+
+> 언어: 한국어/영어/시스템 자동 · 반영: 앱 재시작(표준 AppleLanguages 키)
+> BUILD SUCCEEDED · unit 70건 중 69 통과(기존 1건 MovistPro 환경 실패 무관)
+
+- **T-140 인프라** — `Localizable.strings`(ko/en 38항목) 생성, `LanguageManager` 싱글턴(`setLanguage`/`currentLanguageCode`/`needsRestart`), `ConfigStore.appLanguage` 영속화(`AppleLanguages` + `pref.appLanguage` 이중 저장)
+- **T-141 설정 UI** — `SettingsView`에 "언어" 섹션 추가: Picker(시스템/한국어/영어) + 변경 시 즉시 재시작 필요 배너(주황) 표시, `LanguageManager.needsRestart` 활용
+- **T-142 전체 치환** — 하드코딩 문자열 65개 키 추출·ko/en 번역 등록, `Text(\"...\")` → `Text(LocalizedStringKey(\"key\"))` 전수 치환(18개 파일), `ActionMetadata.displayNameKey`로 액션 카탈로그 지역화(`action.launchApp` 등 152개)
+- **테스트** — 신규 `ApexKeyMetadataTests` 메타데이터 정합성 4건 통과, 전체 69/70 통과(기존 1건 MovistPro 환경 실패 무관)
+- **테스트** — 신규 7건: 메타데이터 전수 정합 4건 + 엔진 실패 전파 + wait 순서 보장 (기존 스크립트·메뉴 8건 포함 전체 통과)
+
+## 2026-09-16 macos — 스크립트 동작 쉽게 만들기 (T-130~132)
+
+- **셸 실행 강화** — `ActionExecutor.runShellScript` 신설: GUI 앱 최소 PATH에 Homebrew(`/opt/homebrew/bin`)·Android SDK `platform-tools` 자동 포함, 출력/종료코드 로그, 성공 여부 반환. 기존 `runScript`는 fire-and-forget이라 adb를 못 찾고 실패 원인도 안 남았음. `.runScriptInShell`이 미구현(`E-MAC-ACT-3005`)이던 것을 동일 경로로 실행. `ExecutionEngine`에 `.script`/`.runScriptInShell` 명시 분기 추가(실행 전 `{변수}` 토큰 치환, 출력을 단계 출력으로 저장)
+- **스크립트 전용 설정 UI** — `ScriptSettingsView`(제목 + 여러 줄 monospace 명령 편집 + 테스트 실행 버튼, 결과는 디버그 로그에서 확인). `ShortcutEditorView.selectStep`이 스크립트 단계도 설정 창을 열도록 연결 — 기존엔 스크립트 단계를 눌러도 아무 창이 안 열려 명령을 넣을 방법이 없었음. `createDefaultStep`에 `.runScriptInShell` 기본값 추가
+- **ADB Wi-Fi 연결 샘플** — `ConfigStore.ensureADBWifiSample`이 이름 기준 없으면 1회 생성(기존 사용자 포함). 스크립트: `adb tcpip 5555` → `ip route`에서 IP 추출 → `adb connect IP:5555`. 실기 검증: USB 연결 기기에서 `already connected to 10.36.188.13:5555` 성공
+- **검증** — BUILD SUCCEEDED · unit 63건 중 62 통과(기존 1건 MovistPro 환경 의존 실패 무관) · 재설치/재실행 후 저장소에서 샘플 생성 확인 · `ApexKeyScriptTests.testAdbWifiShortcutEndToEnd`가 앱 실행 경로 그대로 실기 성공
+- **T-133 테스트 결과 표시** — `runShellScript`를 `runShellScriptResult`(성공/출력/에러/종료코드 반환)로 분리, 스크립트 설정의 테스트 실행이 성공·실패 배지와 결과 텍스트를 창에 바로 표시
+- **T-134 Cmd+C/V 미동작 수정** — 원인: `setupSystemMenu`가 앱 메뉴만 구성해 편집 표준 액션이 first responder에 전달되지 않음. `makeMainMenu`에 편집 메뉴(실행 취소 ⌘Z/다시 실행 ⇧⌘Z/잘라내기 ⌘X/복사 ⌘C/붙여넣기 ⌘V/지우기/모두 선택 ⌘A, target nil → responder chain) 추가 + `ApexKeyMenuTests` 회귀 테스트
+- **T-135 동작 고정 프리셋** — 시스템 탭과 동급: `BuiltInShortcutPresets`에 Android Untether(언테더)/Mirror(미러) 2개 고정, 단축키 없이 제공(사용자 지정), 삭제 가능·삭제 시 재생성 안 함. `ensureBuiltInShortcuts`가 설치·업데이트 후 이름 기준 보충. 재설치·재실행 후 저장소 확인: 2개 존재·구명 중복 없음. 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영 + 저장된 복사본에도 동일 내용 적용
+- **T-136 편집기 저장 유실 수정** — 원인: 빨간 X(윈도우 닫기)는 `saveAndClose`를 안 타서 단계 수정이 날아감. `.onDisappear`에 단계/이름/설명/자동화/변수 저장 추가. `build_and_run.sh debug`가 기존 앱 종료+재시작(5/5)까지 수행
+
 ## 2026-09-04 macos — osaurus 기반 전면 테마 리디자인 (Phases 1~7)
 
 > **목표**: 기존 하드코딩 시스템 색상을 버리고 osaurus 프로젝트의 테마 기반 디자인 시스템을 ApexKey 전 창(메인/설정/About/HUD/런처/편집기)에 이식.

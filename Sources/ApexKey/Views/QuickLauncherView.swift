@@ -46,7 +46,7 @@ struct QuickLauncherView: View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(theme.secondaryText)
-            TextField("매크로 이름으로 검색...", text: $searchText)
+            TextField("ui.launcher.search_macros".localized, text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
             if !searchText.isEmpty {
@@ -112,7 +112,7 @@ struct QuickLauncherView: View {
             Image(systemName: "xmark.circle")
                 .font(.system(size: 32))
                 .foregroundColor(theme.secondaryText)
-            Text("일치하는 매크로를 찾을 수 없습니다")
+            Text("ui.launcher.no_match".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
         }

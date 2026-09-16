@@ -42,6 +42,7 @@ final class ExecutionEngine {
     
     /// 단계 배열 실행
     func execute(steps: [ShortcutStep], context: inout UseModelExecutor.ExecutionContext) -> Result {
+        var ok = true
         for (index, step) in steps.enumerated() {
             // 스킵된 단계는 건너뜀
             if step.isSkipped {
@@ -52,7 +53,8 @@ final class ExecutionEngine {
             Logger.info("ExecutionEngine", "단계 \(index + 1)/\(steps.count): \(step.type.displayName)")
             
             let result = executeStep(step, context: &context)
-            
+            if !result.success { ok = false }
+
             // 흐름 제어 처리
             switch result.controlFlow {
             case .breakLoop:
@@ -65,7 +67,7 @@ final class ExecutionEngine {
                 break  // 계속
             }
         }
-        return .continueRunning
+        return Result(success: ok, controlFlow: .continueExecution)
     }
     
     // MARK: - 단계 실행
@@ -116,14 +118,21 @@ final class ExecutionEngine {
             
         case .setVariable:
             return executeSetVariable(step, context: &context)
+
+        case .script, .runScriptInShell:
+            return executeShellScript(step, context: &context)
             
         case .outputToVariable:
             return executeOutputToVariable(step, context: &context)
             
         default:
-            // 일반 액션은 초기화된 변수 컨텍스트로 실행
-            let binding = step.toBinding()
-            _ = ActionExecutor.shared.execute(binding)
+            // 일반 액션은 변수 토큰 치환 후 실행, 실패는 성공으로 둔갑시키지 않고 전파 (R-01)
+            var binding = step.toBinding()
+            binding.target = VariableResolver.resolveText(step.target, context: makeResolveContext(context))
+            let ok = ActionExecutor.shared.execute(binding)
+            if !ok {
+                return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+            }
             return .continueRunning
         }
     }
@@ -268,7 +277,7 @@ final class ExecutionEngine {
                 alert.addButton(withTitle: option.title)
             }
             if menu.showCancelButton {
-                alert.addButton(withTitle: "취소")
+                alert.addButton(withTitle: "ui.cancel".localized)
             }
             
             let response = alert.runModal()
@@ -360,6 +369,20 @@ final class ExecutionEngine {
         return .continueRunning
     }
     
+    // MARK: - 셸 스크립트
+
+    /// 스크립트 단계 실행 — 변수 토큰({매직변수} 등)을 해석한 뒤 셸에서 실행
+    private func executeShellScript(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let resolved = VariableResolver.resolveText(step.target, context: makeResolveContext(context))
+        let ok = ActionExecutor.shared.runShellScript(resolved)
+        context.setOutput(.text(resolved), for: step.id)
+        context.lastOutput = .text(resolved)
+        if !ok {
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.script_failed".localized)
+        }
+        return .continueRunning
+    }
+
     // MARK: - 헬퍼
     
     /// ExecutionContext → VariableResolver.ResolveContext 변환

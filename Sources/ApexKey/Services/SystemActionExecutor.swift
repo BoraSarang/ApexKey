@@ -16,14 +16,14 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .lock:         return "화면 잠금"
-        case .mute:         return "음소거 토글"
-        case .darkMode:     return "다크 모드 토글"
-        case .sleep:        return "수면"
-        case .displaySleep: return "디스플레이 꺼짐"
-        case .screenSaver:  return "화면 보호기"
-        case .dockRestart:  return "Dock 재시작"
-        case .finderRestart: return "Finder 재시작"
+        case .lock:         return "system.action.lock".localized
+        case .mute:         return "system.action.mute".localized
+        case .darkMode:     return "system.action.dark_mode".localized
+        case .sleep:        return "system.action.sleep".localized
+        case .displaySleep: return "system.action.display_sleep".localized
+        case .screenSaver:  return "system.action.screen_saver".localized
+        case .dockRestart:  return "system.action.dock_restart".localized
+        case .finderRestart: return "system.action.finder_restart".localized
         }
     }
 

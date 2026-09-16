@@ -64,22 +64,22 @@ struct MainWindowView: View {
                 Button {
                     store.reclassifyCategories()
                 } label: {
-                    Label("카테고리 재분류", systemImage: "arrow.triangle.2.circlepath")
+                    Label("ui.main.reclassify".localized, systemImage: "arrow.triangle.2.circlepath")
                 }
-                .help("앱 카테고리 자동 재분류 (수동으로 바꾼 앱은 유지)")
+                .help("ui.main.reclassify_help".localized)
                 Button {
                     store.alwaysOnTop.toggle()
                 } label: {
-                    Label(store.alwaysOnTop ? "항상 위에 해제" : "항상 위에", systemImage: store.alwaysOnTop ? "pin.fill" : "pin")
+                    Label(store.alwaysOnTop ? "ui.main.always_on_top_off".localized : "ui.main.always_on_top".localized, systemImage: store.alwaysOnTop ? "pin.fill" : "pin")
                         .foregroundStyle(store.alwaysOnTop ? Color.accentColor : Color.secondary)
                 }
-                .help("항상 위에 유지")
+                .help("ui.main.always_on_top_help".localized)
                 Button {
                     NotificationCenter.default.post(name: .openSettings, object: nil)
                 } label: {
-                    Label("설정…", systemImage: "gearshape")
+                    Label("ui.main.settings".localized, systemImage: "gearshape")
                 }
-                .help("설정 (⌘,)")
+                .help("ui.main.settings_help".localized)
             }
         }
     }
@@ -141,7 +141,7 @@ struct SearchField: View {
         HStack(spacing: 4) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(theme.tertiaryText)
-            TextField("앱 검색", text: $text)
+            TextField("ui.main.search_apps".localized, text: $text)
                 .textFieldStyle(.plain)
                 .foregroundColor(theme.primaryText)
                 .onSubmit(onSubmit)

@@ -22,6 +22,9 @@ jobs:
       - name: 프로젝트 생성
         run: xcodegen generate --spec project.yml
 
+      - name: 현지화 가드
+        run: python3 scripts/check-localizable.py
+
       - name: Debug 빌드
         run: |
           xcodebuild \

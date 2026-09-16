@@ -110,7 +110,7 @@ struct MenuCheatSheetView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(appName)
                     .font(.headline)
-                Text(isSearching ? "검색 결과 \(searchResults.count)개" : "메뉴 단축키 \(totalCount)개")
+                Text(isSearching ? "ui.menu_cheat.sort_results".localizedFormat(searchResults.count) : "ui.menu_cheat.menu_count".localizedFormat(totalCount))
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             }
@@ -124,7 +124,7 @@ struct MenuCheatSheetView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(theme.secondaryText)
-            TextField("단축키 / 명령 검색 (Enter 실행)", text: $searchText)
+            TextField("ui.menu_cheat.search_hint".localized, text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
             if !searchText.isEmpty {
@@ -162,7 +162,7 @@ struct MenuCheatSheetView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 2) {
                 if searchResults.isEmpty {
-                    Text("일치하는 항목이 없습니다")
+                    Text("ui.menu_cheat.no_match".localized)
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                         .frame(maxWidth: .infinity)
@@ -265,7 +265,7 @@ struct MenuCheatSheetView: View {
             Image(systemName: "command")
                 .font(.system(size: 28))
                 .foregroundColor(theme.secondaryText)
-            Text("단축키가 있는 메뉴 항목을 찾지 못했습니다")
+            Text("ui.menu_cheat.no_items".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
         }
@@ -274,7 +274,7 @@ struct MenuCheatSheetView: View {
     }
 
     private var footer: some View {
-        Text("ESC 또는 ⇧⌥S로 닫기 · Enter로 실행")
+        Text("ui.menu_cheat.footer_hint".localized)
             .font(.caption)
             .foregroundColor(theme.secondaryText)
             .padding(.vertical, 6)

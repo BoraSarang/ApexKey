@@ -17,15 +17,6 @@ struct VariableResolver {
         var repeatItem: VariableValue = .null
         
         init() {}
-        
-        /// UseModelExecutor.ExecutionContext로 변환
-        func toModelContext() -> UseModelExecutor.ExecutionContext {
-            var ctx = UseModelExecutor.ExecutionContext()
-            ctx.variables = variables
-            ctx.stepOutputs = stepOutputs
-            ctx.lastOutput = lastOutput
-            return ctx
-        }
     }
     
     // MARK: - 변수 값 해석
@@ -38,11 +29,11 @@ struct VariableResolver {
             // 정수는 ".0" 없이 표시 (예: 2 → "2", 2.5 → "2.5")
             if v == v.rounded() { return String(Int(v)) }
             return String(v)
-        case .boolean(let v): return v ? "참" : "거짓"
+        case .boolean(let v): return v ? "variable.boolean_true".localized : "variable.boolean_false".localized
         case .list(let arr): return arr.map { stringValue($0) }.joined(separator: ", ")
         case .dictionary(let dict): return dict.map { "\($0.key): \(stringValue($0.value))" }.joined(separator: ", ")
         case .file(let url): return url.path
-        case .image: return "[이미지]"
+        case .image: return "variable.image".localized
         case .date(let d): return d.formatted(date: .abbreviated, time: .shortened)
         case .null: return ""
         }
@@ -168,11 +159,5 @@ struct VariableResolver {
         }
         #endif
         return nil
-    }
-    
-    /// 사용자 변수 이름으로 값 조회 (변수 정의 배열 기반)
-    static func value(forName name: String, variables: [Variable]) -> VariableValue? {
-        guard let variable = variables.first(where: { $0.name == name }) else { return nil }
-        return variable.defaultValue
     }
 }

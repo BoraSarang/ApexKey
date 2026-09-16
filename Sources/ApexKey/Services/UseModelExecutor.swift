@@ -204,9 +204,13 @@ final class UseModelExecutor {
         Logger.info("UseModelExecutor", "Follow Up 실행: \(conversationHistory.count)개 메시지")
         
         // 전체 대화 이력을 포함한 프롬프트 구성
-        var fullPrompt = useModel.prompt + "\n\n---\n이전 대화:\n"
+        var fullPrompt = useModel.prompt
+            + "\n\n---\n"
+            + "ai.prompt.conversation_header".localized
+            + "\n"
         for msg in conversationHistory {
-            fullPrompt += "\(msg.role == .user ? "사용자" : "AI"): \(msg.content)\n"
+            let role = msg.role == .user ? "ai.prompt.role_user".localized : "ai.prompt.role_ai".localized
+            fullPrompt += "\(role): \(msg.content)\n"
         }
         
         // 단순화된 Follow Up → 새 프롬프트로 실행

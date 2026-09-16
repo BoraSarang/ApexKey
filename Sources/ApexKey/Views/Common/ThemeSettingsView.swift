@@ -7,8 +7,8 @@ struct ThemeSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SettingsSubsection(label: "외형 모드") {
-                Picker("외형", selection: appearanceBinding) {
+            SettingsSubsection(label: "appearance.mode".localized) {
+                Picker("appearance.picker".localized, selection: appearanceBinding) {
                     ForEach(AppearanceMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
@@ -16,9 +16,9 @@ struct ThemeSettingsView: View {
                 .pickerStyle(.segmented)
             }
 
-            SettingsSubsection(label: "테마 프리셋") {
+            SettingsSubsection(label: "appearance.preset".localized) {
                 if themeManager.installedThemes.isEmpty {
-                    Text("테마를 불러오는 중…")
+                    Text("appearance.loading".localized)
                         .font(.caption)
                         .foregroundColor(theme.tertiaryText)
                 } else {
@@ -33,7 +33,7 @@ struct ThemeSettingsView: View {
                 }
             }
 
-            SettingsSubsection(label: "텍스트 크기") {
+            SettingsSubsection(label: "appearance.text_size".localized) {
                 HStack(spacing: 12) {
                     Button {
                         themeManager.zoomFontOut()
@@ -60,7 +60,7 @@ struct ThemeSettingsView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .help("기본 크기로 초기화")
+                    .help("appearance.reset_help".localized)
                     .disabled(themeManager.isDefaultFontScale)
 
                     Button {
@@ -135,9 +135,9 @@ struct ThemeSettingsView: View {
 extension AppearanceMode {
     var displayName: String {
         switch self {
-        case .system: return "시스템"
-        case .light: return "라이트"
-        case .dark: return "다크"
+        case .system: return "appearance.system".localized
+        case .light: return "appearance.light".localized
+        case .dark: return "appearance.dark".localized
         }
     }
 }

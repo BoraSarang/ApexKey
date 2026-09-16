@@ -2,6 +2,27 @@ import Foundation
 import SwiftData
 import Combine
 
+/// JSON blob 인코딩/디코딩 + 실패 로그 (R-05: 조용한 데이터 소실 방지)
+enum StoreCoding {
+    static func encode<T: Encodable>(_ value: T, label: String) -> Data {
+        do {
+            return try JSONEncoder().encode(value)
+        } catch {
+            Logger.error("E-MAC-STORE-5002", "\(label) 인코딩 실패: \(error.localizedDescription)")
+            return Data()
+        }
+    }
+
+    static func decode<T: Decodable>(_ type: T.Type, from data: Data, label: String, fallback: T) -> T {
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            Logger.error("E-MAC-STORE-5003", "\(label) 디코딩 실패: \(error.localizedDescription)")
+            return fallback
+        }
+    }
+}
+
 /// SwiftData 영속 모델 — 등록된 앱
 @Model
 final class PersistedApp {
@@ -159,7 +180,7 @@ final class PersistedShortcut {
         self.comboKeyCode = combo.keyCode
         self.comboModifiers = combo.modifiers
         self.comboDisplayString = combo.displayString
-        self.stepsData = (try? JSONEncoder().encode(steps)) ?? Data()
+        self.stepsData = StoreCoding.encode(steps, label: "단축어 단계")
         self.iconRaw = icon.displayName
         self.colorRaw = color.rawValue
         self.aiModelRaw = aiModel.rawValue
@@ -171,16 +192,16 @@ final class PersistedShortcut {
         self.modifiedAt = modifiedAt
         self.lastRunAt = lastRunAt
         self.runCount = runCount
-        self.triggersData = (try? JSONEncoder().encode(automations)) ?? Data()
-        self.variablesData = (try? JSONEncoder().encode(variables)) ?? Data()
-        self.permissionsData = (try? JSONEncoder().encode(permissions)) ?? Data()
+        self.triggersData = StoreCoding.encode(automations, label: "자동화 트리거")
+        self.variablesData = StoreCoding.encode(variables, label: "사용자 변수")
+        self.permissionsData = StoreCoding.encode(permissions, label: "단축어 권한")
     }
 
     func toShortcut() -> ShortcutItem {
-        let steps = (try? JSONDecoder().decode([ShortcutStep].self, from: stepsData)) ?? []
-        let triggers = (try? JSONDecoder().decode([AutomationTrigger].self, from: triggersData)) ?? []
-        let variables = (try? JSONDecoder().decode([Variable].self, from: variablesData)) ?? []
-        let permissions = (try? JSONDecoder().decode(ShortcutPermissions.self, from: permissionsData)) ?? ShortcutPermissions()
+        let steps = StoreCoding.decode([ShortcutStep].self, from: stepsData, label: "단축어 단계", fallback: [])
+        let triggers = StoreCoding.decode([AutomationTrigger].self, from: triggersData, label: "자동화 트리거", fallback: [])
+        let variables = StoreCoding.decode([Variable].self, from: variablesData, label: "사용자 변수", fallback: [])
+        let permissions = StoreCoding.decode(ShortcutPermissions.self, from: permissionsData, label: "단축어 권한", fallback: ShortcutPermissions())
         
         // 아이콘 디코딩 (기존 호환성 유지)
         let icon: ShortcutIcon

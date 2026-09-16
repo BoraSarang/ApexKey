@@ -45,15 +45,15 @@ enum AppCategory: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .productivity:     return "생산성"
-        case .utilities:        return "유틸리티"
-        case .photoVideo:       return "사진 및 비디오"
-        case .games:            return "게임"
-        case .business:         return "비즈니스"
-        case .education:        return "교육"
-        case .music:            return "음악"
-        case .socialNetworking: return "소셜 네트워킹"
-        case .uncategorized:    return "기타"
+        case .productivity:     return "category.app.productivity".localized
+        case .utilities:        return "category.app.utilities".localized
+        case .photoVideo:       return "category.app.photo_video".localized
+        case .games:            return "category.app.games".localized
+        case .business:         return "category.app.business".localized
+        case .education:        return "category.app.education".localized
+        case .music:            return "category.app.music".localized
+        case .socialNetworking: return "category.app.social_networking".localized
+        case .uncategorized:    return "category.app.other".localized
         }
     }
 

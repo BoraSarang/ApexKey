@@ -14,7 +14,7 @@ struct ActionCatalogView: View {
             HStack {
                 Image(systemName: "plus.circle.fill")
                     .foregroundColor(theme.accentColor)
-                Text("액션 추가")
+                Text("ui.catalog.add_action".localized)
                     .font(.headline)
                 Spacer()
             }
@@ -25,7 +25,7 @@ struct ActionCatalogView: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(theme.secondaryText)
-                TextField("검색", text: $searchText)
+                TextField("ui.search".localized, text: $searchText)
                     .textFieldStyle(.plain)
                 if !searchText.isEmpty {
                     Button {
@@ -48,7 +48,7 @@ struct ActionCatalogView: View {
             // 카테고리 선택
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    categoryChip(nil, label: "전체")
+                    categoryChip(nil, label: "ui.catalog.all".localized)
                     ForEach(ActionCategory.allCases) { category in
                         categoryChip(category, label: category.displayName)
                     }
@@ -86,7 +86,7 @@ struct ActionCatalogView: View {
                                 Image(systemName: "magnifyingglass")
                                     .font(.title2)
                                     .foregroundColor(theme.secondaryText)
-                                Text("검색 결과 없음")
+                                Text("ui.catalog.no_results".localized)
                                     .font(.caption)
                                     .foregroundColor(theme.secondaryText)
                             }
@@ -256,7 +256,7 @@ struct ActionDetailView: View {
             
             HStack {
                 Spacer()
-                Button("완료") {
+                Button("ui.done".localized) {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
@@ -270,18 +270,18 @@ struct ActionDetailView: View {
     
     private var appPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("실행할 앱을 선택하세요")
+            Text("ui.app_detail.run_app_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             // 실제 구현에서는 AppPicker 뷰 사용
-            TextField("번들 ID", text: $target)
+            TextField("ui.app_detail.bundle_id".localized, text: $target)
                 .textFieldStyle(.roundedBorder)
         }
     }
     
     private var scriptEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("셸 명령을 입력하세요")
+            Text("ui.app_detail.shell_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             TextEditor(text: $target)
@@ -296,7 +296,7 @@ struct ActionDetailView: View {
     
     private var urlEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("URL을 입력하세요")
+            Text("ui.app_detail.url_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             TextField("https://example.com", text: $target)
@@ -306,13 +306,13 @@ struct ActionDetailView: View {
     
     private var fileEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("파일/폴더 경로를 입력하세요")
+            Text("ui.app_detail.file_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             HStack {
-                TextField("경로", text: $target)
+                TextField("ui.path".localized, text: $target)
                     .textFieldStyle(.roundedBorder)
-                Button("찾기") {
+                Button("ui.browse".localized) {
                     let panel = NSOpenPanel()
                     panel.allowsMultipleSelection = false
                     panel.canChooseDirectories = true
@@ -328,7 +328,7 @@ struct ActionDetailView: View {
     
     private var systemPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("시스템 동작을 선택하세요")
+            Text("ui.app_detail.select_system".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             ForEach(SystemActionType.allCases) { type in
@@ -353,17 +353,17 @@ struct ActionDetailView: View {
     
     private var pasteEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("붙여넣을 텍스트를 입력하세요 (비우면 클립보드)")
+            Text("ui.app_detail.clipboard_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
-            TextField("텍스트", text: $target)
+            TextField("ui.text".localized, text: $target)
                 .textFieldStyle(.roundedBorder)
         }
     }
     
     private var waitEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("대기 시간을 초 단위로 입력하세요")
+            Text("ui.app_detail.wait_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             TextField("1.0", text: $target)
@@ -373,7 +373,7 @@ struct ActionDetailView: View {
     
     private var menuCommandInfo: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("메뉴 명령은 액션 카탈로그에서 직접 선택합니다")
+            Text("ui.app_detail.menu_note".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
         }
@@ -381,7 +381,7 @@ struct ActionDetailView: View {
     
     private var coordinateEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("x,y 좌표를 입력하세요 (예: 500,400)")
+            Text("ui.app_detail.coordinate_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             TextField("500,400", text: $target)
@@ -391,7 +391,7 @@ struct ActionDetailView: View {
     
     private var macroEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("키코드를 쉼표로 구분하여 입력하세요")
+            Text("ui.app_detail.keycode_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
             TextField("36,36", text: $target)
@@ -401,10 +401,10 @@ struct ActionDetailView: View {
     
     private var pauseInfo: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("⌘⇧↩를 누를 때까지 대기합니다")
+            Text("ui.app_detail.wait_until".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
-            Text("이 액션은 추가 설정이 필요하지 않습니다")
+            Text("ui.app_detail.no_settings".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
         }
@@ -412,10 +412,10 @@ struct ActionDetailView: View {
     
     private var genericEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("대상을 입력하세요")
+            Text("ui.app_detail.target_prompt".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
-            TextField("대상", text: $target)
+            TextField("ui.target".localized, text: $target)
                 .textFieldStyle(.roundedBorder)
         }
     }

@@ -101,40 +101,40 @@ struct ShortcutStep: Identifiable, Codable, Hashable {
         case .url: return target
         case .script: return target
         case .system: return SystemActionType(rawValue: target)?.displayName ?? target
-        case .paste: return target == "clipboard" ? "클립보드" : target
-        case .wait: return "\(target)초"
+        case .paste: return target == "clipboard" ? "ui.editor.step_clipboard".localized : target
+        case .wait: return "step.wait_fmt".localizedFormat(target)
         case .coordinateClick: return "\(target)"
-        case .pauseUntilInput: return "입력 대기"
-        case .macro: return "\(target.components(separatedBy: ",").count)키"
+        case .pauseUntilInput: return "ui.editor.step_pause".localized
+        case .macro: return "step.keys_fmt".localizedFormat(target.components(separatedBy: ",").count)
         // 흐름 제어
-        case .ifElse: return ifBranch.map { "If \($0.condition.displayString)" } ?? "If"
-        case .repeatLoop: return repeatLoop.map { "반복 \($0.count ?? 0)회" } ?? "반복"
-        case .repeatEach: return repeatLoop.map { _ in "각 항목마다 반복" } ?? "각 항목마다 반복"
-        case .chooseFromMenu: return chooseFromMenu.map { "메뉴: \($0.options.count)개 항목" } ?? "메뉴에서 선택"
-        case .runShortcut: return target.isEmpty ? "단축어 실행" : "단축어 실행: \(target)"
-        case .stopShortcut: return "단축어 중지"
-        case .endRepeat: return "반복 종료"
-        case .comment: return note ?? "코멘트"
+        case .ifElse: return ifBranch.map { "flow.if_fmt".localizedFormat($0.condition.displayString) } ?? "flow.if_fmt".localizedFormat("")
+        case .repeatLoop: return repeatLoop.map { $0.count.map { "step.repeat_count_fmt".localizedFormat($0) } ?? "ui.editor.step_repeat".localized } ?? "ui.editor.step_repeat".localized
+        case .repeatEach: return repeatLoop.map { _ in "action.repeatEach".localized } ?? "action.repeatEach".localized
+        case .chooseFromMenu: return chooseFromMenu.map { "step.menu_options_fmt".localizedFormat($0.options.count) } ?? "ui.editor.step_choose_menu".localized
+        case .runShortcut: return target.isEmpty ? "action.runShortcut".localized : "step.run_shortcut_fmt".localizedFormat(target)
+        case .stopShortcut: return "action.stopShortcut".localized
+        case .endRepeat: return "action.endRepeat".localized
+        case .comment: return note ?? "ui.editor.step_comment".localized
         // 변수
-        case .setVariable: return "변수 설정"
-        case .variableDetail: return "변수 상세"
-        case .number: return "숫자: \(target)"
-        case .outputToVariable: return "출력을 변수로"
-        case .clipboardAction: return "클립보드 액션"
-        case .runScriptInShell: return "쉘: \(target)"
+        case .setVariable: return "action.setVariable".localized
+        case .variableDetail: return "action.variableDetail".localized
+        case .number: return "step.number_fmt".localizedFormat(target)
+        case .outputToVariable: return "action.outputToVariable".localized
+        case .clipboardAction: return "action.clipboardAction".localized
+        case .runScriptInShell: return "step.shell_fmt".localizedFormat(target)
         // AI
-        case .useModel: return useModel?.displayName ?? "모델 사용"
-        case .writingTool: return writingTool?.displayName ?? "라이팅 툴"
-        case .imagePlayground: return imagePlayground?.displayName ?? "이미지 생성"
+        case .useModel: return useModel?.displayName ?? "ui.editor.step_use_model".localized
+        case .writingTool: return writingTool?.displayName ?? "ui.editor.step_writing_tool".localized
+        case .imagePlayground: return imagePlayground?.displayName ?? "ui.editor.step_image".localized
         // 자동화
-        case .automation: return "개인 자동화"
-        case .findAutomation: return "자동화 검색"
-        case .automationRun: return "자동화에서 실행"
-        case .trigger: return "트리거"
+        case .automation: return "action.automation".localized
+        case .findAutomation: return "action.findAutomation".localized
+        case .automationRun: return "action.automationRun".localized
+        case .trigger: return "action.trigger".localized
         // 앱
-        case .appIntent: return "앱 (Intent)"
-        case .appAction: return "앱 동작"
-        case .findApp: return "앱 검색"
+        case .appIntent: return "action.appIntent".localized
+        case .appAction: return "action.appAction".localized
+        case .findApp: return "action.findApp".localized
         default: return target
         }
     }
@@ -246,7 +246,7 @@ struct ShortcutItem: Identifiable, Codable, Hashable {
     
     /// 마지막 실행으로부터의 시간 포맷
     var lastRunFormatted: String {
-        guard let lastRun = lastRunAt else { return "실행 기록 없음" }
+        guard let lastRun = lastRunAt else { return "step.last_run_none".localized }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
         return formatter.localizedString(for: lastRun, relativeTo: Date())
@@ -254,9 +254,9 @@ struct ShortcutItem: Identifiable, Codable, Hashable {
     
     /// 실행 횟수 포맷
     var runCountFormatted: String {
-        if runCount == 0 { return "실행된 적 없음" }
-        if runCount == 1 { return "1회 실행" }
-        return "\(runCount)회 실행"
+        if runCount == 0 { return "step.executed_never".localized }
+        if runCount == 1 { return "step.executed_once".localized }
+        return "step.executed_fmt".localizedFormat(runCount)
     }
 }
 
@@ -593,19 +593,19 @@ enum ShortcutColor: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .red: return "빨간색"
-        case .orange: return "주황색"
-        case .yellow: return "노란색"
-        case .green: return "초록색"
-        case .mint: return "민트색"
-        case .teal: return "청록색"
-        case .cyan: return "시안색"
-        case .blue: return "파란색"
-        case .indigo: return "인디고"
-        case .purple: return "보라색"
-        case .pink: return "분홍색"
-        case .brown: return "갈색"
-        case .gray: return "회색"
+        case .red: return "color.name.red".localized
+        case .orange: return "color.name.orange".localized
+        case .yellow: return "color.name.yellow".localized
+        case .green: return "color.name.green".localized
+        case .mint: return "color.name.mint".localized
+        case .teal: return "color.name.teal".localized
+        case .cyan: return "color.name.cyan".localized
+        case .blue: return "color.name.blue".localized
+        case .indigo: return "color.name.indigo".localized
+        case .purple: return "color.name.purple".localized
+        case .pink: return "color.name.pink".localized
+        case .brown: return "color.name.brown".localized
+        case .gray: return "color.name.gray".localized
         }
     }
     

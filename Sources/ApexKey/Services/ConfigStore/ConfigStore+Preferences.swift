@@ -1,0 +1,51 @@
+import Foundation
+import SwiftData
+import AppKit
+import Combine
+
+/// ConfigStore 영역 분할 (R-10) — 동일 클래스 extension, public API 동결.
+extension ConfigStore {
+    /// Menu HUD 표시 방식
+    enum MenuHUDStyle: String, CaseIterable, Identifiable {
+        case floatingWindow = "floatingWindow"
+        case fullscreen = "fullscreen"
+        var id: String { rawValue }
+        var displayName: String {
+            switch self {
+            case .floatingWindow: return "settings.menu_hud.style.floating".localized
+            case .fullscreen: return "settings.menu_hud.style.fullscreen".localized
+            }
+        }
+    }
+
+    enum PrefKeys {
+        static let alwaysOnTop = "pref.alwaysOnTop"
+        static let showInMenuBar = "pref.showInMenuBar"
+        static let showInDock = "pref.showInDock"
+        static let menuHUDStyle = "pref.menuHUDStyle"
+        static let showNoShortcutItems = "pref.showNoShortcutItems"
+        static let showSystemApps = "pref.showSystemApps"
+        static let appLanguage = "pref.appLanguage"
+    }
+
+    /// Menu HUD 표시 방식 전환
+    func setMenuHUDStyle(_ style: MenuHUDStyle) {
+        menuHUDStyle = style
+        Logger.info("ConfigStore", "[HUD] 표시 방식 변경: \(style.rawValue)")
+    }
+
+    /// 메뉴바 표시를 전환. Dock도 꺼져 있으면 접근 불가가 되므로 거부하고 false 반환.
+    /// - Returns: 적용되면 true, 경고로 거부되면 false
+    func setMenuBarVisible(_ visible: Bool) -> Bool {
+        if !visible && !showInDock {
+            return false
+        }
+        showInMenuBar = visible
+        return true
+    }
+
+    /// Dock 표시 전환. (Dock이 켜지면 접근 경로가 생기므로 항상 허용)
+    func setDockVisible(_ visible: Bool) {
+        showInDock = visible
+    }
+}

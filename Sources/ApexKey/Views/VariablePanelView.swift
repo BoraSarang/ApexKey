@@ -9,11 +9,17 @@ struct VariablePanelView: View {
     @State private var showingManualVariableCreator = false
     
     enum VariableTab: String, CaseIterable {
-        case magic = "마법"
-        case special = "특수"
-        case manual = "사용자"
+        case magic
+        case special
+        case manual
         
-        var displayName: String { rawValue }
+        var displayName: String {
+            switch self {
+            case .magic: return "ui.var.category_magic".localized
+            case .special: return "ui.var.category_special".localized
+            case .manual: return "ui.var.category_user".localized
+            }
+        }
         var systemImage: String {
             switch self {
             case .magic: return "wand.and.stars"
@@ -29,7 +35,7 @@ struct VariablePanelView: View {
             HStack {
                 Image(systemName: "text.badge.plus")
                     .foregroundColor(theme.accentColor)
-                Text("변수")
+                Text("ui.variables".localized)
                     .font(.headline)
                 Spacer()
                 Button {
@@ -39,7 +45,7 @@ struct VariablePanelView: View {
                         .foregroundColor(theme.accentColor)
                 }
                 .buttonStyle(.plain)
-                .help("새 사용자 변수 만들기")
+                .help("ui.var.create_help".localized)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -86,16 +92,16 @@ struct VariablePanelView: View {
             if selectedVariables.isEmpty {
                 emptyStateView(
                     icon: "wand.and.stars",
-                    title: "마법 변수 없음",
-                    message: "단계를 실행하면 자동으로 생성됩니다"
+                    title: "ui.var.magic_empty".localized,
+                    message: "ui.var.magic_hint".localized
                 )
             } else {
                 let magicVars = selectedVariables.filter { $0.type == .magic }
                 if magicVars.isEmpty {
                     emptyStateView(
                         icon: "wand.and.stars",
-                        title: "마법 변수 없음",
-                        message: "단계를 실행하면 자동으로 생성됩니다"
+                        title: "ui.var.magic_empty".localized,
+                        message: "ui.var.magic_hint".localized
                     )
                 } else {
                     ForEach(magicVars) { variable in
@@ -124,8 +130,8 @@ struct VariablePanelView: View {
             if manualVars.isEmpty {
                 emptyStateView(
                     icon: "text.cursor",
-                    title: "사용자 변수 없음",
-                    message: "오른쪽 위 + 버튼으로 만들기"
+                    title: "ui.var.manual_empty".localized,
+                    message: "ui.var.manual_hint".localized
                 )
             } else {
                 ForEach(manualVars) { variable in
@@ -183,7 +189,7 @@ struct VariablePanelView: View {
                     Text(special.displayName)
                         .font(.caption)
                         .foregroundColor(.primary)
-                    Text("시스템")
+                    Text(LocalizedStringKey("action.system"))
                         .font(.caption2)
                         .foregroundColor(theme.secondaryText)
                 }
@@ -241,7 +247,7 @@ struct ManualVariableCreatorSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("새 사용자 변수")
+                Text("ui.var.new_variable".localized)
                     .font(.headline)
                 Spacer()
                 Button {
@@ -256,15 +262,15 @@ struct ManualVariableCreatorSheet: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("이름")
+                Text("ui.name".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                TextField("변수 이름", text: $name)
+                TextField("ui.var.name_label".localized, text: $name)
                     .textFieldStyle(.roundedBorder)
             }
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("타입")
+                Text("ui.var.type".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
                 Picker("", selection: $type) {
@@ -276,10 +282,10 @@ struct ManualVariableCreatorSheet: View {
             }
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("기본값 (선택사항)")
+                Text("ui.default_optional".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                TextField("기본값", text: $defaultValue)
+                TextField("ui.var.default_placeholder".localized, text: $defaultValue)
                     .textFieldStyle(.roundedBorder)
             }
             
@@ -287,10 +293,10 @@ struct ManualVariableCreatorSheet: View {
             
             HStack {
                 Spacer()
-                Button("취소") {
+                Button("ui.cancel".localized) {
                     dismiss()
                 }
-                Button("추가") {
+                Button("ui.add".localized) {
                     let variable = Variable(
                         name: name,
                         type: .manual,

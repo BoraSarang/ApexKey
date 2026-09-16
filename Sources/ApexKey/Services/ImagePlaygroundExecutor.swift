@@ -105,7 +105,7 @@ final class ImagePlaygroundExecutor {
             }()
         ]
         
-        let displayText = prompt.isEmpty ? "이미지 생성\n(\(style.displayName))" : prompt
+        let displayText = prompt.isEmpty ? "ai.image.placeholder_fmt".localizedFormat(style.displayName) : prompt
         let attributedString = NSAttributedString(string: displayText, attributes: attrs)
         let textRect = NSRect(x: 20, y: size.height / 2 - 20, width: size.width - 40, height: 40)
         attributedString.draw(in: textRect)
@@ -115,7 +115,7 @@ final class ImagePlaygroundExecutor {
             .font: NSFont.systemFont(ofSize: 12, weight: .regular),
             .foregroundColor: NSColor.white.withAlphaComponent(0.7),
         ]
-        let styleText = NSAttributedString(string: "ImagePlayground - \(style.displayName)", attributes: styleAttrs)
+        let styleText = NSAttributedString(string: "ai.image.badge_fmt".localizedFormat(style.displayName), attributes: styleAttrs)
         styleText.draw(at: NSPoint(x: 20, y: 20))
         
         image.unlockFocus()

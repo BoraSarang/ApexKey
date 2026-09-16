@@ -29,18 +29,18 @@ struct AboutView: View {
                 Text("ApexKey")
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("애펙스키")
+                Text("ui.about.app_name".localized)
                     .foregroundColor(theme.secondaryText)
             }
 
-            Text("버전 \(version)")
+            Text("ui.about.version".localizedFormat(version))
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
 
             Divider()
                 .frame(width: 200)
 
-            Text("최상위(정점)에 오른 글로벌 단축키 매니저")
+            Text("ui.about.tagline".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
 

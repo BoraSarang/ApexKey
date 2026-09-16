@@ -104,16 +104,16 @@ struct MenuHUDOverlayView: View {
                 Text(appName)
                     .font(.headline)
                     .foregroundColor(theme.primaryText)
-                Text(isSearching ? "검색 결과 \(searchResults.count)개" : "메뉴 단축키 \(totalCount)개")
+                Text(isSearching ? "ui.menu_cheat.sort_results".localizedFormat(searchResults.count) : "ui.menu_cheat.menu_count".localizedFormat(totalCount))
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text("⌘ CMD  ·  ⌃ Ctrl  ·  ⇧ Shift  ·  ⌥ Option  ·  🌐 지구본")
+                Text("ui.hud.key_legend".localized)
                     .font(.system(size: 11))
                     .foregroundColor(theme.tertiaryText)
-                Toggle("단축키 없는 메뉴 표시", isOn: Binding(
+                Toggle("ui.hud.show_no_shortcut".localized, isOn: Binding(
                     get: { store.showNoShortcutItems },
                     set: { store.showNoShortcutItems = $0 }
                 ))
@@ -189,7 +189,7 @@ struct MenuHUDOverlayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 2) {
                 if searchResults.isEmpty {
-                    Text("일치하는 항목이 없습니다")
+                    Text("ui.menu_cheat.no_match".localized)
                         .font(.caption)
                         .foregroundColor(theme.tertiaryText)
                         .frame(maxWidth: .infinity)
@@ -296,7 +296,7 @@ struct MenuHUDOverlayView: View {
             Image(systemName: "command")
                 .font(.system(size: 28))
                 .foregroundColor(theme.tertiaryText)
-            Text("단축키가 있는 메뉴 항목을 찾지 못했습니다")
+            Text("ui.menu_cheat.no_items".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
         }
@@ -308,7 +308,7 @@ struct MenuHUDOverlayView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(theme.secondaryText)
-            TextField("단축키 / 명령 검색 (Enter 실행)", text: $searchText)
+            TextField("ui.menu_cheat.search_hint".localized, text: $searchText)
                 .textFieldStyle(.plain)
                 .foregroundColor(theme.primaryText)
                 .focused($isSearchFocused)
@@ -321,7 +321,7 @@ struct MenuHUDOverlayView: View {
                 }
                 .buttonStyle(.borderless)
             }
-            Text("ESC로 닫기")
+            Text("ui.hud.close_hint".localized)
                 .font(.caption)
                 .foregroundColor(theme.tertiaryText)
         }

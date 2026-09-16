@@ -1,5 +1,7 @@
 // ApexKey landing — small enhancements
 (function () {
+  const isKo = /\/ko\/|ko\/index\.html/.test(window.location.pathname);
+
   // Reformat GitHub "latest release" URL as an absolute download anchor
   const downloadLink = document.querySelector('.download-actions .btn[href*="releases/latest"]');
   if (downloadLink) {
@@ -9,7 +11,8 @@
         const asset = (data.assets || []).find((a) => a.name.endsWith('.dmg') || a.name.endsWith('.zip'));
         if (asset) {
           downloadLink.href = asset.browser_download_url;
-          downloadLink.textContent = '⬇ 최신 릴리즈 (' + (data.tag_name || 'v' + data.name) + ')';
+          const label = isKo ? ' 최신 릴리즈 (' : ' Latest release (';
+          downloadLink.textContent = '⬇' + label + (data.tag_name || 'v' + data.name) + ')';
         }
       })
       .catch(() => { /* keep default link */ });

@@ -73,9 +73,9 @@ final class WritingToolExecutor {
     private func processLocally(action: WritingToolAction, inputText: String, tone: WritingTone?) -> VariableValue {
         switch action {
         case .proofread:
-            return .text("[교정 결과] \(inputText)")
+            return .text("ai.writing.result_proofread_fmt".localizedFormat(inputText))
         case .rewrite:
-            return .text("[다시쓰기] \(inputText)")
+            return .text("ai.writing.result_rewrite_fmt".localizedFormat(inputText))
         case .summarize:
             let sentences = inputText.components(separatedBy: CharacterSet(charactersIn: ".!?\n")).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
             let summary = sentences.prefix(3).joined(separator: ". ")
@@ -104,12 +104,12 @@ final class WritingToolExecutor {
     private func mapToneToPrefix(_ tone: WritingTone?) -> String {
         guard let tone = tone else { return "" }
         switch tone {
-        case .professional: return "[전문적]\n"
-        case .friendly: return "[친근한]\n"
-        case .concise: return "[간결한]\n"
-        case .casual: return "[캐주얼한]\n"
-        case .formal: return "[격식 있는]\n"
-        case .educational: return "[교육적인]\n"
+        case .professional: return "ai.tone.code_professional".localized
+        case .friendly: return "ai.tone.code_friendly".localized
+        case .concise: return "ai.tone.code_concise".localized
+        case .casual: return "ai.tone.code_casual".localized
+        case .formal: return "ai.tone.code_formal".localized
+        case .educational: return "ai.tone.code_educational".localized
         }
     }
     

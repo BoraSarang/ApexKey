@@ -20,19 +20,19 @@ enum ConditionOperator: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .equals: return "같음"
-        case .notEquals: return "다름"
-        case .contains: return "포함"
-        case .notContains: return "미포함"
-        case .startsWith: return "시작함"
-        case .endsWith: return "끝남"
-        case .isEmpty: return "비어있음"
-        case .isNotEmpty: return "비어있지 않음"
-        case .greaterThan: return "초과"
-        case .lessThan: return "미만"
-        case .greaterOrEqual: return "이상"
-        case .lessOrEqual: return "이하"
-        case .matches: return "정규식 일치"
+        case .equals: return "condition.op.equal".localized
+        case .notEquals: return "condition.op.not_equal".localized
+        case .contains: return "condition.op.contains".localized
+        case .notContains: return "condition.op.not_contains".localized
+        case .startsWith: return "condition.op.starts_with".localized
+        case .endsWith: return "condition.op.ends_with".localized
+        case .isEmpty: return "condition.op.is_empty".localized
+        case .isNotEmpty: return "condition.op.is_not_empty".localized
+        case .greaterThan: return "condition.op.greater_than".localized
+        case .lessThan: return "condition.op.less_than".localized
+        case .greaterOrEqual: return "condition.op.greater_or_equal".localized
+        case .lessOrEqual: return "condition.op.less_or_equal".localized
+        case .matches: return "condition.op.matches".localized
         }
     }
     
@@ -217,13 +217,13 @@ enum ConditionOperand: Codable, Hashable {
             switch v {
             case .text(let s): return "\"\(s)\""
             case .number(let n): return String(n)
-            case .boolean(let b): return b ? "참" : "거짓"
-            case .list(let a): return "[\(a.count)개]"
-            case .dictionary(let d): return "{\(d.count)개}"
+            case .boolean(let b): return b ? "flow.true".localized : "flow.false".localized
+            case .list(let a): return "flow.constant_list_fmt".localizedFormat(a.count)
+            case .dictionary(let d): return "flow.constant_dict_fmt".localizedFormat(d.count)
             case .file(let u): return u.lastPathComponent
-            case .image: return "이미지"
+            case .image: return "flow.value_image".localized
             case .date(let d): return d.formatted()
-            case .null: return "없음"
+            case .null: return "flow.value_none".localized
             }
         case .specialVariable(let sv): return sv.displayName
         }
@@ -253,7 +253,7 @@ struct IfBranch: Identifiable, Codable, Hashable {
     }
     
     var displayName: String {
-        label ?? "If \(condition.displayString)"
+        label ?? "flow.if_fmt".localizedFormat(condition.displayString)
     }
 }
 
@@ -267,9 +267,9 @@ enum RepeatMode: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .count: return "횟수 반복"
-        case .forEach: return "각 항목 반복"
-        case .whileLoop: return "조건 반복"
+        case .count: return "flow.repeat.count".localized
+        case .forEach: return "flow.repeat.each".localized
+        case .whileLoop: return "flow.repeat.while".localized
         }
     }
     
@@ -317,11 +317,11 @@ struct RepeatLoop: Identifiable, Codable, Hashable {
         if let label = label { return label }
         switch mode {
         case .count:
-            return "\(count ?? 0)번 반복"
+            return "flow.repeat_count_fmt".localizedFormat(count ?? 0)
         case .forEach:
-            return "각 항목 반복"
+            return "flow.repeat.each".localized
         case .whileLoop:
-            return "조건 반복"
+            return "flow.repeat.while".localized
         }
     }
     
@@ -377,7 +377,7 @@ struct ChooseFromMenu: Identifiable, Codable, Hashable {
     
     init(
         id: UUID = UUID(),
-        prompt: String = "옵션을 선택하세요",
+        prompt: String = "ui.select_option".localized,
         options: [MenuOption] = [],
         allowMultipleSelection: Bool = false,
         showCancelButton: Bool = true,
@@ -394,7 +394,7 @@ struct ChooseFromMenu: Identifiable, Codable, Hashable {
     }
     
     var displayName: String {
-        label ?? "메뉴 선택 (\(options.count)개 옵션)"
+        label ?? "flow.menu_fmt".localizedFormat(options.count)
     }
 }
 

@@ -54,7 +54,7 @@ struct StepRowView: View {
                         .foregroundColor(theme.primaryText)
                     
                     if step.isSkipped {
-                        Text("스킵")
+                        Text("ui.skip".localized)
                             .font(.caption2)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
@@ -94,7 +94,7 @@ struct StepRowView: View {
                     }
                     .buttonStyle(.borderless)
                     .disabled(index == 0)
-                    .help("위로 이동")
+                    .help("ui.step.move_up".localized)
                     
                     // 아래로 이동
                     Button(action: { onMoveDown?() }) {
@@ -103,7 +103,7 @@ struct StepRowView: View {
                     }
                     .buttonStyle(.borderless)
                     .disabled(index == totalSteps - 1)
-                    .help("아래로 이동")
+                    .help("ui.step.move_down".localized)
                     
                     // 복제
                     Button(action: { onDuplicate?() }) {
@@ -111,7 +111,7 @@ struct StepRowView: View {
                             .font(.caption2)
                     }
                     .buttonStyle(.borderless)
-                    .help("복제")
+                    .help("ui.step.duplicate".localized)
                     
                     // 스킵 토글
                     Button(action: { onToggleSkip?() }) {
@@ -120,7 +120,7 @@ struct StepRowView: View {
                             .foregroundColor(step.isSkipped ? theme.warningColor : theme.secondaryText)
                     }
                     .buttonStyle(.borderless)
-                    .help(step.isSkipped ? "스킵 해제" : "스킵")
+                    .help(step.isSkipped ? "ui.step.unskip".localized : "ui.skip".localized)
                     
                     // 삭제
                     Button(action: { onDelete?() }) {
@@ -129,7 +129,7 @@ struct StepRowView: View {
                             .foregroundColor(theme.secondaryText)
                     }
                     .buttonStyle(.borderless)
-                    .help("삭제")
+                    .help("ui.delete".localized)
                 }
             }
         }
@@ -248,9 +248,9 @@ struct BlockStepRowView: View {
     
     private var blockEndLabel: String {
         switch step.type {
-        case .ifElse: return "If 끝"
-        case .repeatLoop, .repeatEach: return "반복 끝"
-        case .chooseFromMenu: return "메뉴 끝"
+        case .ifElse: return "ui.step.if_end".localized
+        case .repeatLoop, .repeatEach: return "ui.step.repeat_end".localized
+        case .chooseFromMenu: return "ui.step.menu_end".localized
         default: return ""
         }
     }
@@ -359,10 +359,10 @@ struct StepListView: View {
             Image(systemName: "list.number")
                 .font(.title2)
                 .foregroundColor(theme.secondaryText)
-            Text("단계 없음")
+            Text("ui.station.no_steps".localized)
                 .font(.subheadline)
                 .foregroundColor(theme.secondaryText)
-            Text("왼쪽 액션 카탈로그에서 액션을 추가하세요")
+            Text("ui.step.empty_hint".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
         }

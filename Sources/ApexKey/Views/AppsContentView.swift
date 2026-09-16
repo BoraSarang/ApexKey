@@ -22,7 +22,7 @@ struct AppsContentView: View {
     }
 
     private var title: String {
-        category?.displayName ?? "전체 앱"
+        category?.displayName ?? "ui.sidebar.all_apps".localized
     }
 
     private var header: some View {
@@ -32,7 +32,7 @@ struct AppsContentView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(theme.primaryText)
             Spacer()
-            Text("\(filteredApps.count)개")
+            Text("ui.apps.count".localizedFormat(filteredApps.count))
                 .font(.caption)
                 .foregroundColor(theme.tertiaryText)
             Button {
@@ -40,7 +40,7 @@ struct AppsContentView: View {
             } label: {
                 Image(systemName: "plus")
             }
-            .help("앱 추가")
+            .help("ui.apps.add_app".localized)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -76,10 +76,10 @@ struct AppsContentView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
                 .foregroundColor(theme.tertiaryText)
-            Text("앱이 없습니다")
+            Text("ui.apps.no_apps".localized)
                 .font(.headline)
                 .foregroundColor(theme.tertiaryText)
-            Button("앱 추가") {
+            Button("ui.apps.add_app".localized) {
                 addAppManually()
             }
         }
@@ -145,7 +145,7 @@ struct AppRowView: View {
                     .font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.borderless)
-            .help(running ? "\(app.name) 전면으로" : "\(app.name) 실행")
+            .help(running ? "ui.appdetail.front".localizedFormat(app.name) : "ui.appdetail.run_app".localizedFormat(app.name))
             Image(systemName: app.isHidden ? "eye.slash" : "chevron.right")
                 .font(.caption)
                 .foregroundStyle(theme.tertiaryText)
@@ -161,9 +161,9 @@ struct AppRowView: View {
         )
         .contextMenu {
             if app.isHidden {
-                Button("숨기기 해제") { store.toggleHidden(app) }
+                Button("ui.apps.unhide".localized) { store.toggleHidden(app) }
             } else {
-                Button("숨기기") { store.toggleHidden(app) }
+                Button("ui.apps.hide".localized) { store.toggleHidden(app) }
             }
         }
         .onTapGesture {

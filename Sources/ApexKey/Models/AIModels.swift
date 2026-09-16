@@ -11,19 +11,19 @@ enum AIModelType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .onDevice: return "온디바이스"
+        case .onDevice: return "ai.provider.on_device".localized
         case .privateCloud: return "Private Cloud"
         case .chatGPT: return "ChatGPT"
-        case .askEachTime: return "매번 선택"
+        case .askEachTime: return "ai.provider.ask_each".localized
         }
     }
     
     var description: String {
         switch self {
-        case .onDevice: return "인터넷 없이 기기에서 실행, 간단한 작업에 적합"
-        case .privateCloud: return "애플 서버에서 처리, 복잡한 작업에 적합, 프라이버시 보호"
-        case .chatGPT: return "ChatGPT 활용, 광범위한 지식, 외부 서비스 연동"
-        case .askEachTime: return "실행할 때마다 모델을 직접 선택"
+        case .onDevice: return "ai.provider_desc_ond".localized
+        case .privateCloud: return "ai.provider_desc_pcloud".localized
+        case .chatGPT: return "ai.provider_desc_chatgpt".localized
+        case .askEachTime: return "ai.provider_desc_ask_each".localized
         }
     }
     
@@ -75,21 +75,21 @@ enum AIOutputType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .text: return "텍스트"
-        case .dictionary: return "딕셔너리"
-        case .list: return "리스트"
-        case .boolean: return "참/거짓"
-        case .appEntity: return "앱 엔티티"
+        case .text: return "ui.text".localized
+        case .dictionary: return "ai.output.dictionary".localized
+        case .list: return "ai.output.list".localized
+        case .boolean: return "ai.output.boolean".localized
+        case .appEntity: return "ai.output.app_entity".localized
         }
     }
     
     var description: String {
         switch self {
-        case .text: return "자연어 응답, 후속 텍스트 처리에 적합"
-        case .dictionary: return "키-값 쌍 구조, JSON 파싱 가능"
-        case .list: return "항목 나열, Repeat with Each와 연동"
-        case .boolean: return "예/아니오 판단, If 조건에 직접 사용"
-        case .appEntity: return "앱 데이터 엔티티, Find 액션 결과 등"
+        case .text: return "ai.output_desc_text".localized
+        case .dictionary: return "ai.output_desc_dict".localized
+        case .list: return "ai.output_desc_list".localized
+        case .boolean: return "ai.output_desc_bool".localized
+        case .appEntity: return "ai.output_desc_app_entity".localized
         }
     }
     
@@ -156,7 +156,7 @@ struct UseModelStep: Identifiable, Codable, Hashable {
     }
     
     var displayName: String {
-        label ?? "모델 사용 (\(modelType.displayName) → \(outputType.displayName))"
+        label ?? "ai.display_model_use".localizedFormat(modelType.displayName, outputType.displayName)
     }
     
     /// 프롬프트에서 Magic Variable 토큰 추출
@@ -200,25 +200,25 @@ enum WritingToolAction: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .proofread: return "교정"
-        case .rewrite: return "다시 쓰기"
-        case .summarize: return "요약"
-        case .makeList: return "목록 만들기"
-        case .makeTable: return "표 만들기"
-        case .changeTone: return "톤 변경"
-        case .keyPoints: return "핵심 포인트"
+        case .proofread: return "ai.writing.proofread".localized
+        case .rewrite: return "ai.writing.rewrite".localized
+        case .summarize: return "ai.writing.summarize".localized
+        case .makeList: return "ai.writing.make_list".localized
+        case .makeTable: return "ai.writing.make_table".localized
+        case .changeTone: return "ai.writing.change_tone".localized
+        case .keyPoints: return "ai.writing.key_points".localized
         }
     }
     
     var description: String {
         switch self {
-        case .proofread: return "맞춤법, 문법, 구두점을 교정합니다"
-        case .rewrite: return "텍스트를 다른 스타일로 다시 씁니다"
-        case .summarize: return "긴 텍스트를 요약합니다"
-        case .makeList: return "텍스트에서 목록을 추출합니다"
-        case .makeTable: return "텍스트에서 표를 생성합니다"
-        case .changeTone: return "텍스트의 어조를 변경합니다 (전문적, 친근, 간결 등)"
-        case .keyPoints: return "텍스트의 핵심 내용을 추출합니다"
+        case .proofread: return "ai.writing_desc_proofread".localized
+        case .rewrite: return "ai.writing_desc_rewrite".localized
+        case .summarize: return "ai.writing_desc_summarize".localized
+        case .makeList: return "ai.writing_desc_make_list".localized
+        case .makeTable: return "ai.writing_desc_make_table".localized
+        case .changeTone: return "ai.writing_desc_change_tone".localized
+        case .keyPoints: return "ai.writing_desc_key_points".localized
         }
     }
     
@@ -287,12 +287,12 @@ enum WritingTone: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .professional: return "전문적"
-        case .friendly: return "친근함"
-        case .concise: return "간결함"
-        case .casual: return "캐주얼"
-        case .formal: return "격식"
-        case .educational: return "교육적"
+        case .professional: return "ai.tone.professional".localized
+        case .friendly: return "ai.tone.friendly".localized
+        case .concise: return "ai.tone.concise".localized
+        case .casual: return "ai.tone.casual".localized
+        case .formal: return "ai.tone.formal".localized
+        case .educational: return "ai.tone.educational".localized
         }
     }
 }
@@ -320,7 +320,7 @@ struct ImagePlaygroundStep: Identifiable, Codable, Hashable {
     }
     
     var displayName: String {
-        label ?? "이미지 생성 (\(style.displayName))"
+        label ?? "ai.display_image_style".localizedFormat(style.displayName)
     }
 }
 
@@ -333,9 +333,9 @@ enum ImagePlaygroundStyle: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .animation: return "애니메이션"
-        case .illustration: return "일러스트"
-        case .sketch: return "스케치"
+        case .animation: return "ai.image.animation".localized
+        case .illustration: return "ai.image.illustration".localized
+        case .sketch: return "ai.image.sketch".localized
         }
     }
 }
@@ -402,11 +402,11 @@ enum AIAvailability: Codable, Equatable {
     
     var displayMessage: String {
         switch self {
-        case .available: return "사용 가능"
-        case .unsupportedOS(let version): return "macOS \(version) 이상 필요"
-        case .appleIntelligenceDisabled: return "Apple Intelligence가 비활성화됨 (시스템 설정에서 활성화)"
-        case .modelUnavailable(let reason): return "모델 사용 불가: \(reason)"
-        case .unknown: return "상태 확인 중..."
+        case .available: return "ai.state_available".localized
+        case .unsupportedOS(let version): return "ai.state_unsupported_os".localizedFormat(version)
+        case .appleIntelligenceDisabled: return "ai.state_ai_disabled".localized
+        case .modelUnavailable(let reason): return "ai.state_model_unavailable".localizedFormat(reason)
+        case .unknown: return "ai.state_checking".localized
         }
     }
 }
@@ -429,19 +429,19 @@ enum AIError: Error, LocalizedError {
     
     var errorDescription: String? {
         switch self {
-        case .unsupportedOS: return "이 기능은 macOS 26 (Tahoe) 이상에서만 사용 가능합니다"
-        case .appleIntelligenceDisabled: return "Apple Intelligence가 활성화되지 않았습니다. 시스템 설정 > Apple Intelligence에서 켜주세요"
-        case .modelNotAvailable(let type): return "\(type.displayName) 모델을 사용할 수 없습니다"
-        case .promptEmpty: return "프롬프트가 비어있습니다"
-        case .outputConversionFailed(let type): return "응답을 \(type.displayName) 타입으로 변환할 수 없습니다"
-        case .followUpNotSupported: return "Follow Up 모드는 현재 지원되지 않습니다"
-        case .chatGPTNotSupported: return "ChatGPT Extension이 설치되지 않았습니다"
-        case .networkError(let e): return "네트워크 오류: \(e.localizedDescription)"
-        case .timeout: return "응답 시간이 초과되었습니다"
-        case .cancelled: return "사용자에 의해 취소되었습니다"
-        case .invalidResponse: return "유효하지 않은 응답입니다"
-        case .tokenLimitExceeded: return "토큰 한도를 초과했습니다"
-        case .contentFiltered: return "콘텐츠 필터에 의해 차단되었습니다"
+        case .unsupportedOS: return "ai.error_unsupported_os".localized
+        case .appleIntelligenceDisabled: return "ai.error_ai_disabled".localized
+        case .modelNotAvailable(let type): return "ai.error_model_not_available".localizedFormat(type.displayName)
+        case .promptEmpty: return "ai.error_prompt_empty".localized
+        case .outputConversionFailed(let type): return "ai.error_output_conversion".localizedFormat(type.displayName)
+        case .followUpNotSupported: return "ai.error_follow_up".localized
+        case .chatGPTNotSupported: return "ai.error_chatgpt_ext".localized
+        case .networkError(let e): return "ai.error_network".localizedFormat(e.localizedDescription)
+        case .timeout: return "ai.error_timeout".localized
+        case .cancelled: return "ai.error_cancelled".localized
+        case .invalidResponse: return "ai.error_invalid_response".localized
+        case .tokenLimitExceeded: return "ai.error_token_limit".localized
+        case .contentFiltered: return "ai.error_content_filtered".localized
         }
     }
 }
@@ -489,14 +489,14 @@ enum PromptCategory: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .general: return "일반"
-        case .coding: return "코딩"
-        case .writing: return "글쓰기"
-        case .analysis: return "분석"
-        case .translation: return "번역"
-        case .summarization: return "요약"
-        case .creative: return "창작"
-        case .custom: return "사용자 정의"
+        case .general: return "ui.step_settings.general".localized
+        case .coding: return "ai.tool_coding".localized
+        case .writing: return "ai.tool_writing".localized
+        case .analysis: return "ai.tool_analysis".localized
+        case .translation: return "ai.tool_translation".localized
+        case .summarization: return "ai.writing.summarize".localized
+        case .creative: return "ai.tool_creative".localized
+        case .custom: return "ai.tool_custom".localized
         }
     }
     

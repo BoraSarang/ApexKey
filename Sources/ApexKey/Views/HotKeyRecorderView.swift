@@ -6,14 +6,14 @@ import AppKit
 /// 저장 시 중복/사용 가능 여부를 확인한 뒤
 /// - 사용 가능: "적용되었습니다" 표시 후 3초 뒤 자동 닫힘
 /// - 중복/사용 불가: 사유 안내 후 재입력 가능 (닫히지 않음)
-/// - "테스트" 버튼으로 실제 등록 뒤 누르면 onTest로 실제 액션을 실행해 확인
+/// - "ui.test".localized 버튼으로 실제 등록 뒤 누르면 onTest로 실제 액션을 실행해 확인
 struct HotKeyRecorderView: View {
     @EnvironmentObject var store: ConfigStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.theme) private var theme
 
     let title: String
-    /// 앱 단축키일 때의 보조 설명 (앱 이름). nil이면 "전역에서 실행" 표시.
+    /// 앱 단축키일 때의 보조 설명 (앱 이름). nil이면 "ui.appdetail.run_globally".localized 표시.
     var subtitle: String?
     /// 교체 대상 기능이 현재 사용 중인 조합 (같은 조합 재지정 시 중복 판정 제외)
     var excludedCombo: HotKeyCombo?
@@ -62,7 +62,7 @@ struct HotKeyRecorderView: View {
                 .font(.headline)
 
             // 키 표시 영역
-            Text(currentCombo.displayString.isEmpty ? "키를 누르세요..." : currentCombo.displayString)
+            Text(currentCombo.displayString.isEmpty ? "ui.recorder.press_keys".localized : currentCombo.displayString)
                 .font(.system(size: 40, weight: .bold, design: .monospaced))
                 .frame(width: 300, height: 80)
                 .background(keyBackground)
@@ -74,10 +74,10 @@ struct HotKeyRecorderView: View {
             messageView
 
             HStack(spacing: 12) {
-                Button("취소") { dismiss() }
-                Button("테스트") { startTest() }
+                Button("ui.cancel".localized) { dismiss() }
+                Button("ui.test".localized) { startTest() }
                     .disabled(currentCombo.isEmpty || isApplying || message == .testing)
-                Button("저장") { save() }
+                Button("ui.save".localized) { save() }
                     .buttonStyle(.borderedProminent)
                     .disabled(currentCombo.isEmpty || isApplying)
             }
@@ -129,37 +129,37 @@ struct HotKeyRecorderView: View {
     private var messageView: some View {
         switch message {
         case .applying:
-            Label("적용되었습니다. 잠시 후 닫힙니다.", systemImage: "checkmark.circle.fill")
+            Label("ui.recorder.saved".localized, systemImage: "checkmark.circle.fill")
                 .font(.caption)
                 .foregroundColor(theme.successColor)
                 .transition(.opacity)
         case .duplicate:
-            Label("중복된 단축키입니다. 다른 조합을 눌러주세요.", systemImage: "exclamationmark.triangle.fill")
+            Label("ui.recorder.duplicate".localized, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
                 .foregroundColor(theme.warningColor)
                 .transition(.opacity)
         case .unavailable:
-            Label("사용할 수 없는 단축키입니다. 다른 조합을 눌러주세요.", systemImage: "xmark.octagon.fill")
+            Label("ui.recorder.unavailable".localized, systemImage: "xmark.octagon.fill")
                 .font(.caption)
                 .foregroundColor(theme.errorColor)
                 .transition(.opacity)
         case .testing:
-            Label("테스트 중 — 이제 단축키를 눌러보세요", systemImage: "dot.radiowaves.left.and.right")
+            Label("ui.recorder.testing".localized, systemImage: "dot.radiowaves.left.and.right")
                 .font(.caption)
                 .foregroundColor(theme.accentColor)
                 .transition(.opacity)
         case .testPassed:
-            Label("테스트 성공! 실제 동작이 실행되었습니다. 저장을 눌러 적용하세요.", systemImage: "checkmark.seal.fill")
+            Label("ui.recorder.test_success".localized, systemImage: "checkmark.seal.fill")
                 .font(.caption)
                 .foregroundColor(theme.successColor)
                 .transition(.opacity)
         case .testFailed:
-            Label("단축키는 감지됐지만 실행에 실패했습니다. 대상 앱 실행·권한을 확인하세요.", systemImage: "exclamationmark.triangle.fill")
+            Label("ui.recorder.test_failed".localized, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
                 .foregroundColor(theme.warningColor)
                 .transition(.opacity)
         case nil:
-            Text(subtitle ?? "전역에서 실행")
+            Text(subtitle ?? "ui.appdetail.run_globally".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
         }

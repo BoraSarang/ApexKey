@@ -157,7 +157,7 @@ private extension SidebarNavigation {
                 )
         }
         .buttonStyle(.plain)
-        .help(isCollapsed ? "사이드바 펼치기" : "사이드바 접기")
+        .help(isCollapsed ? "ui.sidebar.expand".localized : "ui.sidebar.collapse".localized)
         .frame(maxWidth: .infinity, alignment: isCollapsed ? .center : .trailing)
         .padding(.bottom, isCollapsed ? 12 : 8)
     }
@@ -506,7 +506,7 @@ struct SettingsSidebarSearchField: View {
     private var textField: some View {
         ZStack(alignment: .leading) {
             if text.isEmpty {
-                Text("검색")
+                Text("ui.search".localized)
                     .font(.system(size: 12))
                     .foregroundColor(theme.secondaryText)
                     .allowsHitTesting(false)

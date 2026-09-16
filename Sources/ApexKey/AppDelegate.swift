@@ -122,18 +122,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - 시스템 메뉴바 (Dock 표시 시 명령 제공)
 
     private func setupSystemMenu() {
+        NSApp.mainMenu = Self.makeMainMenu(actionTarget: self)
+    }
+
+    /// 메뉴 항목 생성 보일러플레이트(NSMenuItem 생성 + target 지정)를 한 곳으로 모음.
+    /// target이 nil이면 responder chain을 탄다(편집 메뉴 표준 액션용).
+    private static func makeItem(title: String, action: Selector?, key: String, target: AnyObject?) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = target
+        return item
+    }
+
+    /// 메인 메뉴 구성 — 테스트에서 구조 검증 가능하도록 순수 빌더로 분리.
+    /// target을 nil로 두는 편집 항목들은 responder chain을 타서 포커스된 텍스트 뷰가 처리한다.
+    static func makeMainMenu(actionTarget: AnyObject?) -> NSMenu {
         let mainMenu = NSMenu()
 
         let appMenu = NSMenu()
         let appName = "ApexKey"
-        let about = NSMenuItem(title: "\(appName) 정보", action: #selector(showAboutPanel(_:)), keyEquivalent: "")
-        about.target = self
+        let about = makeItem(title: "ui.menu.about".localizedFormat(appName), action: #selector(AppDelegate.showAboutPanel(_:)), key: "", target: actionTarget)
         let sep1 = NSMenuItem.separator()
-        let settings = NSMenuItem(title: "설정…", action: #selector(showSettingsPanel(_:)), keyEquivalent: ",")
-        settings.target = self
+        let settings = makeItem(title: "ui.main.settings".localized, action: #selector(AppDelegate.showSettingsPanel(_:)), key: ",", target: actionTarget)
         let sep2 = NSMenuItem.separator()
-        let quit = NSMenuItem(title: "\(appName) 종료", action: #selector(terminateApp(_:)), keyEquivalent: "q")
-        quit.target = self
+        let quit = makeItem(title: "ui.menu.quit".localizedFormat(appName), action: #selector(AppDelegate.terminateApp(_:)), key: "q", target: actionTarget)
         appMenu.addItem(about)
         appMenu.addItem(sep1)
         appMenu.addItem(settings)
@@ -144,27 +155,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
 
-        NSApp.mainMenu = mainMenu
+        // 편집 메뉴 — 없으면 TextEditor/TextField에서 Cmd+C/V/X/A/Z가 동작하지 않음.
+        // (AppKit은 메인 메뉴의 표준 edit action을 통해 first responder로 전달)
+        let editMenu = NSMenu(title: "ui.edit".localized)
+        let editItems: [(String, Selector, String)] = [
+            ("ui.menu.undo".localized, Selector("undo:"), "z"),
+            ("ui.menu.redo".localized, Selector("redo:"), "Z"),
+            ("ui.menu.cut".localized, #selector(NSText.cut(_:)), "x"),
+            ("ui.copy".localized, #selector(NSText.copy(_:)), "c"),
+            ("ui.menu.paste".localized, #selector(NSText.paste(_:)), "v"),
+            ("ui.clear".localized, #selector(NSText.delete(_:)), ""),
+            ("ui.menu.select_all".localized, #selector(NSText.selectAll(_:)), "a"),
+        ]
+        for (index, (title, action, key)) in editItems.enumerated() {
+            if index == 2 || index == 6 { editMenu.addItem(.separator()) }
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            // target 미지정 → responder chain (포커스된 텍스트 뷰가 처리)
+            editMenu.addItem(item)
+        }
+        let editMenuItem = NSMenuItem()
+        editMenuItem.submenu = editMenu
+        mainMenu.addItem(editMenuItem)
+
+        return mainMenu
     }
 
     // MARK: - 툴바/플로팅 창 메뉴 구성 (우클릭 드롭다운)
 
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
-        let openItem = NSMenuItem(title: "열기", action: #selector(togglePanelAction(_:)), keyEquivalent: "o")
-        openItem.target = self
-        let infoItem = NSMenuItem(title: "정보", action: #selector(showAboutPanel(_:)), keyEquivalent: "")
-        infoItem.target = self
-        let settingsItem = NSMenuItem(title: "설정…", action: #selector(showSettingsPanel(_:)), keyEquivalent: ",")
-        settingsItem.target = self
-        let debugItem = NSMenuItem(title: "디버그 로그", action: #selector(showDebugPanel(_:)), keyEquivalent: "")
-        debugItem.target = self
+        let openItem = Self.makeItem(title: "ui.open".localized, action: #selector(togglePanelAction(_:)), key: "o", target: self)
+        let infoItem = Self.makeItem(title: "ui.info".localized, action: #selector(showAboutPanel(_:)), key: "", target: self)
+        let settingsItem = Self.makeItem(title: "ui.main.settings".localized, action: #selector(showSettingsPanel(_:)), key: ",", target: self)
+        let debugItem = Self.makeItem(title: "ui.menu.debug_log".localized, action: #selector(showDebugPanel(_:)), key: "", target: self)
         menu.addItem(openItem)
         menu.addItem(infoItem)
         menu.addItem(settingsItem)
         menu.addItem(debugItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "종료", action: #selector(terminateApp(_:)), keyEquivalent: "q"))
+        menu.addItem(Self.makeItem(title: "ui.quit".localized, action: #selector(terminateApp(_:)), key: "q", target: nil))
         return menu
     }
 
@@ -258,7 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            win.title = "ApexKey 설정"
+            win.title = "ui.window.settings".localized
             win.minSize = NSSize(width: 560, height: 400)
             win.isReleasedWhenClosed = false // 재사용되는 동안 dealloc 방지
             let hosting = NSHostingController(rootView:
@@ -291,7 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            win.title = "ApexKey 정보"
+            win.title = "ui.window.about".localized
             win.styleMask.remove(.resizable)
             win.isReleasedWhenClosed = false
             let hosting = NSHostingController(rootView: ThemedRoot { AboutView() })
@@ -319,7 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            win.title = "ApexKey 디버그 로그"
+            win.title = "ui.window.debug_log".localized
             win.minSize = NSSize(width: 480, height: 300)
             win.isReleasedWhenClosed = false
             let hosting = NSHostingController(rootView: ThemedRoot { DebugLogView() })
@@ -358,7 +387,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            w.title = "동작 편집"
+            w.title = "ui.menu.edit_shortcut".localized
             w.isReleasedWhenClosed = false // 재사용 동안 dealloc 방지
             w.delegate = self
             editorWindow = w
@@ -391,7 +420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            w.title = "단계 설정"
+            w.title = "ui.menu.step_settings".localized
             w.isReleasedWhenClosed = false
             w.delegate = self
             stepSettingsWindow = w

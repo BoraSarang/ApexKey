@@ -132,14 +132,14 @@ struct ShortcutEditorView: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     // 이름 편집
-                    TextField("이름", text: $shortcutName)
+                    TextField("ui.name".localized, text: $shortcutName)
                         .textFieldStyle(.plain)
                         .font(.title3)
                         .fontWeight(.semibold)
                         .onSubmit { saveName() }
                     
                     // 설명
-                    Text(shortcutDescription.isEmpty ? "\(steps.count)단계" : shortcutDescription)
+                    Text(shortcutDescription.isEmpty ? "ui.editor.steps_count".localizedFormat(steps.count) : shortcutDescription)
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                 }
@@ -150,7 +150,7 @@ struct ShortcutEditorView: View {
                 Button {
                     executeShortcut()
                 } label: {
-                    Label("실행", systemImage: "play.fill")
+                    Label("ui.run".localized, systemImage: "play.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(steps.isEmpty)
@@ -159,17 +159,17 @@ struct ShortcutEditorView: View {
                 Button {
                     isShowingAutomationSettings = true
                 } label: {
-                    Label("자동화", systemImage: shortcutAutomations.isEmpty ? "bolt.badge.clock" : "bolt.fill")
+                    Label("category.automation".localized, systemImage: shortcutAutomations.isEmpty ? "bolt.badge.clock" : "bolt.fill")
                 }
                 .buttonStyle(.bordered)
-                .help("개인 자동화 트리거 설정")
+                .help("ui.editor.automation_help".localized)
                 
                 // 단축키 지정
                 Button {
                     // 단축키 지정 시트
                 } label: {
                     if shortcut.combo.isEmpty {
-                        Label("단축키", systemImage: "keyboard")
+                        Label("ui.hotkey".localized, systemImage: "keyboard")
                     } else {
                         Text(shortcut.combo.displayString)
                             .font(.system(.caption, design: .monospaced))
@@ -189,12 +189,12 @@ struct ShortcutEditorView: View {
             
             // 편집 모드 토글
             HStack(spacing: 12) {
-                Toggle("편집 모드", isOn: $isEditingMode)
+                Toggle("ui.editor.edit_mode".localized, isOn: $isEditingMode)
                     .toggleStyle(.switch)
                     .controlSize(.small)
                 
                 if isEditingMode {
-                    Text("단계를 드래그하여 순서를 변경할 수 있습니다")
+                    Text("ui.editor.drag_hint".localized)
                         .font(.caption2)
                         .foregroundColor(theme.secondaryText)
                 }
@@ -202,7 +202,7 @@ struct ShortcutEditorView: View {
                 Spacer()
                 
                 // 단계 수 표시
-                Text("\(steps.count)단계")
+                Text("ui.editor.steps_count".localizedFormat(steps.count))
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             }
@@ -220,7 +220,7 @@ struct ShortcutEditorView: View {
                 Image(systemName: "pencil")
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                TextField("이름 변경", text: $shortcutName)
+                TextField("ui.rename".localized, text: $shortcutName)
                     .textFieldStyle(.plain)
                     .font(.caption)
                     .frame(width: 120)
@@ -236,7 +236,7 @@ struct ShortcutEditorView: View {
                 Image(systemName: "text.alignleft")
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                TextField("설명", text: $shortcutDescription)
+                TextField("ui.description".localized, text: $shortcutDescription)
                     .textFieldStyle(.plain)
                     .font(.caption)
                     .frame(width: 200)
@@ -252,14 +252,14 @@ struct ShortcutEditorView: View {
             // 단계 관리 버튼들
             if isEditingMode && !steps.isEmpty {
                 Menu {
-                    Button("전체 선택") {
+                    Button("ui.editor.select_all".localized) {
                         // 전체 선택 로직
                     }
                     Divider()
-                    Button("스킵 모두 토글") {
+                    Button("ui.editor.toggle_all_skips".localized) {
                         toggleAllSkips()
                     }
-                    Button("전체 삭제") {
+                    Button("ui.editor.delete_all".localized) {
                         deleteAllSteps()
                     }
                 } label: {
@@ -320,27 +320,27 @@ struct ShortcutEditorView: View {
     private func createDefaultStep(for type: ActionType) -> ShortcutStep {
         switch type {
         case .launchApp:
-            return ShortcutStep(type: .launchApp, target: "", title: "앱 선택")
+            return ShortcutStep(type: .launchApp, target: "", title: "ui.editor.step_launch_app".localized)
         case .system:
-            return ShortcutStep(type: .system, target: "lock", title: "잠금")
+            return ShortcutStep(type: .system, target: "lock", title: "ui.editor.step_lock".localized)
         case .script:
-            return ShortcutStep(type: .script, target: "", title: "스크립트")
+            return ShortcutStep(type: .script, target: "", title: "ui.editor.step_script".localized)
         case .url:
             return ShortcutStep(type: .url, target: "", title: "URL")
         case .file:
-            return ShortcutStep(type: .file, target: "", title: "파일")
+            return ShortcutStep(type: .file, target: "", title: "ui.editor.step_file".localized)
         case .paste:
-            return ShortcutStep(type: .paste, target: "clipboard", title: "클립보드")
+            return ShortcutStep(type: .paste, target: "clipboard", title: "ui.editor.step_clipboard".localized)
         case .wait:
-            return ShortcutStep(type: .wait, target: "1.0", title: "대기 1초")
+            return ShortcutStep(type: .wait, target: "1.0", title: "ui.editor.step_wait".localized)
         case .coordinateClick:
-            return ShortcutStep(type: .coordinateClick, target: "0,0", title: "클릭")
+            return ShortcutStep(type: .coordinateClick, target: "0,0", title: "ui.editor.step_click".localized)
         case .macro:
-            return ShortcutStep(type: .macro, target: "", title: "키 입력")
+            return ShortcutStep(type: .macro, target: "", title: "ui.editor.step_type".localized)
         case .pauseUntilInput:
-            return ShortcutStep(type: .pauseUntilInput, target: "", title: "입력 대기")
+            return ShortcutStep(type: .pauseUntilInput, target: "", title: "ui.editor.step_pause".localized)
         case .menuCommand:
-            return ShortcutStep(type: .menuCommand, target: "", title: "메뉴 명령")
+            return ShortcutStep(type: .menuCommand, target: "", title: "ui.editor.step_menu".localized)
         case .ifElse:
             var step = ShortcutStep(type: .ifElse, target: "", title: "If")
             step.ifBranch = IfBranch(condition: Condition(
@@ -350,45 +350,45 @@ struct ShortcutEditorView: View {
             ))
             return step
         case .repeatLoop:
-            var step = ShortcutStep(type: .repeatLoop, target: "", title: "반복")
+            var step = ShortcutStep(type: .repeatLoop, target: "", title: "ui.editor.step_repeat".localized)
             step.repeatLoop = RepeatLoop(mode: .count, count: 3, steps: [])
             return step
         case .repeatEach:
-            var step = ShortcutStep(type: .repeatEach, target: "", title: "각 항목 반복")
+            var step = ShortcutStep(type: .repeatEach, target: "", title: "ui.editor.step_repeat_each".localized)
             step.repeatLoop = RepeatLoop(mode: .forEach, steps: [])
             return step
         case .chooseFromMenu:
-            var step = ShortcutStep(type: .chooseFromMenu, target: "", title: "메뉴에서 선택")
+            var step = ShortcutStep(type: .chooseFromMenu, target: "", title: "ui.editor.step_choose_menu".localized)
             step.chooseFromMenu = ChooseFromMenu(
-                prompt: "옵션을 선택하세요",
-                options: [MenuOption(title: "옵션 1")],
+                prompt: "ui.select_option".localized,
+                options: [MenuOption(title: "ui.editor.option_default".localized)],
                 allowMultipleSelection: false,
                 showCancelButton: true,
                 outputVariable: UUID()
             )
             return step
         case .useModel:
-            var step = ShortcutStep(type: .useModel, target: "", title: "모델 사용")
+            var step = ShortcutStep(type: .useModel, target: "", title: "ui.editor.step_use_model".localized)
             step.useModel = UseModelStep(prompt: "", outputVariable: UUID())
             return step
         case .writingTool:
-            var step = ShortcutStep(type: .writingTool, target: "", title: "라이팅 툴")
+            var step = ShortcutStep(type: .writingTool, target: "", title: "ui.editor.step_writing_tool".localized)
             step.writingTool = WritingToolStep(action: .proofread, inputVariable: UUID(), outputVariable: UUID())
             return step
         case .imagePlayground:
-            var step = ShortcutStep(type: .imagePlayground, target: "", title: "이미지 생성")
+            var step = ShortcutStep(type: .imagePlayground, target: "", title: "ui.editor.step_image".localized)
             step.imagePlayground = ImagePlaygroundStep(prompt: "", outputVariable: UUID())
             return step
         case .setVariable:
-            var step = ShortcutStep(type: .setVariable, target: "", title: "변수 설정")
-            step.outputVariables = [Variable(name: "새 변수", type: .manual, valueType: .text)]
+            var step = ShortcutStep(type: .setVariable, target: "", title: "ui.editor.step_set_var".localized)
+            step.outputVariables = [Variable(name: "ui.editor.new_variable".localized, type: .manual, valueType: .text)]
             return step
         case .outputToVariable:
-            var step = ShortcutStep(type: .outputToVariable, target: "", title: "출력을 변수로")
-            step.outputVariables = [Variable(name: "출력", type: .magic, valueType: .any)]
+            var step = ShortcutStep(type: .outputToVariable, target: "", title: "ui.editor.step_output_var".localized)
+            step.outputVariables = [Variable(name: "ui.output".localized, type: .magic, valueType: .any)]
             return step
         case .comment:
-            var step = ShortcutStep(type: .comment, target: "", title: "코멘트")
+            var step = ShortcutStep(type: .comment, target: "", title: "ui.editor.step_comment".localized)
             step.note = ""
             return step
         default:
@@ -502,53 +502,6 @@ struct ShortcutEditorView: View {
         switch shortcut.icon {
         case .sfSymbol(let name): return name
         case .emoji: return "bolt.fill"
-        }
-    }
-}
-
-// MARK: - ConfigStore 확장 (편집기용)
-
-extension ConfigStore {
-    func updateShortcutSteps(_ shortcut: ShortcutItem, steps: [ShortcutStep]) {
-        if let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[index].steps = steps
-            shortcuts[index].modifiedAt = Date()
-            syncShortcut(shortcuts[index])
-        }
-    }
-    
-    func updateShortcutName(_ shortcut: ShortcutItem, name: String) {
-        if let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[index].name = name
-            shortcuts[index].modifiedAt = Date()
-            syncShortcut(shortcuts[index])
-        }
-    }
-    
-    func updateShortcutDescription(_ shortcut: ShortcutItem, description: String) {
-        if let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[index].description = description
-            shortcuts[index].modifiedAt = Date()
-            syncShortcut(shortcuts[index])
-        }
-    }
-    
-    func updateShortcutAutomations(_ shortcut: ShortcutItem, automations: [AutomationTrigger]) {
-        if let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[index].automations = automations
-            shortcuts[index].modifiedAt = Date()
-            syncShortcut(shortcuts[index])
-            // 해당 단축어 자동화 재등록
-            AutomationManager.shared.unregister(shortcutID: shortcut.id)
-            AutomationManager.shared.register(shortcut: shortcuts[index])
-        }
-    }
-    
-    func updateShortcutVariables(_ shortcut: ShortcutItem, variables: [Variable]) {
-        if let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[index].variables = variables
-            shortcuts[index].modifiedAt = Date()
-            syncShortcut(shortcuts[index])
         }
     }
 }

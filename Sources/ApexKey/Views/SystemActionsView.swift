@@ -11,7 +11,7 @@ struct SystemActionsView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("아이콘을 클릭해 시스템 동작에 글로벌 단축키를 할당하거나 직접 실행할 수 있습니다.")
+                    Text("ui.system.intro".localized)
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                     VStack(spacing: 8) {
@@ -28,7 +28,7 @@ struct SystemActionsView: View {
         .background(theme.primaryBackground)
         .sheet(item: $recordingType) { type in
             HotKeyRecorderView(
-                title: "\(type.displayName) 단축키",
+                title: "ui.system.hotkey_title".localizedFormat(type.displayName),
                 excludedCombo: store.systemBindings(for: type).first?.combo,
                 onTest: { _ in SystemActionExecutor.execute(type) }
             ) { combo in
@@ -46,10 +46,10 @@ struct SystemActionsView: View {
                 .frame(width: 36, height: 36)
                 .font(.title3)
             VStack(alignment: .leading, spacing: 2) {
-                Text("시스템 동작")
+                Text("ui.system.title".localized)
                     .font(.title3)
                     .fontWeight(.semibold)
-                Text("시스템 동작에 글로벌 단축키를 할당")
+                Text("ui.system.assign_hotkey".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             }
@@ -79,17 +79,17 @@ struct SystemActionsView: View {
             Button {
                 _ = SystemActionExecutor.execute(type)
             } label: {
-                Label("실행", systemImage: "play")
+                Label("ui.run".localized, systemImage: "play")
             }
             .buttonStyle(.borderless)
-            .help("지금 실행")
+            .help("ui.system.run_now".localized)
             Button {
                 recordingType = type
             } label: {
                 Image(systemName: "plus.circle")
             }
             .buttonStyle(.borderless)
-            .help("단축키 녹음")
+            .help("ui.appdetail.record_hotkey".localized)
             if !bindings.isEmpty {
                 Button {
                     store.removeBinding(bindings.first!)
@@ -98,7 +98,7 @@ struct SystemActionsView: View {
                         .foregroundColor(theme.secondaryText)
                 }
                 .buttonStyle(.borderless)
-                .help("단축키 삭제")
+                .help("ui.system.delete_hotkey".localized)
             }
         }
         .padding(10)

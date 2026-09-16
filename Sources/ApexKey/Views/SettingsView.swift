@@ -9,32 +9,33 @@ struct SettingsView: View {
     @State private var showGuardAlert = false
     @State private var recordingPanelHotkey = false
     @State private var recordingHUDHotkey = false
+    @State private var showRestartBanner = false
 
     var body: some View {
         Form {
-            Section("표시") {
-                Toggle("메뉴바에 표시", isOn: menuBarBinding)
-                Text("끄면 메뉴바 아이콘이 사라집니다.")
+            Section("settings.display".localized) {
+                Toggle("settings.show_in_menubar".localized, isOn: menuBarBinding)
+                Text("settings.show_in_menubar.description".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                Toggle("Dock에 표시", isOn: dockBinding)
-                Text("켜면 Dock 아이콘으로도 접근할 수 있습니다.")
+                Toggle("settings.show_in_dock".localized, isOn: dockBinding)
+                Text("settings.show_in_dock.description".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             }
 
             Section {
-                Toggle("로그인 시 시작", isOn: $launchAtLogin)
+                Toggle("settings.launch_at_login".localized, isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, newValue in
                         applyLaunchAtLogin(newValue)
                     }
-                Toggle("숨김 앱 표시", isOn: $store.showHiddenApps)
-                Toggle("시스템 앱 표시", isOn: $store.showSystemApps)
+                Toggle("settings.show_hidden_apps".localized, isOn: $store.showHiddenApps)
+                Toggle("settings.show_system_apps".localized, isOn: $store.showSystemApps)
             }
 
-            Section("패널 단축키") {
+            Section("settings.panel_hotkey".localized) {
                 HStack {
-                    Text("현재")
+                    Text("settings.panel_hotkey.current".localized)
                     Spacer()
                     Text(store.toggleHotkey.displayString)
                         .font(.system(.body, design: .monospaced))
@@ -43,20 +44,20 @@ struct SettingsView: View {
                         .background(theme.tertiaryBackground.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
-                Text("메인 패널을 열고 닫는 전역 단축키 (⇧⌥A 기본).")
+                Text("settings.panel_hotkey.description".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                Button("단축키 변경") {
+                Button("settings.panel_hotkey.change".localized) {
                     recordingPanelHotkey = true
                 }
-                Button("기본값 복원") {
+                Button("settings.panel_hotkey.reset".localized) {
                     store.setPanelToggleHotkey(ConfigStore.defaultToggleHotkey)
                 }
             }
 
-            Section("메뉴 단축키 HUD") {
+            Section("settings.menu_hud".localized) {
                 HStack {
-                    Text("현재")
+                    Text("settings.menu_hud.current".localized)
                     Spacer()
                     Text(store.menuHUDHotkey.displayString)
                         .font(.system(.body, design: .monospaced))
@@ -65,10 +66,10 @@ struct SettingsView: View {
                         .background(theme.tertiaryBackground.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
-                Text("현재 전면 앱의 모든 메뉴 단축키를 표시 (⇧⌥S 기본).")
+                Text("settings.menu_hud.description".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                Picker("표시 방식", selection: Binding(
+                Picker("settings.menu_hud.style".localized, selection: Binding(
                     get: { store.menuHUDStyle },
                     set: { store.setMenuHUDStyle($0) }
                 )) {
@@ -76,29 +77,56 @@ struct SettingsView: View {
                         Text(style.displayName).tag(style)
                     }
                 }
-                Button("단축키 변경") {
+                Button("settings.menu_hud.change".localized) {
                     recordingHUDHotkey = true
                 }
-                Button("기본값 복원") {
+                Button("settings.menu_hud.reset".localized) {
                     store.setMenuHUDHotkey(ConfigStore.defaultMenuHUDHotkey)
                 }
             }
 
-            Section("권한") {
+            Section("settings.permissions".localized) {
                 HStack {
-                    Text("손쉬운 사용(Accessibility)")
+                    Text("settings.permissions.accessibility".localized)
                     Spacer()
-                    Button(PermissionHelper.isAccessibilityTrusted ? "✅ 허용됨" : "권한 요청") {
+                    Button(PermissionHelper.isAccessibilityTrusted ? "settings.permissions.accessibility.granted".localized : "settings.permissions.accessibility.request".localized) {
                         PermissionHelper.requestAccessibility()
                     }
                     .disabled(PermissionHelper.isAccessibilityTrusted)
                 }
-                Text("메뉴 단축키 열거·실행과 타 앱 제어에 필요합니다.")
+                Text("settings.permissions.accessibility.description".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             }
 
-            Section("테마") {
+            Section("settings.language".localized) {
+                Picker("settings.language".localized, selection: Binding(
+                    get: { store.appLanguage },
+                    set: { newValue in
+                        store.appLanguage = newValue
+                        showRestartBanner = true
+                    }
+                )) {
+                    ForEach(LanguageManager.shared.supportedLanguages, id: \.code) { lang in
+                        Text(lang.displayName).tag(lang.code)
+                    }
+                }
+                .pickerStyle(.menu)
+                
+                if showRestartBanner {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundColor(.orange)
+                        Text("settings.language.restart_required".localized)
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            Section("settings.theme".localized) {
                 ThemeSettingsView()
             }
         }
@@ -107,8 +135,8 @@ struct SettingsView: View {
         .frame(minWidth: 560, minHeight: 400)
         .sheet(isPresented: $recordingPanelHotkey) {
             HotKeyRecorderView(
-                title: "패널 토글 단축키",
-                subtitle: "전역에서 실행",
+                title: "settings.panel_hotkey".localized,
+                subtitle: "ui.appdetail.run_globally".localized,
                 excludedCombo: store.toggleHotkey,
                 onTest: { _ in
                     NotificationCenter.default.post(name: .togglePanel, object: nil)
@@ -121,8 +149,8 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $recordingHUDHotkey) {
             HotKeyRecorderView(
-                title: "메뉴 단축키 HUD 단축키",
-                subtitle: "전역에서 실행",
+                title: "settings.menu_hud".localized,
+                subtitle: "ui.appdetail.run_globally".localized,
                 excludedCombo: store.menuHUDHotkey,
                 onTest: { _ in
                     NotificationCenter.default.post(name: .toggleMenuHUD, object: nil)
@@ -133,10 +161,10 @@ struct SettingsView: View {
             }
             .environmentObject(store)
         }
-        .alert("메뉴바를 끌 수 없습니다", isPresented: $showGuardAlert) {
-            Button("확인", role: .cancel) {}
+        .alert("alert.menubar_cannot_disable.title".localized, isPresented: $showGuardAlert) {
+            Button("ui.settings.ok".localized, role: .cancel) {}
         } message: {
-            Text("Dock에 표시도 꺼져 있으면 앱에 접근할 수 없습니다. Dock에 표시를 먼저 켜주세요.")
+            Text("alert.menubar_cannot_disable.message".localized)
         }
     }
 

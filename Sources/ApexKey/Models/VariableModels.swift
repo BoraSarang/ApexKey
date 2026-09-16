@@ -10,9 +10,9 @@ enum VariableType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .magic: return "마법 변수"
-        case .special: return "특수 변수"
-        case .manual: return "사용자 변수"
+        case .magic: return "variable.type.magic".localized
+        case .special: return "variable.type.special".localized
+        case .manual: return "variable.type.manual".localized
         }
     }
     
@@ -50,31 +50,31 @@ enum SpecialVariable: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .askEachTime: return "매번 묻기"
-        case .clipboard: return "클립보드"
-        case .currentDate: return "현재 날짜"
-        case .shortcutInput: return "단축어 입력"
-        case .repeatIndex: return "반복 인덱스"
-        case .repeatItem: return "반복 항목"
-        case .lastResult: return "마지막 결과"
-        case .deviceName: return "기기 이름"
-        case .batteryLevel: return "배터리 잔량"
-        case .wifiName: return "Wi-Fi 이름"
+        case .askEachTime: return "variable.special.ask_each_time".localized
+        case .clipboard: return "variable.special.clipboard".localized
+        case .currentDate: return "variable.special.current_date".localized
+        case .shortcutInput: return "variable.special.shortcut_input".localized
+        case .repeatIndex: return "variable.special.repeat_index".localized
+        case .repeatItem: return "variable.special.repeat_item".localized
+        case .lastResult: return "variable.special.last_result".localized
+        case .deviceName: return "variable.special.device_name".localized
+        case .batteryLevel: return "variable.special.battery_level".localized
+        case .wifiName: return "variable.special.wifi_name".localized
         }
     }
     
     var description: String {
         switch self {
-        case .askEachTime: return "실행할 때마다 값을 입력받습니다"
-        case .clipboard: return "현재 클립보드 내용을 가져옵니다"
-        case .currentDate: return "현재 날짜와 시간을 가져옵니다"
-        case .shortcutInput: return "단축어 실행 시 전달받은 입력을 사용합니다"
-        case .repeatIndex: return "현재 반복 횟수 (1부터 시작)"
-        case .repeatItem: return "현재 반복 중인 항목"
-        case .lastResult: return "직전 단계의 실행 결과"
-        case .deviceName: return "이 Mac의 이름"
-        case .batteryLevel: return "현재 배터리 충전 수준 (0.0~1.0)"
-        case .wifiName: return "현재 연결된 Wi-Fi 네트워크 이름"
+        case .askEachTime: return "variable.special.ask_each_time.desc".localized
+        case .clipboard: return "variable.special.clipboard.desc".localized
+        case .currentDate: return "variable.special.current_date.desc".localized
+        case .shortcutInput: return "variable.special.shortcut_input.desc".localized
+        case .repeatIndex: return "variable.special.repeat_index.desc".localized
+        case .repeatItem: return "variable.special.repeat_item.desc".localized
+        case .lastResult: return "variable.special.last_result.desc".localized
+        case .deviceName: return "variable.special.device_name.desc".localized
+        case .batteryLevel: return "variable.special.battery_level.desc".localized
+        case .wifiName: return "variable.special.wifi_name.desc".localized
         }
     }
     
@@ -131,15 +131,15 @@ enum VariableValueType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .text: return "텍스트"
-        case .number: return "숫자"
-        case .boolean: return "참/거짓"
-        case .list: return "리스트"
-        case .dictionary: return "딕셔너리"
-        case .file: return "파일"
-        case .image: return "이미지"
-        case .date: return "날짜"
-        case .any: return "모든 타입"
+        case .text: return "variable.value.text".localized
+        case .number: return "variable.value.number".localized
+        case .boolean: return "variable.value.boolean".localized
+        case .list: return "variable.value.list".localized
+        case .dictionary: return "variable.value.dictionary".localized
+        case .file: return "variable.value.file".localized
+        case .image: return "variable.value.image".localized
+        case .date: return "variable.value.date".localized
+        case .any: return "variable.value.any".localized
         }
     }
 }
@@ -423,13 +423,13 @@ struct ActionOutput: Identifiable, Codable, Hashable {
         switch output {
         case .text(let v): return v.count > 50 ? String(v.prefix(50)) + "…" : v
         case .number(let v): return String(v)
-        case .boolean(let v): return v ? "참" : "거짓"
-        case .list(let v): return "\(v.count)개 항목"
-        case .dictionary(let v): return "\(v.count)개 키"
+        case .boolean(let v): return v ? "flow.true".localized : "flow.false".localized
+        case .list(let v): return "flow.preview_list_fmt".localizedFormat(v.count)
+        case .dictionary(let v): return "flow.preview_dict_fmt".localizedFormat(v.count)
         case .file(let v): return v.lastPathComponent
-        case .image: return "이미지"
+        case .image: return "flow.value_image".localized
         case .date(let v): return v.formatted(date: .abbreviated, time: .shortened)
-        case .null: return "값 없음"
+        case .null: return "flow.value_empty".localized
         }
     }
 }

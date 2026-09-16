@@ -46,7 +46,7 @@ struct AppDetailView: View {
         .sheet(item: $recordingTarget) { target in
             HotKeyRecorderView(
                 title: target.title.trimmingCharacters(in: .whitespacesAndNewlines),
-                subtitle: "\(app.name) 실행 후 메뉴 명령 수행",
+                subtitle: "ui.appdetail.execute_then_menu".localizedFormat(app.name),
                 onTest: { combo in
                     var t = target
                     if t.menuPath.isEmpty { t.menuPath = [t.title] }
@@ -68,8 +68,8 @@ struct AppDetailView: View {
         }
         .sheet(isPresented: $recordingLaunch) {
             HotKeyRecorderView(
-                title: "\(app.name) 실행/토글",
-                subtitle: "전역에서 실행",
+                title: "ui.appdetail.run_toggle".localizedFormat(app.name),
+                subtitle: "ui.appdetail.run_globally".localized,
                 excludedCombo: store.launchBindings(for: app.id).first?.combo,
                 onTest: { _ in AppSwitcher.toggle(bundleID: app.bundleID) }
             ) { combo in
@@ -83,7 +83,7 @@ struct AppDetailView: View {
         )) {
             HotKeyRecorderView(
                 title: "\(app.name) (\(recordingScheme ?? "")://)",
-                subtitle: "URL 열기",
+                subtitle: "ui.appdetail.open_url".localized,
                 onTest: { _ in if let s = recordingScheme { NSWorkspace.shared.open(URL(string: "\(s)://")!) }; return true }
             ) { combo in
                 if let s = recordingScheme { onRecord(combo: combo, scheme: s) }
@@ -102,7 +102,7 @@ struct AppDetailView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
-            .help("목록으로")
+            .help("ui.appdetail.back_to_list".localized)
 
             icon
                 .frame(width: 36, height: 36)
@@ -125,7 +125,7 @@ struct AppDetailView: View {
                     .font(.system(size: 14, weight: .medium))
             }
             .buttonStyle(.borderless)
-            .help(running ? "\(app.name) 전면으로" : "\(app.name) 실행")
+            .help(running ? "ui.appdetail.front".localizedFormat(app.name) : "ui.appdetail.run_app".localizedFormat(app.name))
             Menu {
                 ForEach(AppCategory.allCases) { category in
                     Button {
@@ -147,7 +147,7 @@ struct AppDetailView: View {
                     .clipShape(Capsule())
             }
             .menuStyle(.borderlessButton)
-            .help("카테고리 변경")
+            .help("ui.appdetail.change_category".localized)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -157,13 +157,13 @@ struct AppDetailView: View {
 
     private var launchSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("앱 실행/토글", systemImage: "arrow.up.to.line")
+            sectionHeader("ui.appdetail.run_toggle_label".localized, systemImage: "arrow.up.to.line")
             let list = store.launchBindings(for: app.id)
             HStack(spacing: 10) {
                 Button {
                     recordingLaunch = true
                 } label: {
-                    Label(list.isEmpty ? "단축키 추가" : "단축키 변경", systemImage: "plus.circle")
+                    Label(list.isEmpty ? "ui.appdetail.add_hotkey".localized : "ui.appdetail.change_hotkey".localized, systemImage: "plus.circle")
                 }
                 .buttonStyle(.borderless)
                 Spacer()
@@ -181,9 +181,9 @@ struct AppDetailView: View {
                             .foregroundColor(theme.secondaryText)
                     }
                     .buttonStyle(.borderless)
-                    .help("삭제")
+                    .help("ui.delete".localized)
                 } else {
-                    Text("없음 — 실행/포커스/토글 단축키를 설정하세요.")
+                    Text("ui.appdetail.no_hotkey".localized)
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                 }
@@ -203,10 +203,10 @@ struct AppDetailView: View {
 
     private var configuredSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("설정된 글로벌 단축키", systemImage: "pin")
+            sectionHeader("ui.appdetail.configured_hotkeys".localized, systemImage: "pin")
             let list = store.bindings(for: app.id).filter { $0.actionType != .launchApp }
             if list.isEmpty {
-                Text("설정된 단축키가 없습니다. 아래 메뉴 단축키에서 선택해 추가하세요.")
+                Text("ui.appdetail.no_hotkey_assigned".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -230,7 +230,7 @@ struct AppDetailView: View {
 
     private func configuredRow(_ binding: HotKeyBinding) -> some View {
         HStack(spacing: 10) {
-            Text(binding.title.isEmpty ? "명령" : binding.title)
+            Text(binding.title.isEmpty ? "ui.command".localized : binding.title)
                 .lineLimit(1)
             Spacer()
             Text(binding.combo.displayString)
@@ -246,7 +246,7 @@ struct AppDetailView: View {
                     .foregroundColor(theme.secondaryText)
             }
             .buttonStyle(.borderless)
-            .help("삭제")
+            .help("ui.delete".localized)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -259,7 +259,7 @@ struct AppDetailView: View {
     private var menuSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                sectionHeader("\(app.name)의 메뉴 단축키", systemImage: "command")
+                sectionHeader("ui.appdetail.menu_hotkeys".localizedFormat(app.name), systemImage: "command")
                 Spacer()
                 Button {
                     reloadMenu()
@@ -267,12 +267,12 @@ struct AppDetailView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .help("새로고침")
+                .help("ui.appdetail.refresh".localized)
             }
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(theme.secondaryText)
-                TextField("메뉴 명령 검색", text: $menuSearchText)
+                TextField("ui.appdetail.search_menu_commands".localized, text: $menuSearchText)
                     .textFieldStyle(.plain)
                 if !menuSearchText.isEmpty {
                     Button {
@@ -303,8 +303,8 @@ struct AppDetailView: View {
                 HStack { Spacer(); ProgressView(); Spacer() }.padding()
             } else if menuItems.isEmpty {
                 Text(isAccessibilityReady
-                     ? "메뉴 단축키를 찾을 수 없습니다. 앱을 실행해두세요."
-                     : "Accessibility 권한이 필요합니다.")
+                     ? "ui.appdetail.no_menu_items".localized
+                     : "ui.appdetail.accessibility_required".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             } else if query.isEmpty {
@@ -319,7 +319,7 @@ struct AppDetailView: View {
                     $0.title.lowercased().contains(query) || $0.keyEquivalentDisplay.lowercased().contains(query)
                 }
                 if items.isEmpty {
-                    Text("검색 결과가 없습니다.")
+                    Text("ui.appdetail.no_search_results".localized)
                         .font(.caption)
                         .foregroundColor(theme.secondaryText)
                 } else {
@@ -354,7 +354,7 @@ struct AppDetailView: View {
                 Image(systemName: "plus.circle")
             }
             .buttonStyle(.borderless)
-            .help("단축키 녹음")
+            .help("ui.appdetail.record_hotkey".localized)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -402,8 +402,8 @@ struct AppDetailView: View {
             if urlSchemes.isEmpty {
                 sectionHeader("URL Scheme", systemImage: "link")
                 Text(app.path.isEmpty
-                     ? "앱 경로가 확인되지 않아 URL scheme을 읽을 수 없습니다."
-                     : "이 앱은 URL scheme을 지원하지 않습니다.")
+                     ? "ui.appdetail.urlscheme_unavailable".localized
+                     : "ui.appdetail.no_urlscheme".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -426,17 +426,17 @@ struct AppDetailView: View {
                                 Button {
                                     NSWorkspace.shared.open(URL(string: "\(scheme)://")!)
                                 } label: {
-                                    Label("실행", systemImage: "play.fill")
+                                    Label("ui.run".localized, systemImage: "play.fill")
                                 }
                                 .buttonStyle(.borderless)
-                                .help("\(scheme):// 열어보기")
+                                .help("ui.appdetail.try_urlscheme".localizedFormat(scheme))
                                 Button {
                                     recordingScheme = scheme
                                 } label: {
-                                    Label("단축키", systemImage: "command")
+                                    Label("ui.hotkey".localized, systemImage: "command")
                                 }
                                 .buttonStyle(.borderless)
-                                .help("이 scheme을 여는 단축키 설정")
+                                .help("ui.appdetail.hotkey_for_scheme".localized)
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
@@ -449,7 +449,7 @@ struct AppDetailView: View {
                     HStack {
                         sectionHeader("URL Scheme", systemImage: "link")
                         Spacer()
-                        Text("\(urlSchemes.count)개")
+                        Text("ui.appdetail.scheme_count".localizedFormat(urlSchemes.count))
                             .font(.caption)
                             .foregroundColor(theme.secondaryText)
                     }
@@ -544,7 +544,7 @@ private struct MenuTreeNode: View {
                     isExpanded.toggle()
                 } label: {
                     HStack(spacing: 10) {
-                        Text(item.title.isEmpty ? "(하위 메뉴)" : item.title)
+                        Text(item.title.isEmpty ? "ui.appdetail.submenu".localized : item.title)
                             .lineLimit(1)
                             .fontWeight(!item.title.isEmpty ? .medium : .regular)
                         Spacer()
@@ -582,7 +582,7 @@ private struct MenuTreeNode: View {
                 Image(systemName: "plus.circle")
             }
             .buttonStyle(.borderless)
-            .help("단축키 녹음")
+            .help("ui.appdetail.record_hotkey".localized)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

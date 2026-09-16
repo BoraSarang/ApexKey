@@ -38,7 +38,7 @@ final class AIAvailabilityManager {
     private func checkAvailability_macOS26() -> AIAvailability {
         // FoundationModels 프레임워크 가용성 체크
         guard canImportFoundationModels else {
-            return .modelUnavailable(reason: "FoundationModels 프레임워크를 사용할 수 없습니다")
+            return .modelUnavailable(reason: "error.user.foundation_models_unavailable".localized)
         }
         
         // Apple Intelligence 활성화 상태 체크 (간접적)
@@ -52,18 +52,4 @@ final class AIAvailabilityManager {
     private let canImportFoundationModels = false
     #endif
     
-    // MARK: - 디버그 정보
-    
-    func debugInfo() -> [String: String] {
-        var info: [String: String] = [
-            "os_version": ProcessInfo.processInfo.operatingSystemVersionString,
-            "availability": currentAvailability.displayMessage,
-        ]
-        
-        for type in AIModelType.allCases {
-            info["model_\(type.rawValue)"] = isAvailable(type).displayMessage
-        }
-        
-        return info
-    }
 }

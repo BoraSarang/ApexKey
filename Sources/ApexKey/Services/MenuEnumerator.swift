@@ -34,8 +34,13 @@ final class MenuEnumerator {
             Logger.info("MenuEnumerator", "메뉴바 없음 (pid=\(pid), status=\(status.rawValue))")
             return []
         }
-        // 필수 CFTypeRef → AXUIElement 브리징 (성공 상태에서만 진행)
-        return menus(in: menubar as! AXUIElement)
+        // CFTypeRef → AXUIElement 확인은 타입ID 비교가 정석 (R-04)
+        guard CFGetTypeID(menubar) == AXUIElementGetTypeID() else {
+            Logger.error("E-MAC-MENU-3004", "메뉴바 타입 불일치 (pid=\(pid))")
+            return []
+        }
+        // 타입 확인 후이므로 unsafeDowncast (런타임 체크 없는 확정 변환)
+        return menus(in: unsafeDowncast(menubar, to: AXUIElement.self))
     }
 
     /// 특정 앱의 메뉴 항목에서 지정 키 조합(단축키)이 있는 항목만 추출
@@ -347,10 +352,10 @@ enum MenuActionResult: Equatable {
 
     var description: String {
         switch self {
-        case .success: return "성공"
-        case .appNotRunning: return "대상 앱이 실행 중이 아님"
-        case .noPermission: return "손쉬운 사용 권한 없음"
-        case .menuNotFound: return "메뉴 항목을 찾지 못함"
+        case .success: return "menu.action.status_success".localized
+        case .appNotRunning: return "menu.action.status_app_not_running".localized
+        case .noPermission: return "menu.action.status_no_permission".localized
+        case .menuNotFound: return "menu.action.status_menu_not_found".localized
         }
     }
 }

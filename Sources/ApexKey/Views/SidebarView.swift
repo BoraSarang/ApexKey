@@ -10,14 +10,14 @@ struct SidebarView: View {
     var body: some View {
         List(selection: $selection) {
             // 최상단 고정 스테이션
-            Section("앱 단축키") {
-                Label("전체 앱", systemImage: "square.grid.2x2")
+            Section("ui.sidebar.app_shortcuts".localized) {
+                Label("ui.sidebar.all_apps".localized, systemImage: "square.grid.2x2")
                     .badge(store.visibleApps().count)
                     .tag(MainWindowView.SidebarSelection.all)
             }
 
             // 카테고리 — 섹션 헤더 + 카운트 배지. 비어 있는(앱이 없는) 카테고리는 숨김
-            Section("카테고리") {
+            Section("ui.category".localized) {
                 ForEach(store.categoryOrder()) { category in
                     if store.visibleApps().contains(where: { $0.category == category }) {
                         categoryRow(category)
@@ -25,11 +25,11 @@ struct SidebarView: View {
                 }
             }
 
-            Section("도구") {
-                Label("동작", systemImage: "square.stack.3d.up.fill")
+            Section("ui.sidebar.tools".localized) {
+                Label("ui.shortcut".localized, systemImage: "square.stack.3d.up.fill")
                     .badge(store.shortcuts.count)
                     .tag(MainWindowView.SidebarSelection.tool(.shortcut))
-                Label("시스템", systemImage: "gearshape.2")
+                Label("trigger.system".localized, systemImage: "gearshape.2")
                     .tag(MainWindowView.SidebarSelection.tool(.system))
             }
         }
@@ -61,7 +61,7 @@ struct SidebarView: View {
                     summaryRow
                 }
                 .buttonStyle(.plain)
-                .help("손쉬운 사용 권한이 필요합니다. 클릭하여 활성화하세요.")
+                .help("ui.sidebar.ax_required_help".localized)
             }
         }
         .background(
@@ -81,11 +81,11 @@ struct SidebarView: View {
                 .fill(PermissionHelper.isAccessibilityTrusted ? theme.successColor.opacity(0.6) : theme.errorColor)
                 .frame(width: 8, height: 8)
             if PermissionHelper.isAccessibilityTrusted {
-                Text("단축키 \(bindingCount)개 · 동작 \(store.shortcuts.count)개")
+                Text("ui.sidebar.binding_counts".localizedFormat(bindingCount, store.shortcuts.count))
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             } else {
-                Text("손쉬운 사용 권한 필요 — 활성화")
+                Text("ui.sidebar.ax_required".localized)
                     .font(.caption)
                     .foregroundColor(theme.errorColor)
             }

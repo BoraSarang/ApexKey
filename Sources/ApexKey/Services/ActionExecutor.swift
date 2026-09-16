@@ -39,8 +39,9 @@ final class ActionExecutor {
             Logger.info("ActionExecutor", "파일 열기: \(url.path)")
             return true
         case .script:
-            runScript(binding.target)
-            return true
+            return runShellScript(binding.target)
+        case .runScriptInShell:
+            return runShellScript(binding.target)
         case .system:
             if let type = SystemActionType(rawValue: binding.target) {
                 let ok = SystemActionExecutor.execute(type)
@@ -91,14 +92,59 @@ final class ActionExecutor {
         return ExecutionEngine.shared.execute(shortcut, context: &context).success
     }
 
-    private func runScript(_ command: String) {
+    /// 셸 스크립트 실행 결과 (테스트 실행 UI 표시용)
+    struct ShellResult {
+        var success: Bool
+        var output: String
+        var errorOutput: String
+        var exitCode: Int32
+    }
+
+    /// 셸 스크립트 실행 — GUI 앱의 최소 PATH를 보완하고 결과를 로그에 남김.
+    /// adb 등 Homebrew/Android SDK 도구를 찾을 수 있도록 PATH를 확장한다.
+    @discardableResult
+    func runShellScript(_ command: String) -> Bool {
+        runShellScriptResult(command).success
+    }
+
+    /// 셸 스크립트 실행 + 결과(출력/종료코드) 반환 — 스크립트 설정의 테스트 실행 표시용
+    func runShellScriptResult(_ command: String) -> ShellResult {
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            Logger.error("E-MAC-SCRIPT-6002", "빈 스크립트 — 실행 건너뜀")
+            return ShellResult(success: false, output: "", errorOutput: "error.user.empty_script".localized, exitCode: -1)
+        }
+        Logger.info("FEATURE", "셸 스크립트 실행 시작: \(trimmed.prefix(120))")
+        let fullCommand = ShellEnvironment.script(trimmed)
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        task.arguments = ["-c", command]
+        task.arguments = ["-c", fullCommand]
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        task.standardOutput = outPipe
+        task.standardError = errPipe
         do {
             try task.run()
         } catch {
             Logger.error("E-MAC-SCRIPT-6001", "스크립트 실행 실패: \(error.localizedDescription)")
+            return ShellResult(success: false, output: "", errorOutput: error.localizedDescription, exitCode: -1)
+        }
+        task.waitUntilExit()
+        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+        let output = (String(data: outData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let errorOutput = (String(data: errData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = task.terminationStatus
+        if !output.isEmpty {
+            Logger.info("ActionExecutor", "스크립트 출력:\n\(output.prefix(2000))")
+        }
+        if code == 0 {
+            Logger.info("FEATURE", "셸 스크립트 실행 성공 (exit 0)")
+            return ShellResult(success: true, output: output, errorOutput: errorOutput, exitCode: code)
+        } else {
+            let detail = errorOutput.isEmpty ? output : errorOutput
+            Logger.error("E-MAC-SCRIPT-6001", "스크립트 실패 (exit \(code)): \(detail.prefix(500))")
+            return ShellResult(success: false, output: output, errorOutput: errorOutput, exitCode: code)
         }
     }
 
@@ -129,22 +175,14 @@ final class ActionExecutor {
     // MARK: - 대기
 
     private func runWait(_ target: String) {
-        let seconds = Double(target) ?? 1.0
-        Logger.info("ActionExecutor", "대기 시작: \(seconds)초")
-        // 메인 스레드 블로킹 방지 — 대표 애니메이션/UI 멈춤 유발
+        let seconds = max(0, Double(target) ?? 1.0)
         if Thread.isMainThread {
-            dispatchWaitOnBackground(seconds: max(0, seconds))
-        } else {
-            Thread.sleep(forTimeInterval: max(0, seconds))
+            Logger.error("E-MAC-ACT-3006", "메인 스레드 동기 대기 — UI가 \(seconds)초 멈춤 (동작 실행은 백그라운드 권장)")
         }
+        Logger.info("ActionExecutor", "대기 시작: \(seconds)초")
+        // 순차 의미 보장: 호출 스레드에서 동기 sleep (R-02)
+        Thread.sleep(forTimeInterval: seconds)
         Logger.info("ActionExecutor", "대기 완료")
-    }
-
-    /// 메인 스레드에서 호출 시 백그라운드로 대기를 넘기고 즉시 복귀
-    private func dispatchWaitOnBackground(seconds: TimeInterval) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            Thread.sleep(forTimeInterval: seconds)
-        }
     }
 
     // MARK: - 좌표 클릭
@@ -166,6 +204,19 @@ final class ActionExecutor {
     // MARK: - 사이보그 모드 (입력 대기)
 
     private func runPauseUntilInput() {
+        // 호출 스레드를 블로킹하는데 모니터는 메인 런루프에 등록되므로,
+        // 메인에서 호출하면 교착. 그 경우 백그라운드로 넘긴다 (R-03)
+        if Thread.isMainThread {
+            Logger.info("ActionExecutor", "경고: 메인 스레드 입력 대기 — 백그라운드로 전환")
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                self?.blockingPauseUntilInput()
+            }
+            return
+        }
+        blockingPauseUntilInput()
+    }
+
+    private func blockingPauseUntilInput() {
         Logger.info("ActionExecutor", "사이보그 모드 시작 — ⌘⇧↩로 계속")
 
         let semaphore = DispatchSemaphore(value: 0)

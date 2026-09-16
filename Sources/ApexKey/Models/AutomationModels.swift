@@ -1,5 +1,17 @@
 import Foundation
 
+/// 트리거 이벤트 타입이 공통으로 제공하는 현지화된 표시 이름.
+protocol TriggerEventDisplayable {
+    var displayName: String { get }
+}
+
+extension Sequence where Element: TriggerEventDisplayable {
+    /// "연결, 분리" 형태의 이벤트 요약 문자열.
+    var displaySummary: String {
+        map(\.displayName).joined(separator: ", ")
+    }
+}
+
 /// 자동화 트리거 타입 (enum with associated values 패턴)
 enum AutomationTrigger: Identifiable, Codable, Hashable {
     case timeOfDay(TimeOfDayTrigger)
@@ -109,12 +121,12 @@ enum TriggerCategory: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .time: return "시간"
-        case .filesystem: return "파일 시스템"
-        case .hardware: return "하드웨어"
-        case .network: return "네트워크"
-        case .power: return "전원"
-        case .system: return "시스템"
+        case .time: return "trigger.time".localized
+        case .filesystem: return "trigger.filesystem".localized
+        case .hardware: return "trigger.hardware".localized
+        case .network: return "trigger.network".localized
+        case .power: return "trigger.power".localized
+        case .system: return "trigger.system".localized
         }
     }
     
@@ -176,13 +188,13 @@ enum RepeatRule: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .none: return "한 번만"
-        case .daily: return "매일"
-        case .weekdays: return "평일"
-        case .weekends: return "주말"
-        case .weekly: return "매주"
-        case .monthly: return "매월"
-        case .custom: return "사용자 지정"
+        case .none: return "repeat.none".localized
+        case .daily: return "repeat.daily".localized
+        case .weekdays: return "repeat.weekdays".localized
+        case .weekends: return "repeat.weekends".localized
+        case .weekly: return "repeat.weekly".localized
+        case .monthly: return "repeat.monthly".localized
+        case .custom: return "repeat.custom".localized
         }
     }
     
@@ -257,14 +269,14 @@ struct FolderTrigger: Identifiable, Codable, Hashable {
     var displayName: String {
         if let label = label { return label }
         let folderName = folderURL.lastPathComponent
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        let subfolder = watchSubfolders ? " (하위 포함)" : ""
-        return "폴더: \(folderName) [\(events)]\(subfolder)"
+        let events = eventTypes.displaySummary
+        let subfolder = watchSubfolders ? "ui.trigger.subfolder_suffix".localized : ""
+        return "ui.trigger.folder_fmt".localizedFormat(folderName, events, subfolder)
     }
 }
 
 /// 폴더 이벤트 타입
-enum FolderEventType: String, Codable, CaseIterable, Identifiable {
+enum FolderEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case added = "added"           // 파일 추가
     case modified = "modified"     // 파일 수정
     case removed = "removed"       // 파일 삭제
@@ -274,10 +286,10 @@ enum FolderEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .added: return "추가"
-        case .modified: return "수정"
-        case .removed: return "삭제"
-        case .renamed: return "이름변경"
+        case .added: return "ui.add".localized
+        case .modified: return "ui.trigger.modified".localized
+        case .removed: return "ui.delete".localized
+        case .renamed: return "ui.trigger.renamed".localized
         }
     }
     
@@ -316,7 +328,7 @@ struct FileTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        return "파일: \(fileURL.lastPathComponent)"
+        return "ui.trigger.file_fmt".localizedFormat(fileURL.lastPathComponent)
     }
 }
 
@@ -344,13 +356,13 @@ struct ExternalDriveTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let drive = driveName ?? "모든 드라이브"
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        return "외장 드라이브: \(drive) [\(events)]"
+        let drive = driveName ?? "ui.trigger.all_drives".localized
+        let events = eventTypes.displaySummary
+        return "ui.trigger.drive_fmt".localizedFormat(drive, events)
     }
 }
 
-enum DriveEventType: String, Codable, CaseIterable, Identifiable {
+enum DriveEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case mounted = "mounted"       // 연결됨
     case unmounted = "unmounted"   // 분리됨
     
@@ -358,8 +370,8 @@ enum DriveEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .mounted: return "연결"
-        case .unmounted: return "분리"
+        case .mounted: return "ui.trigger.connected".localized
+        case .unmounted: return "ui.trigger.disconnected".localized
         }
     }
 }
@@ -385,12 +397,12 @@ struct DisplayTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        return "디스플레이 [\(events)]"
+        let events = eventTypes.displaySummary
+        return "ui.trigger.display_fmt".localizedFormat(events)
     }
 }
 
-enum DisplayEventType: String, Codable, CaseIterable, Identifiable {
+enum DisplayEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case connected = "connected"       // 연결됨
     case disconnected = "disconnected" // 분리됨
     
@@ -398,8 +410,8 @@ enum DisplayEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .connected: return "연결"
-        case .disconnected: return "분리"
+        case .connected: return "ui.trigger.connected".localized
+        case .disconnected: return "ui.trigger.disconnected".localized
         }
     }
 }
@@ -428,13 +440,13 @@ struct WiFiTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let network = ssid ?? "모든 네트워크"
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        return "Wi-Fi: \(network) [\(events)]"
+        let network = ssid ?? "ui.trigger.all_networks".localized
+        let events = eventTypes.displaySummary
+        return "ui.trigger.wifi_fmt".localizedFormat(network, events)
     }
 }
 
-enum WiFiEventType: String, Codable, CaseIterable, Identifiable {
+enum WiFiEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case connected = "connected"       // 연결됨
     case disconnected = "disconnected" // 연결 끊김
     
@@ -442,8 +454,8 @@ enum WiFiEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .connected: return "연결"
-        case .disconnected: return "끊김"
+        case .connected: return "ui.trigger.connected".localized
+        case .disconnected: return "ui.trigger.wifi_disconnected".localized
         }
     }
 }
@@ -472,13 +484,13 @@ struct BluetoothTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let device = deviceName ?? "모든 기기"
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        return "블루투스: \(device) [\(events)]"
+        let device = deviceName ?? "ui.trigger.all_devices".localized
+        let events = eventTypes.displaySummary
+        return "ui.trigger.bluetooth_fmt".localizedFormat(device, events)
     }
 }
 
-enum BluetoothEventType: String, Codable, CaseIterable, Identifiable {
+enum BluetoothEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case connected = "connected"
     case disconnected = "disconnected"
     
@@ -486,8 +498,8 @@ enum BluetoothEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .connected: return "연결"
-        case .disconnected: return "끊김"
+        case .connected: return "ui.trigger.connected".localized
+        case .disconnected: return "ui.trigger.wifi_disconnected".localized
         }
     }
 }
@@ -516,7 +528,7 @@ struct BatteryTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        return "배터리 \(condition.displayName) \(Int(threshold * 100))%"
+        return "ui.trigger.battery_fmt".localizedFormat(condition.displayName, Int(threshold * 100))
     }
 }
 
@@ -529,9 +541,9 @@ enum BatteryCondition: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .risesAbove: return "초과"
-        case .fallsBelow: return "미만"
-        case .reaches: return "도달"
+        case .risesAbove: return "ui.trigger.rises_above".localized
+        case .fallsBelow: return "ui.trigger.falls_below".localized
+        case .reaches: return "ui.trigger.reaches".localized
         }
     }
 }
@@ -557,12 +569,12 @@ struct ChargerTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        return "충전기 [\(events)]"
+        let events = eventTypes.displaySummary
+        return "ui.trigger.charger_fmt".localizedFormat(events)
     }
 }
 
-enum ChargerEventType: String, Codable, CaseIterable, Identifiable {
+enum ChargerEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case connected = "connected"       // 연결됨
     case disconnected = "disconnected" // 분리됨
     
@@ -570,8 +582,8 @@ enum ChargerEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .connected: return "연결"
-        case .disconnected: return "분리"
+        case .connected: return "ui.trigger.connected".localized
+        case .disconnected: return "ui.trigger.disconnected".localized
         }
     }
 }
@@ -600,12 +612,12 @@ struct AppTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        return "앱: \(bundleID) [\(events)]"
+        let events = eventTypes.displaySummary
+        return "ui.trigger.app_fmt".localizedFormat(bundleID, events)
     }
 }
 
-enum AppEventType: String, Codable, CaseIterable, Identifiable {
+enum AppEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case launched = "launched"         // 실행됨
     case terminated = "terminated"     // 종료됨
     case activated = "activated"       // 활성화됨 (포커스 얻음)
@@ -615,10 +627,10 @@ enum AppEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .launched: return "실행"
-        case .terminated: return "종료"
-        case .activated: return "활성화"
-        case .deactivated: return "비활성화"
+        case .launched: return "ui.run".localized
+        case .terminated: return "ui.quit".localized
+        case .activated: return "ui.trigger.activated".localized
+        case .deactivated: return "ui.trigger.deactivated".localized
         }
     }
 }
@@ -647,13 +659,13 @@ struct FocusTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let focus = focusName ?? "모든 집중 모드"
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
-        return "집중 모드: \(focus) [\(events)]"
+        let focus = focusName ?? "ui.trigger.all_focus".localized
+        let events = eventTypes.displaySummary
+        return "ui.trigger.focus_fmt".localizedFormat(focus, events)
     }
 }
 
-enum FocusEventType: String, Codable, CaseIterable, Identifiable {
+enum FocusEventType: String, Codable, CaseIterable, Identifiable, TriggerEventDisplayable {
     case turnedOn = "turnedOn"       // 켜짐
     case turnedOff = "turnedOff"     // 꺼짐
     
@@ -661,8 +673,8 @@ enum FocusEventType: String, Codable, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .turnedOn: return "켜짐"
-        case .turnedOff: return "꺼짐"
+        case .turnedOn: return "ui.trigger.turned_on".localized
+        case .turnedOff: return "ui.trigger.turned_off".localized
         }
     }
 }
@@ -688,24 +700,14 @@ struct StageManagerTrigger: Identifiable, Codable, Hashable {
     
     var displayName: String {
         if let label = label { return label }
-        let events = eventTypes.map(\.displayName).joined(separator: ", ")
+        let events = eventTypes.displaySummary
         return "Stage Manager [\(events)]"
     }
 }
 
-enum StageManagerEventType: String, Codable, CaseIterable, Identifiable {
-    case turnedOn = "turnedOn"
-    case turnedOff = "turnedOff"
-    
-    var id: String { rawValue }
-    
-    var displayName: String {
-        switch self {
-        case .turnedOn: return "켜짐"
-        case .turnedOff: return "꺼짐"
-        }
-    }
-}
+/// FocusEventType과 완전히 동일(켜짐/꺼짐)하므로 별도 정의 없이 공유한다.
+/// rawValue가 같아 기존 저장 데이터(Codable) 호환성도 유지된다.
+typealias StageManagerEventType = FocusEventType
 
 /// 트리거 이벤트 데이터 (실행 시 단축어에 전달되는 입력)
 struct TriggerEventData: Codable, Hashable {
