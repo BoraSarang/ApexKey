@@ -497,20 +497,133 @@ struct CommentSettingsView: View {
 // MARK: - 기본 설정
 
 struct DefaultSettingsView: View {
+    @Environment(\.theme) private var theme
     @Binding var step: ShortcutStep
+    @State private var isTesting = false
+    @State private var didTest = false
+    @State private var testSuccess = false
+    @State private var testOutput = ""
+    @State private var testError = ""
+    @State private var testExitCode: Int32 = 0
+
+    private var isScript: Bool {
+        step.type == .script || step.type == .appleScript
+            || step.type == .javaScriptForAutomation || step.type == .runScriptInShell
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(LocalizedStringKey("settings.title"))
+            Text(step.type.displayName)
                 .font(.headline)
-            
+
+            Text("ui.title".localized)
+                .font(.caption)
+                .foregroundColor(theme.secondaryText)
             TextField("ui.title".localized, text: $step.title)
                 .textFieldStyle(.roundedBorder)
-            
-            TextField("ui.step_settings.target_value".localized, text: $step.target)
-                .textFieldStyle(.roundedBorder)
+
+            if isScript {
+                Text("ui.app_detail.shell_prompt".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                TextEditor(text: $step.target)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(minHeight: 140)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(theme.secondaryText.opacity(0.3))
+                    )
+
+                // 테스트 실행 + 터미널 출력
+                HStack(spacing: 8) {
+                    Button {
+                        runTest()
+                    } label: {
+                        Label("ui.step_settings.test_run".localized, systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(isTesting || step.target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    if isTesting {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("ui.step_settings.running".localized)
+                            .font(.caption)
+                            .foregroundColor(theme.secondaryText)
+                    } else if didTest {
+                        Label(
+                            testSuccess ? "toast.script_test_success".localized : "toast.script_test_failed".localized,
+                            systemImage: testSuccess ? "checkmark.circle.fill" : "xmark.circle.fill"
+                        )
+                        .font(.caption)
+                        .foregroundColor(testSuccess ? theme.successColor : theme.errorColor)
+                    }
+                }
+
+                if didTest && !isTesting {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("ui.step_settings.test_output".localized)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white.opacity(0.7))
+                            Spacer()
+                            Text("ui.step_settings.exit_code".localizedFormat(Int(testExitCode)))
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(testExitCode == 0 ? .green : .red)
+                        }
+                        ScrollView {
+                            Text(terminalText)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                        .frame(minHeight: 80, maxHeight: 200)
+                    }
+                    .padding(10)
+                    .background(Color.black.opacity(0.85))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            } else {
+                Text("ui.step_settings.target_value".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                TextField("ui.step_settings.target_value".localized, text: $step.target)
+                    .textFieldStyle(.roundedBorder)
+            }
         }
         .sectionCard()
+    }
+
+    private var terminalText: String {
+        var lines: [String] = ["$ " + step.target]
+        if !testOutput.isEmpty { lines.append(testOutput) }
+        if !testError.isEmpty { lines.append(testError) }
+        if testOutput.isEmpty && testError.isEmpty {
+            lines.append("ui.step_settings.no_output".localized)
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func runTest() {
+        let command = step.target
+        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        isTesting = true
+        didTest = false
+        Logger.info("FEATURE", "[SCRIPT-TEST] 테스트 실행 시작")
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = ActionExecutor.shared.runShellScriptResult(command)
+            DispatchQueue.main.async {
+                testSuccess = result.success
+                testOutput = result.output
+                testError = result.errorOutput
+                testExitCode = result.exitCode
+                isTesting = false
+                didTest = true
+            }
+        }
     }
 }
 

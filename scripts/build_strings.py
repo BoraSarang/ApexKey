@@ -52,6 +52,11 @@ settings = {
     "toast.hotkey_duplicate": ("이미 사용 중인 단축키입니다.", "This hotkey is already in use."),
     "toast.script_test_success": ("스크립트 테스트 성공", "Script test succeeded"),
     "toast.script_test_failed": ("스크립트 테스트 실패", "Script test failed"),
+    "ui.step_settings.test_run": ("테스트 실행", "Run Test"),
+    "ui.step_settings.test_output": ("실행 결과", "Output"),
+    "ui.step_settings.running": ("실행 중…", "Running…"),
+    "ui.step_settings.no_output": ("(출력 없음)", "(no output)"),
+    "ui.step_settings.exit_code": ("종료 코드: %lld", "Exit code: %lld"),
 }
 
 # ── Action keys (152) ──────────────────────────────────────────

@@ -56,6 +56,10 @@ struct ShortcutEditorView: View {
                 selectedActionType = nil
             }
         }
+        .onChange(of: steps) { _ in
+            // 독립 단계 설정 창에서 Binding으로 수정된 내용 자동 저장
+            saveSteps()
+        }
         .sheet(isPresented: $showingActionDetail) {
             if let type = selectedActionType {
                 ActionDetailView(
@@ -293,15 +297,8 @@ struct ShortcutEditorView: View {
     
     func selectStep(_ step: ShortcutStep) {
         selectedStepID = step.id
-        // 설정이 있는 단계 타입만 독립 설정 창 표시
-        switch step.type {
-        case .ifElse, .repeatLoop, .repeatEach, .chooseFromMenu,
-             .useModel, .writingTool, .imagePlayground,
-             .setVariable, .outputToVariable, .comment:
-            openStepSettings(for: step)
-        default:
-            break
-        }
+        // 모든 단계 타입에서 설정 창 표시 — 스크립트 명령(target) 등 확인/편집용
+        openStepSettings(for: step)
     }
 
     /// 단계 상세 설정을 독립 창으로 표시 — steps 배열 요소를 가리키는 Binding 전달

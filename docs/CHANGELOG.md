@@ -3,6 +3,15 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-18 macos — 동작 단계 스크립트 보기·테스트 실행 복구
+
+> 동작(단축어) 편집기에서 스크립트 단계 클릭 시 설정창이 뜨지 않아 등록된 명령을 볼 수 없던 문제 수정 + 스크립트 테스트 실행 UI 추가.
+
+- **수정** — `ShortcutEditorView.selectStep`: 설정이 있는 타입만 열던 필터 제거, 모든 단계 타입에서 설정창 표시. `steps` 변경 시 자동 저장(`onChange` → `saveSteps`)
+- **설정창** — `StepSettingsView.DefaultSettingsView`: 스크립트 계열(`script`·`appleScript`·`JXA`·`runScriptInShell`)은 제목 + 멀티라인 셸 명령 편집기 + "테스트 실행" 버튼 + 터미널 출력창(종료 코드·stdout/stderr), 기존 `runShellScriptResult` 재사용(백그라운드 실행)
+- **현지화** — 신규 키 5건 (`ui.step_settings.test_run`·`test_output`·`running`·`no_output`·`exit_code`), ko/en 각 692→697키
+- **검증** — 빌드 성공 · 현지화 가드 통과 · 단위 테스트 69/70 통과(기존 실패 1건 `testRegisteredAppURLResolvedByBundleID` 무관)
+
 ## 2026-09-16 macos/web — 메인 화면 스크린샷 추가 (EN·KO)
 
 > `website/img/main_en.png`(EN 패널) · `website/img/main_kr.png`(KO 패널) 추가.
