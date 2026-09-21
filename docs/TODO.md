@@ -173,6 +173,17 @@
 - [x] B-09: 편집기 실행 변수/권한 포함
 - [x] 테스트 8건 + 전체 139건 0실패 + 빌드 성공
 
+## v0.8 — 시스템 탭 → 프리셋 통합 + 워크플로우/자동화 (2026-09-22, PLAN_v0.8_system-integration)
+
+- [x] S-01: 명칭 변경 — "동작"→"워크플로우" (ko/en: ui.shortcut·station.empty·menu.edit_shortcut·sidebar.binding_counts·recorder.test_success·palette.*)
+- [x] S-02: 시스템 탭 제거 — SidebarView 행 제거, MainWindowView `.tool(.system)` 제거, SystemActionsView.swift 삭제
+- [x] S-03: 프리셋 추가 UX — ShortcutStationView "프리셋 추가" 버튼 + 체크박스 시트, `ConfigStore.addPresetShortcuts`(1단계 워크플로우 생성, 동명 중복 방지)
+- [x] S-04: 시스템 스크립트 편집 이관 — `SystemScriptEditorView` 공개 분리 + StepSettingsView `.system` 케이스 임베드
+- [x] S-05: seedSampleShortcuts 제거 — 설치 시 워크플로우 빈 상태
+- [x] S-06: 기존 `.system` 바인딩 전부 해제(load 시 정리) + `systemBindings`/`setSystemBinding` 제거
+- [x] S-07: 자동화 탭 신규 — `ToolSelection.automation`, SidebarView 행(트리거 수 배지), `AutomationBrowserView`(워크플로우 카드 + 트리거 목록 + 새 자동화 워크플로우 선택)
+- [x] S-08: 검증 — 테스트 139건 0실패(2 skip) + 빌드 성공 + 현지화 가드 통과
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)

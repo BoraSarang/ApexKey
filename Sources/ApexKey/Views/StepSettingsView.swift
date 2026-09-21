@@ -102,6 +102,13 @@ struct StepSettingsView: View {
             VariableStepSettingsView(step: $step)
         case .comment:
             CommentSettingsView(step: $step)
+        case .system:
+            if let type = SystemActionType(rawValue: step.target) {
+                // 시스템 프리셋 — 스크립트 보기/테스트/수정/저장 (기존 시스템 탭 이관)
+                SystemScriptEditorView(type: type)
+            } else {
+                DefaultSettingsView(step: $step)
+            }
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $step)

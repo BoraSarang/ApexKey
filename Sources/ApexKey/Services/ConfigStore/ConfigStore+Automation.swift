@@ -5,6 +5,11 @@ import Combine
 
 /// ConfigStore 영역 분할 (R-10) — 동일 클래스 extension, public API 동결.
 extension ConfigStore {
+    /// 모든 워크플로우에 등록된 자동화 트리거 수 (사이드바 배지)
+    var automationTriggerCount: Int {
+        shortcuts.reduce(0) { $0 + $1.automations.count }
+    }
+
     // MARK: - 개인 자동화 연동
 
     /// AutomationManager에 단축어 트리거 등록 + 콜백 연결 + RunShortcut 조회 주입

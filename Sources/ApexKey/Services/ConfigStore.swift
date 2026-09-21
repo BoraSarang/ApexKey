@@ -198,16 +198,26 @@ final class ConfigStore: ObservableObject {
         if migrated { saveContext(context) }
         let persistedBindings = fetchContext(context, bindingFetch)
         bindings = persistedBindings.map { $0.toBinding() }
+        // 시스템 탭이 프리셋 통합으로 제거되어 저장된 시스템 바인딩은 전부 해제한다.
+        let legacySystemBindings = bindings.filter { $0.actionType == .system }
+        if !legacySystemBindings.isEmpty {
+            legacySystemBindings.forEach { hotKeyService.unregister($0.id) }
+            bindings.removeAll { $0.actionType == .system }
+            for binding in legacySystemBindings {
+                let fetch = FetchDescriptor<PersistedBinding>(predicate: #Predicate { $0.id == binding.id })
+                if let found = fetchContext(context, fetch).first {
+                    context.delete(found)
+                }
+            }
+            saveContext(context)
+            Logger.info("ConfigStore", "기존 시스템 바인딩 \(legacySystemBindings.count)개 해제 (프리셋 통합)")
+        }
         let scriptFetch = FetchDescriptor<PersistedScript>()
         let persistedScripts = fetchContext(context, scriptFetch)
         scripts = persistedScripts.map { $0.toScript() }
         let shortcutFetch = FetchDescriptor<PersistedShortcut>()
         let persistedShortcuts = fetchContext(context, shortcutFetch)
         shortcuts = persistedShortcuts.map { $0.toShortcut() }
-        // 첫 실행(저장 아무것도 없음)이면 예시 단축어 3개 생성 (마이그레이션 아님, 1회)
-        if shortcuts.isEmpty && !UserDefaults.standard.bool(forKey: PrefKeys.didSeedSamples) {
-            seedSampleShortcuts(context: context)
-        }
         if apps.isEmpty {
             // 첫 실행 시 설치된 앱 자동 로드
             let installed = AppFinder.installedApps()

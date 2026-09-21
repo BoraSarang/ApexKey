@@ -3,6 +3,18 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — 시스템 탭 → 프리셋 통합 + 워크플로우/자동화 (PLAN_v0.8)
+
+> 시스템 동작 9종이 결국 1단계 워크플로우의 고정판임을 정리. 탭을 제거하고 프리셋으로 통합.
+> 테스트 139건 0실패(2 skip) · 빌드 성공 · 현지화 가드 통과.
+
+- **명칭** — "동작"→"워크플로우" (탭/빈 상태/삭제 알림/편집 메뉴/푸터 카운트/녹화 알림/팔레트 검색·섹션·명령, ko/en)
+- **시스템 탭 제거** — `SystemActionsView.swift` 삭제, SidebarView/`ToolSelection`에서 `.system` 제거. 기존 `.system` 바인딩은 시작 시 전부 해제, `systemBindings`/`setSystemBinding` API 제거
+- **프리셋 통합** — 스테이션 "프리셋 추가" 시트에서 시스템 9종 체크박스 선택 → 1단계 워크플로우 생성(`addPresetShortcuts`, 동명 중복 방지, 시스템 아이콘). 설치 시 샘플 3개(`seedSampleShortcuts`) 제거로 빈 상태 시작
+- **스크립트 편집 이관** — `SystemScriptEditorView` 공개 분리 + 단계 설정 `.system` 케이스에 임베드 (보기/테스트/결과창/저장·되돌리기)
+- **자동화 탭 신규** — `ToolSelection.automation` + SidebarView 행(트리거 수 배지) + `AutomationBrowserView`(워크플로우별 트리거 카드, 새 자동화 시 워크플로우 선택 후 `AutomationSettingsView` 편집)
+- **현지화** — 신규 키 14건 (`ui.automation.title/subtitle/new/edit/choose_workflow/trigger_count/no_workflows/no_automations` · `ui.station.preset_add/title/intro/selected/confirm` · `ui.app_detail.select_system` 변경), ko/en 810→824줄
+
 ## 2026-09-21 macos — 전체 리팩토링 + 버그·동작 연결 점검 (PLAN_v0.7)
 
 > 2방향 감사(구조+연결) 기반 저위험 수정. 빌드 성공 · 단위 테스트 139건 0실패(2 skip).

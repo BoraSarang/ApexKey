@@ -29,8 +29,9 @@ struct SidebarView: View {
                 Label("ui.shortcut".localized, systemImage: "square.stack.3d.up.fill")
                     .badge(store.shortcuts.count)
                     .tag(MainWindowView.SidebarSelection.tool(.shortcut))
-                Label("trigger.system".localized, systemImage: "gearshape.2")
-                    .tag(MainWindowView.SidebarSelection.tool(.system))
+                Label("ui.automation.title".localized, systemImage: "bolt.badge.clock")
+                    .badge(store.automationTriggerCount)
+                    .tag(MainWindowView.SidebarSelection.tool(.automation))
             }
         }
         .listStyle(.sidebar)

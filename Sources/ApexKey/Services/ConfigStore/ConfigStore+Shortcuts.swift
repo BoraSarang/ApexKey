@@ -7,38 +7,24 @@ import Combine
 extension ConfigStore {
     // MARK: - 동작(단축어) 관리
 
-    /// 첫 실행 시 예시 단축어 3개 생성 (사용자 학습용)
-    func seedSampleShortcuts(context: ModelContext) {
-        let samples: [ShortcutItem] = [
-            ShortcutItem(
-                name: "작업 시작",
-                steps: [
-                    ShortcutStep(type: .launchApp, target: "com.apple.Safari", title: "Safari"),
-                    ShortcutStep(type: .wait, target: "1.0", title: "대기 1초"),
-                    ShortcutStep(type: .launchApp, target: "com.apple.finder", title: "Finder"),
-                ]
-            ),
-            ShortcutItem(
-                name: "볼륨 처리",
-                steps: [
-                    ShortcutStep(type: .macro, target: "49", title: "스페이스"),
-                    ShortcutStep(type: .system, target: SystemActionType.mute.rawValue, title: "음소거 토글"),
-                ]
-            ),
-            ShortcutItem(
-                name: "정리 시작",
-                steps: [
-                    ShortcutStep(type: .script, target: "rm -rf ~/Library/Caches/ApexKey-tmp 2>/dev/null; echo 정리 완료", title: "캐시 정리"),
-                    ShortcutStep(type: .wait, target: "2.0", title: "대기 2초"),
-                    ShortcutStep(type: .system, target: SystemActionType.displaySleep.rawValue, title: "디스플레이 끄기"),
-                ]
-            ),
-        ]
-        samples.forEach { context.insert(PersistedShortcut.from($0)) }
+    /// 시스템 프리셋을 1단계 워크플로우로 생성 (같은 이름 프리셋이 이미 있으면 건너뜀)
+    func addPresetShortcuts(_ types: [SystemActionType]) {
+        guard !types.isEmpty, let context = container?.mainContext else { return }
+        var created: [ShortcutItem] = []
+        for type in types {
+            guard !shortcuts.contains(where: { $0.name == type.displayName }) else { continue }
+            let shortcut = ShortcutItem(
+                name: type.displayName,
+                steps: [ShortcutStep(type: .system, target: type.rawValue, title: type.displayName)],
+                icon: .sfSymbol(name: type.systemImage)
+            )
+            context.insert(PersistedShortcut.from(shortcut))
+            created.append(shortcut)
+        }
+        guard !created.isEmpty else { return }
         saveContext(context)
-        shortcuts = samples
-        UserDefaults.standard.set(true, forKey: PrefKeys.didSeedSamples)
-        Logger.info("ConfigStore", "[SHORTCUT] 예시 단축어 3개 생성")
+        shortcuts.append(contentsOf: created)
+        Logger.info("ConfigStore", "[SHORTCUT] 프리셋 워크플로우 \(created.count)개 추가")
     }
 
     /// 새 동작 생성 (빈 단계)
