@@ -31,15 +31,24 @@ final class ActionExecutor {
             }
             return result.isSuccess
         case .url:
-            if let url = URL(string: binding.target) {
-                NSWorkspace.shared.open(url)
-                Logger.info("ActionExecutor", "URL 열기: \(url.absoluteString)")
-            } else {
+            guard let url = URL(string: binding.target), url.scheme != nil else {
                 Logger.error("E-MAC-MENU-3003", "잘못된 URL target: \(binding.target)")
+                return false
             }
+            NSWorkspace.shared.open(url)
+            Logger.info("ActionExecutor", "URL 열기: \(url.absoluteString)")
             return true
         case .file:
-            let url = URL(fileURLWithPath: binding.target)
+            let trimmed = binding.target.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                Logger.error("E-MAC-ACT-3008", "파일 경로 미지정 — 실행 건너뜀")
+                return false
+            }
+            guard FileManager.default.fileExists(atPath: trimmed) else {
+                Logger.error("E-MAC-ACT-3008", "파일 없음: \(trimmed)")
+                return false
+            }
+            let url = URL(fileURLWithPath: trimmed)
             NSWorkspace.shared.open(url)
             Logger.info("ActionExecutor", "파일 열기: \(url.path)")
             return true
@@ -143,13 +152,17 @@ final class ActionExecutor {
             let result = menuEnumerator.performAction(item, in: binding.target)
             return (result.isSuccess, result.isSuccess ? nil : result.description)
         case .url:
-            guard URL(string: binding.target) != nil else {
+            guard let url = URL(string: binding.target), url.scheme != nil else {
                 return (false, "toast.reason.url_invalid".localized)
             }
-            NSWorkspace.shared.open(URL(string: binding.target)!)
+            NSWorkspace.shared.open(url)
             return (true, nil)
         case .file:
-            NSWorkspace.shared.open(URL(fileURLWithPath: binding.target))
+            let trimmed = binding.target.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, FileManager.default.fileExists(atPath: trimmed) else {
+                return (false, "toast.reason.file_missing".localized)
+            }
+            NSWorkspace.shared.open(URL(fileURLWithPath: trimmed))
             return (true, nil)
         case .script, .runScriptInShell:
             let r = runShellScriptResult(binding.target)
@@ -224,10 +237,10 @@ final class ActionExecutor {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/bash")
         task.arguments = [path]
-        // GUI 앱 최소 PATH 보완 (자식 프로세스 환경)
+        // GUI 앱 최소 PATH 보완 (자식 프로세스 환경) — ShellEnvironment 단일 출처
         var env = ProcessInfo.processInfo.environment
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let extra = "/opt/homebrew/bin:/usr/local/bin:\(home)/Library/Android/sdk/platform-tools:\(home)/Android/Sdk/platform-tools"
+        let extra = ShellEnvironment.extraPaths(home: home)
         env["PATH"] = "\(extra):\(env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")"
         task.environment = env
         let outPipe = Pipe()
@@ -333,17 +346,31 @@ final class ActionExecutor {
     static func decodeLaunchConfig(from target: String) -> LaunchConfig? {
         guard target.hasPrefix("json:") else { return nil }
         let json = String(target.dropFirst("json:".count))
-        guard let data = json.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(LaunchConfig.self, from: data)
+        guard let data = json.data(using: .utf8) else {
+            Logger.error("E-MAC-APP-4003", "LaunchConfig UTF-8 변환 실패")
+            return nil
+        }
+        do {
+            return try JSONDecoder().decode(LaunchConfig.self, from: data)
+        } catch {
+            Logger.error("E-MAC-APP-4003", "LaunchConfig 디코딩 실패: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     /// LaunchConfig → binding.target 인코딩
     static func encodeLaunchConfig(_ config: LaunchConfig) -> String {
-        guard let data = try? JSONEncoder().encode(config),
-              let json = String(data: data, encoding: .utf8) else {
+        do {
+            let data = try JSONEncoder().encode(config)
+            guard let json = String(data: data, encoding: .utf8) else {
+                Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 문자열 변환 실패 — bundleID 폴백")
+                return config.bundleID
+            }
+            return "json:" + json
+        } catch {
+            Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 실패: \(error.localizedDescription) — bundleID 폴백")
             return config.bundleID
         }
-        return "json:" + json
     }
 
     // MARK: - 키 조합 보내기 (keyCombo)

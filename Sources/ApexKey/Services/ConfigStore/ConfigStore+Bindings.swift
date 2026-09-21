@@ -101,12 +101,20 @@ extension ConfigStore {
         saveContext(context)
     }
 
-    /// 단축키 중복 감지 (다른 binding/단축어와 충돌)
+    /// 단축키 중복 감지 (다른 binding/단축어 + 예약 핫키와 충돌)
     func isDuplicate(combo: HotKeyCombo, excluding id: UUID) -> Bool {
         guard !combo.isEmpty else { return false }
-        let bindingConflict = bindings.contains { $0.id != id && $0.combo == combo }
+        let bindingConflict = bindings.contains { $0.id != id && $0.combo.matches(combo) }
         if bindingConflict { return true }
-        return shortcuts.contains { $0.id != id && $0.combo.matches(combo) }
+        if shortcuts.contains(where: { $0.id != id && $0.combo.matches(combo) }) { return true }
+        // 예약 핫키 (패널 토글/팔레트/HUD/반복) 포함
+        let reserved: [(UUID, HotKeyCombo)] = [
+            (panelToggleID, toggleHotkey),
+            (paletteID, paletteHotkey),
+            (menuHUDID, menuHUDHotkey),
+            (repeatLastID, Self.defaultRepeatHotkey),
+        ]
+        return reserved.contains { $0.0 != id && $0.1.matches(combo) }
     }
 
     /// 이름으로 바인딩 검색 (부분 매칭 + 한글 초성 매칭)

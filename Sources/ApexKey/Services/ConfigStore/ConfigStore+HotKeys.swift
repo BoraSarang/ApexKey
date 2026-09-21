@@ -8,7 +8,13 @@ extension ConfigStore {
     /// ⇧⌥A 패널 토글 핫키 변경 (재등록)
     func setPanelToggleHotkey(_ combo: HotKeyCombo) {
         guard !combo.isEmpty else { return }
+        if isDuplicate(combo: combo, excluding: panelToggleID) {
+            Logger.error("E-MAC-HTKEY-1002", "패널 토글 핫키 중복으로 변경 거부: \(combo.displayString)")
+            return
+        }
+        hotKeyService.unregister(panelToggleID)
         toggleHotkey = combo
+        Self.saveHotkey(combo, forKey: PrefKeys.panelToggleHotkey)
         _ = hotKeyService.register(panelToggleID, combo: combo)
         Logger.info("ConfigStore", "[HOTKEY] 패널 토글 핫키 변경: \(combo.displayString)")
     }
@@ -16,7 +22,13 @@ extension ConfigStore {
     /// ⌘⌥K 명령 팔레트 핫키 변경 (재등록)
     func setPaletteHotkey(_ combo: HotKeyCombo) {
         guard !combo.isEmpty else { return }
+        if isDuplicate(combo: combo, excluding: paletteID) {
+            Logger.error("E-MAC-HTKEY-1002", "팔레트 핫키 중복으로 변경 거부: \(combo.displayString)")
+            return
+        }
+        hotKeyService.unregister(paletteID)
         paletteHotkey = combo
+        Self.saveHotkey(combo, forKey: PrefKeys.paletteHotkey)
         _ = hotKeyService.register(paletteID, combo: combo)
         Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 핫키 변경: \(combo.displayString)")
     }
@@ -24,7 +36,13 @@ extension ConfigStore {
     /// ⇧⌥S Menu HUD 핫키 변경 (재등록)
     func setMenuHUDHotkey(_ combo: HotKeyCombo) {
         guard !combo.isEmpty else { return }
+        if isDuplicate(combo: combo, excluding: menuHUDID) {
+            Logger.error("E-MAC-HTKEY-1002", "Menu HUD 핫키 중복으로 변경 거부: \(combo.displayString)")
+            return
+        }
+        hotKeyService.unregister(menuHUDID)
         menuHUDHotkey = combo
+        Self.saveHotkey(combo, forKey: PrefKeys.menuHUDHotkey)
         _ = hotKeyService.register(menuHUDID, combo: combo)
         Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 변경: \(combo.displayString)")
     }
@@ -122,10 +140,14 @@ extension ConfigStore {
 
     /// 명령 팔레트에서 바인딩 실행
     func executeBinding(_ binding: HotKeyBinding) {
+        lastExecutedBindingID = binding.id
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
-            actionExecutor.execute(binding)
-            Logger.info("ConfigStore", "[Palette] 실행: \(binding.title)")
+            let result = actionExecutor.executeWithDetail(binding)
+            notifyToast(title: toastTitle(for: binding), result: result)
+            Logger.info("ConfigStore", "[Palette] 실행: \(binding.title) (success=\(result.success))")
+        } else {
+            Logger.info("ConfigStore", "[Palette] 실행 조건 미충족: activeApp=\(frontBundle ?? "nil")")
         }
         showPalette = false
     }

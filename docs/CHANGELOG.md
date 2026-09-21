@@ -3,6 +3,15 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-21 macos — 전체 리팩토링 + 버그·동작 연결 점검 (PLAN_v0.7)
+
+> 2방향 감사(구조+연결) 기반 저위험 수정. 빌드 성공 · 단위 테스트 139건 0실패(2 skip).
+
+- **1차 리팩토링 (G)** — G-01 `print`→`Logger.error(E-MAC-STORE-5001)` · G-02 `runScriptFileResult` PATH를 `ShellEnvironment.extraPaths` 단일 출처로 · G-03 `decode/encodeLaunchConfig` 실패 로그(E-MAC-APP-4003)
+- **2차 버그수정 (B)** — B-01 AI 3종 Bool 반영(성공 둔갑 해소) · B-02 RunShortcut 7006/7007 실패 반환 + 재귀 depth 10 가드(E-MAC-FLOW-7009) · B-03 `execute` url/file 빈값·미존재 false (`executeWithDetail`와 일치, `toast.reason.file_missing` ko/en 추가) · B-04 If/Repeat/Choose 설정없음 실패 반환(취소는 성공 유지) · B-05 `removeShortcut` 자동화 unregister(고스트 제거) · B-06 편집기 `duplicateStep` 새 UUID · B-07 `executeBinding` 결과 토스트 + lastID 갱신 · B-08 예약 핫키 3종 UserDefaults 영속화 + `isDuplicate` 예약 포함 + `set*` 중복 거부(E-MAC-HTKEY-1002) · B-09 편집기 `executeShortcut` 변수/권한 포함
+- **테스트** — `ApexKeyRefactorTests` 8건 신규 (Shell 단일출처/Combo 매칭/RunShortcut 실패·깊이/If 실패/LaunchConfig 왕복/URL·파일 실패)
+- **백로그 잔류** — StepSettings 1143줄·CustomTheme 1600줄 분할, `menuPath` 편집 UI, P1 38종 미구현, B12, blob 손상 가드
+
 ## 2026-09-18 macos — 동작 단계 스크립트 보기·테스트 실행 복구
 
 > 동작(단축어) 편집기에서 스크립트 단계 클릭 시 설정창이 뜨지 않아 등록된 명령을 볼 수 없던 문제 수정 + 스크립트 테스트 실행 UI 추가.
