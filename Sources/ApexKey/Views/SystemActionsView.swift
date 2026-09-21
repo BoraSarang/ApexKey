@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// 시스템 동작 탭 — 화면 잠금/음소거/다크모드에 글로벌 단축키 할당
 struct SystemActionsView: View {
@@ -77,7 +78,25 @@ struct SystemActionsView: View {
             }
             Spacer()
             Button {
-                _ = SystemActionExecutor.execute(type)
+                // 스크립트형 액션(미러 등)은 수십 초 걸릴 수 있어 메인 스레드 차단 금지.
+                // 백그라운드 실행 + 토스트로 결과 통지.
+                let name = type.displayName
+                let executor = store.actionExecutor
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let detail = executor.executeWithDetail(HotKeyBinding(
+                        combo: .empty,
+                        actionType: .system,
+                        target: type.rawValue,
+                        title: name
+                    ))
+                    DispatchQueue.main.async {
+                        (NSApp.delegate as? AppDelegate)?.showToast(
+                            title: name,
+                            message: detail.message,
+                            success: detail.success
+                        )
+                    }
+                }
             } label: {
                 Label("ui.run".localized, systemImage: "play")
             }

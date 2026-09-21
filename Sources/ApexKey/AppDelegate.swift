@@ -10,22 +10,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var aboutWindow: NSWindow?
     private var debugWindow: NSWindow?
-    private var quickLauncherWindow: NSPanel?
+    private var paletteWindow: NSPanel?
     private var menuHUDWindow: NSPanel?
     private var menuHUDOverlayWindow: NSPanel?
     private var editorWindow: NSWindow?
     private var stepSettingsWindow: NSWindow?
+    private var stepTestResultWindow: NSWindow?
     // NSWindow.contentViewController는 strong(직접 참조 유지)이지만, NSHostingController가
     // 창 dealloc보다 먼저 해제되는 것을 막기 위해 슈퍼타입으로 안전하게 보관해 둔다.
     private var panelHosting: NSViewController?
     private var settingsHosting: NSViewController?
     private var aboutHosting: NSViewController?
     private var debugHosting: NSViewController?
-    private var quickLauncherHosting: NSViewController?
+    private var paletteHosting: NSViewController?
     private var menuHUDHosting: NSViewController?
     private var menuHUDOverlayHosting: NSViewController?
     private var editorHosting: NSViewController?
     private var stepSettingsHosting: NSViewController?
+    private var stepTestResultHosting: NSViewController?
+    private var toastHosting: NSViewController?
+    private var toastWindow: NSPanel?
+    private var toastTimer: Timer?
     private var store: ConfigStore?
     private var cancellables = Set<AnyCancellable>()
 
@@ -373,7 +378,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - 동작(단축어) 편집기 / 단계 설정 독립 창
 
     /// 동작(단축어) 3컬럼 편집기를 독립 창으로 표시
-    func showEditor(for shortcut: ShortcutItem) {
+    func showEditor(for shortcut: ShortcutItem, selectedStepID: UUID? = nil) {
         guard let store else { return }
         Logger.info("AppDelegate", "[EDITOR] 동작 편집 창: \(shortcut.name)")
         NSApp.activate(ignoringOtherApps: true)
@@ -395,7 +400,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // 편집 대상 단축어가 바뀔 수 있으므로 매번 새 호스팅 컨트롤러로 rootView 교체
         let hosting = NSHostingController(rootView:
-            ThemedRoot { ShortcutEditorView(shortcut: shortcut) }.environmentObject(store)
+            ThemedRoot { ShortcutEditorView(shortcut: shortcut, initialSelectedStepID: selectedStepID) }.environmentObject(store)
         )
         editorHosting = hosting
         win.contentViewController = hosting
@@ -415,7 +420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win = existing
         } else {
             let w = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 480, height: 560),
+                contentRect: NSRect(x: 0, y: 0, width: 480, height: 680),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
@@ -430,10 +435,116 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hosting = NSHostingController(rootView: ThemedRoot { StepSettingsView(step: stepBinding) })
         stepSettingsHosting = hosting
         win.contentViewController = hosting
-        win.setContentSize(NSSize(width: 480, height: 560))
+        win.setContentSize(NSSize(width: 480, height: 680))
         win.center()
         win.contentView?.layoutSubtreeIfNeeded()
         win.makeKeyAndOrderFront(nil)
+    }
+
+    /// 단계 테스트 상세 결과를 별도 창으로 표시 — 설정 창은 좁게 유지하고
+    /// 결과만 넓은 창(리사이즈 가능)에서 확인한다.
+    func showStepTestResult(title: String, success: Bool, output: String, errorOutput: String, exitCode: Int32) {
+        Logger.info("AppDelegate", "[STEP-TEST] 결과 창 (success=\(success))")
+        NSApp.activate(ignoringOtherApps: true)
+        let win: NSWindow
+        if let existing = stepTestResultWindow {
+            win = existing
+        } else {
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 600, height: 460),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            w.isReleasedWhenClosed = false
+            w.delegate = self
+            stepTestResultWindow = w
+            win = w
+        }
+        win.title = "ui.step_settings.test_output".localized + " — " + title
+        let hosting = NSHostingController(rootView: ThemedRoot {
+            StepTestResultView(stepTitle: title, success: success, output: output, errorOutput: errorOutput, exitCode: exitCode)
+        })
+        stepTestResultHosting = hosting
+        win.contentViewController = hosting
+        win.setContentSize(NSSize(width: 600, height: 460))
+        win.contentView?.layoutSubtreeIfNeeded()
+        win.makeKeyAndOrderFront(nil)
+    }
+
+    // MARK: - 실행 결과 토스트 (OS 알림센터 미사용)
+
+    /// 글로벌 단축키 실행 결과를 우상단 플로팅 토스트로 표시.
+    /// 포커스를 뺏지 않도록 key 지정·activate 없이 orderFront만 한다.
+    /// 성공 1.5초 / 실패 6초 후 자동 닫힘. 실패 탭 시 디버그 로그를 연다.
+    func showToast(title: String, message: String? = nil, success: Bool) {
+        if success, store?.showSuccessToast == false {
+            return
+        }
+        let payload = ToastPayload(title: title, message: message, success: success)
+        let hosting = NSHostingController(rootView: ThemedRoot {
+            ToastView(payload: payload) { [weak self] in
+                self?.hideToast()
+                self?.openDebugLog()
+            }
+        })
+        toastHosting = hosting
+
+        let win: NSPanel
+        if let existing = toastWindow {
+            win = existing
+        } else {
+            let w = ToastPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 340, height: 110),
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            w.isFloatingPanel = true
+            w.level = .floating
+            w.hidesOnDeactivate = false
+            w.isOpaque = false
+            w.backgroundColor = .clear
+            w.hasShadow = false
+            w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+            w.delegate = self
+            toastWindow = w
+            win = w
+        }
+        win.contentViewController = hosting
+        win.setContentSize(NSSize(width: 340, height: success ? 60 : 110))
+        placeToast(win)
+        win.contentView?.layoutSubtreeIfNeeded()
+        // key로 만들지 않음 — 전면 앱 포커스 유지
+        win.orderFront(nil)
+
+        toastTimer?.invalidate()
+        toastTimer = Timer.scheduledTimer(withTimeInterval: success ? 1.5 : 6.0, repeats: false) { [weak self] _ in
+            self?.hideToast()
+        }
+        Logger.info("AppDelegate", "[TOAST] \(success ? "성공" : "실패"): \(title)")
+    }
+
+    func hideToast() {
+        toastTimer?.invalidate()
+        toastTimer = nil
+        toastWindow?.orderOut(nil)
+    }
+
+    /// 우상단 (메뉴바 아래) 배치
+    private func placeToast(_ win: NSPanel) {
+        guard let screen = NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        let size = win.frame.size
+        win.setFrameOrigin(NSPoint(
+            x: visible.maxX - size.width - 16,
+            y: visible.maxY - size.height - 16
+        ))
+    }
+
+    /// 디버그 로그 창 열기 (토스트 탭·메뉴 공용)
+    func openDebugLog() {
+        showDebugPanel(nil)
     }
 
     // MARK: - URL Scheme 처리
@@ -506,31 +617,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        store.$showQuickLauncher
+        store.$showPalette
             .sink { [weak self] show in
                 guard let self else { return }
                 if show {
-                    self.showQuickLauncherPanel()
+                    self.showPalettePanel()
                 } else {
-                    self.hideQuickLauncherPanel()
+                    self.hidePalettePanel()
                 }
             }
             .store(in: &cancellables)
     }
 
-    // MARK: - Quick Launcher
+    // MARK: - 명령 팔레트 (⌘⌥K)
 
-    private func showQuickLauncherPanel() {
-        if quickLauncherWindow == nil {
-            let win = NSPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
+    private func showPalettePanel() {
+        if paletteWindow == nil {
+            // KeyCapablePanel 필수: borderless NSPanel은 canBecomeKey=false라
+            // TextField에 포커스가 안 잡혀 입력이 안 됨 (Menu HUD와 동일 패턴)
+            let win = KeyCapablePanel(
+                contentRect: NSRect(x: 0, y: 0, width: 560, height: 380),
                 styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
-            win.title = "Quick Launcher"
+            win.title = "Command Palette"
             win.isFloatingPanel = true
-            win.level = .floating
+            // 타 오버레이(런처류 플로팅 패널)에 가려지지 않도록 status 레벨 유지
+            win.level = NSWindow.Level(rawValue: 25)
             win.isMovableByWindowBackground = false
             win.hidesOnDeactivate = false
             win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
@@ -540,28 +654,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.styleMask = [.borderless]
 
             guard let store else { return }
-            let hosting = NSHostingController(rootView: ThemedRoot { QuickLauncherView() }.environmentObject(store))
-            quickLauncherHosting = hosting
+            let hosting = NSHostingController(rootView: ThemedRoot { CommandPaletteView() }.environmentObject(store))
+            paletteHosting = hosting
             win.contentViewController = hosting
 
             if let screen = NSScreen.main {
                 let r = screen.visibleFrame
                 let x = r.midX - win.frame.width / 2
-                let y = r.maxY - win.frame.height - 40
+                let y = r.midY - win.frame.height / 2
                 win.setFrameOrigin(NSPoint(x: x, y: y))
             }
 
             win.delegate = self
-            quickLauncherWindow = win
+            paletteWindow = win
         }
-        guard let win = quickLauncherWindow else { return }
+        guard let win = paletteWindow else { return }
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        win.level = .floating
+        win.level = NSWindow.Level(rawValue: 25)
     }
 
-    private func hideQuickLauncherPanel() {
-        quickLauncherWindow?.orderOut(nil)
+    private func hidePalettePanel() {
+        paletteWindow?.orderOut(nil)
     }
 
     // MARK: - Menu HUD (전면 앱 단축키 표시)
@@ -715,6 +829,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 final class KeyCapablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+}
+
+/// 실행 결과 토스트 전용 — 클릭은 받되 key/main이 되지 않아 전면 앱 포커스를 유지한다
+final class ToastPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
 }
 
 extension AppDelegate: NSWindowDelegate {

@@ -20,9 +20,10 @@ struct ShortcutEditorView: View {
     @State private var shortcutAutomations: [AutomationTrigger]
     @State private var shortcutVariables: [Variable]
     
-    init(shortcut: ShortcutItem) {
+    init(shortcut: ShortcutItem, initialSelectedStepID: UUID? = nil) {
         self.shortcut = shortcut
         _steps = State(initialValue: shortcut.steps)
+        _selectedStepID = State(initialValue: initialSelectedStepID)
         _shortcutName = State(initialValue: shortcut.name)
         _shortcutDescription = State(initialValue: shortcut.description)
         _shortcutAutomations = State(initialValue: shortcut.automations)
@@ -317,11 +318,21 @@ struct ShortcutEditorView: View {
     private func createDefaultStep(for type: ActionType) -> ShortcutStep {
         switch type {
         case .launchApp:
-            return ShortcutStep(type: .launchApp, target: "", title: "ui.editor.step_launch_app".localized)
+            var step = ShortcutStep(type: .launchApp, target: "", title: "ui.editor.step_launch_app".localized)
+            step.launchConfig = LaunchConfig(mode: .toggle)
+            return step
+        case .keyCombo:
+            return ShortcutStep(type: .keyCombo, target: "", title: "ui.editor.step_keypress".localized)
         case .system:
             return ShortcutStep(type: .system, target: "lock", title: "ui.editor.step_lock".localized)
         case .script:
             return ShortcutStep(type: .script, target: "", title: "ui.editor.step_script".localized)
+        case .appleScript:
+            return ShortcutStep(type: .appleScript, target: "tell application \"Finder\" to get name", title: "ui.editor.step_applescript".localized)
+        case .javaScriptForAutomation:
+            return ShortcutStep(type: .javaScriptForAutomation, target: "Application('Finder').name()", title: "ui.editor.step_jxa".localized)
+        case .runScriptInShell:
+            return ShortcutStep(type: .runScriptInShell, target: "", title: "ui.editor.step_shell".localized)
         case .url:
             return ShortcutStep(type: .url, target: "", title: "URL")
         case .file:

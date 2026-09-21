@@ -26,6 +26,9 @@ extension ConfigStore {
         static let showNoShortcutItems = "pref.showNoShortcutItems"
         static let showSystemApps = "pref.showSystemApps"
         static let appLanguage = "pref.appLanguage"
+        static let showSuccessToast = "pref.showSuccessToast"
+        static let didSeedSamples = "pref.didSeedSamples"
+        static let didCleanupLegacyAndroid = "pref.didCleanupLegacyAndroid"
     }
 
     /// Menu HUD 표시 방식 전환

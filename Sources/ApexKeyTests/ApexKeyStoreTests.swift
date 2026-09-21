@@ -58,11 +58,12 @@ final class ApexKeyStoreTests: XCTestCase {
 
     func testRegisteredAppURLResolvedByBundleID() throws {
         // 실행/토글 단축키가 미실행 앱을 LaunchServices 등록 정보로 열 수 있어야 한다
+        // (macOS 기본 내장 앱만 사용 — 타사 앱 의존 금지)
         let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Safari")
         XCTAssertNotNil(url)
         XCTAssertTrue(url!.path.hasSuffix("Safari.app"))
-        let movist = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.movist.MovistPro")
-        XCTAssertNotNil(movist)
+        let textEdit = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit")
+        XCTAssertNotNil(textEdit)
     }
 
     func testBindingMenuPathPersistsRoundTrip() throws {

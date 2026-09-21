@@ -13,6 +13,14 @@ extension ConfigStore {
         Logger.info("ConfigStore", "[HOTKEY] 패널 토글 핫키 변경: \(combo.displayString)")
     }
 
+    /// ⌘⌥K 명령 팔레트 핫키 변경 (재등록)
+    func setPaletteHotkey(_ combo: HotKeyCombo) {
+        guard !combo.isEmpty else { return }
+        paletteHotkey = combo
+        _ = hotKeyService.register(paletteID, combo: combo)
+        Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 핫키 변경: \(combo.displayString)")
+    }
+
     /// ⇧⌥S Menu HUD 핫키 변경 (재등록)
     func setMenuHUDHotkey(_ combo: HotKeyCombo) {
         guard !combo.isEmpty else { return }
@@ -46,21 +54,45 @@ extension ConfigStore {
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         Logger.info("ConfigStore", "[HOTKEY] 핫키 감지: \(binding.combo.displayString) (\(binding.actionType.displayName))")
         if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
-            actionExecutor.execute(binding)
+            let result = actionExecutor.executeWithDetail(binding)
+            notifyToast(title: toastTitle(for: binding), result: result)
         } else {
             Logger.info("ConfigStore", "[HOTKEY] 실행 조건 미충족: activeApp=\(frontBundle ?? "nil")")
         }
     }
 
-    /// 단축어 실행 + 실행 통계 갱신 (성공 시에만)
+    /// 단축어 실행 + 실행 통계 갱신 (성공 시에만) + 결과 토스트
     /// () -> Void 형태로 호출 시점을 지정
     func executeShortcutStats(_ shortcut: ShortcutItem) {
-        let success = actionExecutor.execute(shortcut)
-        if success, let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
+        let result = actionExecutor.executeWithDetail(shortcut)
+        if result.success, let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
             shortcuts[idx].lastRunAt = Date()
             shortcuts[idx].runCount += 1
             syncShortcut(shortcuts[idx])
         }
+        notifyToast(title: shortcut.name, result: result)
+    }
+
+    /// 실행 결과 토스트 (메인 스레드에서 AppDelegate로 전달)
+    private func notifyToast(title: String, result: (success: Bool, message: String?)) {
+        let displayTitle = title.isEmpty ? "ui.run".localized : title
+        DispatchQueue.main.async {
+            (NSApp.delegate as? AppDelegate)?.showToast(
+                title: displayTitle,
+                message: result.message,
+                success: result.success
+            )
+        }
+    }
+
+    private func toastTitle(for binding: HotKeyBinding) -> String {
+        if !binding.title.isEmpty { return binding.title }
+        // 시스템 바인딩(구 저장분 title="")은 액션명으로 표시
+        if binding.actionType == .system,
+           let type = SystemActionType(rawValue: binding.target) {
+            return type.displayName
+        }
+        return binding.actionType.displayName
     }
 
     /// 마지막으로 실행된 바인딩을 반복 실행 (⌘⇧↩)
@@ -80,20 +112,21 @@ extension ConfigStore {
         }
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
-            actionExecutor.execute(binding)
+            let result = actionExecutor.executeWithDetail(binding)
+            notifyToast(title: toastTitle(for: binding), result: result)
             Logger.info("ConfigStore", "[REPEAT] 반복 실행: \(binding.combo.displayString)")
         } else {
             Logger.info("ConfigStore", "[REPEAT] 반복 실행 조건 미충합")
         }
     }
 
-    /// Quick Launcher에서 바인딩 실행
+    /// 명령 팔레트에서 바인딩 실행
     func executeBinding(_ binding: HotKeyBinding) {
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
             actionExecutor.execute(binding)
-            Logger.info("ConfigStore", "[QuickLauncher] 실행: \(binding.title)")
+            Logger.info("ConfigStore", "[Palette] 실행: \(binding.title)")
         }
-        showQuickLauncher = false
+        showPalette = false
     }
 }

@@ -31,10 +31,23 @@ enum AppFinder {
         }
         // 중복 제거 (bundleID 기준)
         var seen = Set<String>()
-        return apps.filter {
+        var deduped = apps.filter {
             guard seen.insert($0.bundleID).inserted else { return false }
             return true
         }
+        // Finder는 /System/Library/CoreServices에 있어 스캔 대상 밖 — 명시 추가
+        if !seen.contains("com.apple.finder"), let finder = finderApp() {
+            deduped.append(finder)
+        }
+        return deduped
+    }
+
+    /// Finder 명시 조회 (/System/Library/CoreServices/Finder.app).
+    /// 항상 실행 중인 특수 앱이라 LaunchServices 등록 조회와 무관하게 경로로 확정한다.
+    static func finderApp() -> AppItem? {
+        let url = URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return appItem(from: url)
     }
 
     /// .app URL → AppItem

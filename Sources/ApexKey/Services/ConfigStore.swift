@@ -11,12 +11,13 @@ final class ConfigStore: ObservableObject {
     @Published var scripts: [ScriptItem] = []
     @Published var shortcuts: [ShortcutItem] = []
     @Published var showHiddenApps = false
-    @Published var showQuickLauncher = false
+    @Published var showPalette = false
     /// 매크로 녹화 상태
     @Published var isMacroRecording = false
     @Published var macroRecordedKeyCodes: [UInt32] = []
     @Published var menuHUDHotkey: HotKeyCombo
     @Published var toggleHotkey: HotKeyCombo
+    @Published var paletteHotkey: HotKeyCombo
     @Published var alwaysOnTop = false {
         didSet { UserDefaults.standard.set(alwaysOnTop, forKey: PrefKeys.alwaysOnTop) }
     }
@@ -40,6 +41,9 @@ final class ConfigStore: ObservableObject {
                 addSystemAppsIfMissing()
             }
         }
+    }
+    @Published var showSuccessToast: Bool = true {
+        didSet { UserDefaults.standard.set(showSuccessToast, forKey: PrefKeys.showSuccessToast) }
     }
     @Published var appLanguage: String? = nil {
         didSet {
@@ -66,8 +70,8 @@ final class ConfigStore: ObservableObject {
     /// ⌘⇧↩ 마지막 바인딩 반복 전용 등록 ID
     let repeatLastID = UUID()
 
-    /// ⌥⌘Space Quick Launcher 전용 등록 ID
-    let quickLauncherID = UUID()
+    /// ⌘⌥K 명령 팔레트 전용 등록 ID
+    let paletteID = UUID()
 
     /// ⇧⌥S Menu HUD 전용 등록 ID (전면 앱 단축키 표시)
     let menuHUDID = UUID()
@@ -102,7 +106,9 @@ final class ConfigStore: ObservableObject {
         }
         self.toggleHotkey = Self.defaultToggleHotkey
         self.menuHUDHotkey = Self.defaultMenuHUDHotkey
+        self.paletteHotkey = Self.defaultPaletteHotkey
         self.showNoShortcutItems = defaults.object(forKey: PrefKeys.showNoShortcutItems) == nil ? true : defaults.bool(forKey: PrefKeys.showNoShortcutItems)
+        self.showSuccessToast = defaults.object(forKey: PrefKeys.showSuccessToast) == nil ? true : defaults.bool(forKey: PrefKeys.showSuccessToast)
         self.showSystemApps = defaults.object(forKey: PrefKeys.showSystemApps) == nil ? true : defaults.bool(forKey: PrefKeys.showSystemApps)
         // 앱 언어 설정 로드 (nil = 시스템)
         if let savedLang = defaults.string(forKey: PrefKeys.appLanguage), !savedLang.isEmpty {
@@ -142,10 +148,10 @@ final class ConfigStore: ObservableObject {
                     self.repeatLastBinding()
                     return
                 }
-                if bindingID == self.quickLauncherID {
-                    // ⌥⌘Space → Quick Launcher 토글
-                    self.showQuickLauncher.toggle()
-                    Logger.info("ConfigStore", "[HOTKEY] Quick Launcher 토글")
+                if bindingID == self.paletteID {
+                    // ⌘⌥K → 명령 팔레트 토글
+                    self.showPalette.toggle()
+                    Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 토글")
                     return
                 }
                 if bindingID == self.menuHUDID {
@@ -166,9 +172,9 @@ final class ConfigStore: ObservableObject {
         // ⌘⇧↩ 마지막 바인딩 반복 핫키 등록
         _ = hotKeyService.register(repeatLastID, combo: Self.defaultRepeatHotkey)
         Logger.info("ConfigStore", "[HOTKEY] 반복 핫키 등록: ⌘⇧↩")
-        // ⌥⌘Space Quick Launcher 핫키 등록
-        _ = hotKeyService.register(quickLauncherID, combo: Self.defaultQuickLauncherHotkey)
-        Logger.info("ConfigStore", "[HOTKEY] Quick Launcher 핫키 등록: ⌥⌘Space")
+        // ⌘⌥K 명령 팔레트 핫키 등록
+        _ = hotKeyService.register(paletteID, combo: paletteHotkey)
+        Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 핫키 등록: \(paletteHotkey.displayString)")
         // ⇧⌥S Menu HUD 핫키 등록
         _ = hotKeyService.register(menuHUDID, combo: menuHUDHotkey)
         Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 등록: \(menuHUDHotkey.displayString)")
@@ -198,8 +204,8 @@ final class ConfigStore: ObservableObject {
         let shortcutFetch = FetchDescriptor<PersistedShortcut>()
         let persistedShortcuts = fetchContext(context, shortcutFetch)
         shortcuts = persistedShortcuts.map { $0.toShortcut() }
-        // 첫 실행(저장 아무것도 없음)이면 예시 단축어 3개 생성 (마이그레이션 아님)
-        if shortcuts.isEmpty {
+        // 첫 실행(저장 아무것도 없음)이면 예시 단축어 3개 생성 (마이그레이션 아님, 1회)
+        if shortcuts.isEmpty && !UserDefaults.standard.bool(forKey: PrefKeys.didSeedSamples) {
             seedSampleShortcuts(context: context)
         }
         if apps.isEmpty {
@@ -221,27 +227,43 @@ final class ConfigStore: ObservableObject {
         configureAutomationManager()
     }
 
-    /// ADB Wi-Fi 연결 샘플 동작 — 이름 기준으로 없으면 1회 생성 (기존 사용자도 받음)
-    /// USB로 연결된 안드로이드의 IP를 읽어 무선 ADB(5555)로 전환한다.
-    /// 고정 프리셋(아래 BuiltInShortcutPresets)으로 이관됨 — 호환용으로 유지.
+    /// ADB Wi-Fi 연결 샘플 동작 — 고정 프리셋이 시스템 탭으로 이관되어
+    /// 기존에 설치된 잔재(Android Untether/Mirror/Remote)만 1회 정리한다.
     func ensureADBWifiSample() {
-        ensureBuiltInShortcuts()
+        removeLegacyAndroidShortcutsIfNeeded()
     }
 
-    /// 설치 시 기본 제공되는 고정 동작 프리셋을 이름 기준으로 보충.
-    /// 시스템 탭(SystemActionType)과 같은 취급: 코드에 고정, 단축키(combo) 없이 제공,
-    /// 사용자는 실행·단축키 지정·삭제 가능. 삭제한 것은 다시 만들지 않음.
+    /// 설치 시 기본 제공되는 고정 동작 프리셋 — 현재 없음.
+    /// Android 미러는 시스템 탭(`SystemActionType.androidMirror`)으로 이관됨.
     func ensureBuiltInShortcuts() {
+        removeLegacyAndroidShortcutsIfNeeded()
+    }
+
+    /// 과거 동작 탭 고정 프리셋의 잔재를 저장소에서 1회 삭제.
+    /// 대상: "Android Untether (언테더)", "Android Mirror (미러)",
+    /// "Android Remote", 구 샘플명 "ADB Wi-Fi 연결".
+    func removeLegacyAndroidShortcutsIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: PrefKeys.didCleanupLegacyAndroid) else { return }
+        defaults.set(true, forKey: PrefKeys.didCleanupLegacyAndroid)
+        // 정리 후 목록이 비어도 예시 동작을 다시 만들지 않음
+        defaults.set(true, forKey: PrefKeys.didSeedSamples)
+        let legacyNames = ["Android Untether (언테더)", "Android Mirror (미러)", "Android Remote", "ADB Wi-Fi 연결"]
+        let targets = shortcuts.filter { legacyNames.contains($0.name) }
+        guard !targets.isEmpty else { return }
         guard let context = container?.mainContext else { return }
-        var added = false
-        for preset in BuiltInShortcutPresets.all {
-            guard !shortcuts.contains(where: { $0.name == preset.name }) else { continue }
-            context.insert(PersistedShortcut.from(preset))
-            shortcuts.append(preset)
-            added = true
-            Logger.info("FEATURE", "동작 고정 프리셋 제공: \(preset.name)")
+        for target in targets {
+            if !target.combo.isEmpty {
+                hotKeyService.unregister(target.id)
+            }
+            shortcuts.removeAll { $0.id == target.id }
+            let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == target.id })
+            if let found = fetchContext(context, fetch).first {
+                context.delete(found)
+            }
+            Logger.info("FEATURE", "과거 Android 고정 동작 정리: \(target.name)")
         }
-        if added { saveContext(context) }
+        saveContext(context)
     }
 
 
@@ -276,53 +298,11 @@ final class ConfigStore: ObservableObject {
 
 }
 
-/// 설치 시 기본 제공되는 고정 동작 프리셋 (시스템 탭과 동급 취급).
-/// - 코드에 고정: 설치·업데이트 후에도 이름 기준으로 자동 보충
-/// - 단축키(combo) 없음: 사용자가 필요할 때 지정
-/// - 삭제 가능: 사용자가 지운 것은 다시 만들지 않음 (이름 기준 존재 확인)
+/// 설치 시 기본 제공되는 고정 동작 프리셋 — 현재 없음 (호환용 스텁).
+/// Android 미러는 시스템 탭(`SystemActionType.androidMirror`)으로 이관됨.
+/// 과거 테스트(`BuiltInShortcutPresets.all`) 호환을 위해 빈 목록을 유지한다.
 enum BuiltInShortcutPresets {
-    static let all: [ShortcutItem] = [androidUntether, androidMirror]
-
-    /// Android Untether (언테더) — USB 연결 기기의 IP로 ADB 무선 연결
-    static let androidUntether = ShortcutItem(
-        name: "Android Untether (언테더)",
-        steps: [ShortcutStep(
-            type: .script,
-            target: """
-            adb tcpip 5555
-            sleep 1
-            IP=$(adb shell ip route | awk '{print $9}' | head -1)
-            if [ -z "$IP" ]; then echo "IP를 찾지 못했습니다. USB 연결을 확인하세요."; exit 1; fi
-            adb connect "$IP:5555"
-            echo "연결 완료: $IP:5555"
-            """,
-            title: "케이블 없이 무선으로 기기 디버깅 연결"
-        )],
-        description: "USB 연결된 안드로이드의 IP로 ADB 무선 연결"
-    )
-
-    /// Android Mirror (미러) — 연결된 기기 화면을 scrcpy로 띄움
-    static let androidMirror = ShortcutItem(
-        name: "Android Mirror (미러)",
-        steps: [ShortcutStep(
-            type: .script,
-            target: """
-            export PATH="$PATH:/opt/homebrew/bin"
-
-            DEVICE=$(adb devices | grep -v "List" | grep "device$")
-            if [ -z "$DEVICE" ]; then
-              echo "연결된 기기가 없습니다."
-              exit 1
-            fi
-
-
-            nohup scrcpy --show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30 > /dev/null 2>&1 &
-            disown
-            """,
-            title: "연결된 기기 화면을 맥에 띄우고 마우스·키보드로 조작"
-        )],
-        description: ""
-    )
+    static let all: [ShortcutItem] = []
 }
 
 enum MoveDirection {

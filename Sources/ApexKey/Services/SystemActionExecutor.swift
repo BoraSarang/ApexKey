@@ -11,6 +11,7 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
     case screenSaver
     case dockRestart
     case finderRestart
+    case androidMirror
 
     var id: String { rawValue }
 
@@ -24,6 +25,7 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .screenSaver:  return "system.action.screen_saver".localized
         case .dockRestart:  return "system.action.dock_restart".localized
         case .finderRestart: return "system.action.finder_restart".localized
+        case .androidMirror: return "system.action.android_mirror".localized
         }
     }
 
@@ -37,6 +39,7 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .screenSaver:  return "sparkles.tv"
         case .dockRestart:  return "dock.rectangle"
         case .finderRestart: return "folder"
+        case .androidMirror: return "apps.iphone"
         }
     }
 }
@@ -60,12 +63,22 @@ enum SystemActionExecutor {
         .finderRestart: "do shell script \"killall Finder\""
     ]
 
+    /// Android Remote Mirror (scrcpy) — 외부 스크립트 파일이 단일 소스.
+    /// 파일 수정이 앱에 즉시 반영된다 (재빌드 불필요).
+    static let androidMirrorScriptPath =
+        "/Users/lee/Documents/AGENTS/development/scripts/scrcpy_run.sh"
+
     /// 시스템 동작 실행. 성공 여부 반환.
     @discardableResult
     static func execute(_ type: SystemActionType) -> Bool {
         if type == .mute {
             // AppleScript 없는 순수 볼륨 토글
             return toggleMute()
+        }
+        if type == .androidMirror {
+            let result = ActionExecutor.shared.runScriptFileResult(androidMirrorScriptPath)
+            Logger.info("SystemActionExecutor", "Android Remote Mirror (scrcpy) 실행 (success=\(result.success))")
+            return result.success
         }
         guard let script = appleScripts[type] else { return false }
         return runAppleScript(script, action: type)

@@ -3,7 +3,7 @@ import Foundation
 /// 한글 초성 검색 지원 공용 유틸
 /// - 초성 시퀀스 추출(`choSeongSequence`)로 한글 음절을 검색 가능하게 함
 /// - 검색어가 초성(자모) 문자로만 이루어졌으면 초성 매칭, 아니면 기존 대소문자 무시 substring 매칭
-/// - 앱 검색 / HUD 메뉴 검색 / QuickLauncher 매칭 로직을 한 곳으로 통합(DRY)
+/// - 앱 검색 / HUD 메뉴 검색 / 명령 팔레트 매칭 로직을 한 곳으로 통합(DRY)
 enum KoreanSearch {
 
     /// 한글 초성 19자 (가나다순, 자모 인덱스 순)
