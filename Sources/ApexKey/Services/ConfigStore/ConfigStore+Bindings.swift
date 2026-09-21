@@ -21,7 +21,7 @@ extension ConfigStore {
                 combo: combo,
                 actionType: .system,
                 target: type.rawValue,
-                title: "",
+                title: type.displayName,
                 onlyWhenAppActive: false
             )
             removeBinding(first)
@@ -31,7 +31,7 @@ extension ConfigStore {
                 combo: combo,
                 actionType: .system,
                 target: type.rawValue,
-                title: "",
+                title: type.displayName,
                 onlyWhenAppActive: false
             ))
         }

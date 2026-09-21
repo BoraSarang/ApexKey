@@ -43,13 +43,14 @@ final class ApexKeyScriptTests: XCTestCase {
     }
 
     func testBuiltInPresetsAreFixedWithoutHotkeys() {
-        // 고정 프리셋: 2개, 단축키 없음, 스크립트 비어 있지 않음
-        XCTAssertEqual(BuiltInShortcutPresets.all.count, 2)
-        for preset in BuiltInShortcutPresets.all {
-            XCTAssertTrue(preset.combo.isEmpty, "\(preset.name)은 단축키 없이 제공되어야 함")
-            XCTAssertFalse(preset.steps.isEmpty)
-            XCTAssertFalse(preset.steps[0].target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
+        // 고정 프리셋은 시스템 탭으로 이관됨 — 동작 탭 프리셋 목록은 비어 있음
+        XCTAssertTrue(BuiltInShortcutPresets.all.isEmpty)
+        // 시스템 탭에 Android 미러 고정 액션이 있음 (외부 스크립트 파일 단일 소스)
+        XCTAssertTrue(SystemActionType.allCases.contains(.androidMirror))
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: SystemActionExecutor.androidMirrorScriptPath),
+            "scrcpy_run.sh 없음: \(SystemActionExecutor.androidMirrorScriptPath)"
+        )
     }
 
     func testEngineReportsUnimplementedActionFailure() {
@@ -73,15 +74,17 @@ final class ApexKeyScriptTests: XCTestCase {
     }
 
     func testAdbWifiShortcutEndToEnd() throws {
-        // USB 연결 기기가 있을 때만: 저장된 샘플과 동일한 단계로 전체 경로 실행
-        guard hasAdbDevice() else {
+        // USB 연결 기기가 있을 때만: 저장된 샘플과 동일한 단계로 전체 경로 실행.
+        // 무선 중복 연결 시 adb가 기기를 고르지 못하므로 USB 시리얼을 -s로 명시한다.
+        guard let serial = usbAdbSerial() else {
             throw XCTSkip("USB 연결된 ADB 기기 없음 — 실기 Connected 환경에서만 실행")
         }
+        // tcpip 전환하면 USB 전송이 끊기므로 IP는 먼저 조회한다
         let script = """
-        adb tcpip 5555
-        sleep 1
-        IP=$(adb shell ip route | awk '{print $9}' | head -1)
+        IP=$(adb -s \(serial) shell ip route | awk '{print $9}' | head -1)
         if [ -z "$IP" ]; then echo "IP를 찾지 못했습니다. USB 연결을 확인하세요."; exit 1; fi
+        adb -s \(serial) tcpip 5555
+        sleep 4
         adb connect "$IP:5555"
         """
         let shortcut = ShortcutItem(
@@ -92,13 +95,22 @@ final class ApexKeyScriptTests: XCTestCase {
         XCTAssertTrue(ActionExecutor.shared.execute(shortcut))
     }
 
-    /// USB로 연결된 adb 기기가 있는지 (테스트 게이트용)
-    private func hasAdbDevice() -> Bool {
+    /// USB로 연결된 adb 기기의 시리얼 (없으면 nil). 무선(:5555) 연결은 제외.
+    private func usbAdbSerial() -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        task.arguments = ["-c", ShellEnvironment.pathExport + "; adb devices | tail -n +2 | grep -q device"]
+        task.arguments = ["-c", ShellEnvironment.pathExport + "; adb devices | awk '{gsub(/\\r/,\"\")} $2==\"device\" && $1 !~ /:/ {print $1; exit}'"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
         try? task.run()
         task.waitUntilExit()
-        return task.terminationStatus == 0
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return (out?.isEmpty == false) ? out : nil
+    }
+
+    /// USB로 연결된 adb 기기가 있는지 (테스트 게이트용)
+    private func hasAdbDevice() -> Bool {
+        usbAdbSerial() != nil
     }
 }

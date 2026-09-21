@@ -17,6 +17,7 @@ struct ActionMetadata {
 extension ActionType {
     static let metadata: [ActionType: ActionMetadata] = [
         .launchApp: ActionMetadata(displayNameKey: "action.launchApp", systemImage: "square.and.arrow.up", category: .essential),
+        .keyCombo: ActionMetadata(displayNameKey: "action.keyCombo", systemImage: "keyboard", category: .essential),
         .menuCommand: ActionMetadata(displayNameKey: "action.menuCommand", systemImage: "menubar", category: .essential),
         .file: ActionMetadata(displayNameKey: "action.file", systemImage: "folder", category: .essential),
         .url: ActionMetadata(displayNameKey: "action.url", systemImage: "link", category: .essential),

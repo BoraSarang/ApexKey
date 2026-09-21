@@ -34,6 +34,10 @@ struct ShortcutStep: Identifiable, Codable, Hashable {
     var writingTool: WritingToolStep?
     /// Image Playground 설정
     var imagePlayground: ImagePlaygroundStep?
+    /// 앱 실행/토글 구조화 설정 (P0). nil이면 레거시 target=bundleID로 해석.
+    var launchConfig: LaunchConfig?
+    /// 키 조합 보내기 설정 (keyCombo 액션용). nil이면 미지정.
+    var keyPress: HotKeyCombo?
     /// 단계 스킵 여부 (설정에서 토글)
     var isSkipped: Bool
     /// 주석/메모 (단계별 설명)
@@ -56,6 +60,8 @@ struct ShortcutStep: Identifiable, Codable, Hashable {
         useModel: UseModelStep? = nil,
         writingTool: WritingToolStep? = nil,
         imagePlayground: ImagePlaygroundStep? = nil,
+        launchConfig: LaunchConfig? = nil,
+        keyPress: HotKeyCombo? = nil,
         isSkipped: Bool = false,
         note: String? = nil,
         magicVariableTokens: [String]? = nil
@@ -74,6 +80,8 @@ struct ShortcutStep: Identifiable, Codable, Hashable {
         self.useModel = useModel
         self.writingTool = writingTool
         self.imagePlayground = imagePlayground
+        self.launchConfig = launchConfig
+        self.keyPress = keyPress
         self.isSkipped = isSkipped
         self.note = note
         self.magicVariableTokens = magicVariableTokens
@@ -91,11 +99,26 @@ struct ShortcutStep: Identifiable, Codable, Hashable {
         )
     }
 
+    /// 앱 실행용 유효 설정 (구조화 설정 우선, 없으면 레거시 target 마이그레이션)
+    var effectiveLaunchConfig: LaunchConfig {
+        launchConfig ?? LaunchConfig.migrated(fromLegacyTarget: target)
+    }
+
     /// 단계를 한 줄로 요약 (목록 표시용)
     var summary: String {
         if !title.isEmpty { return title }
         switch type {
-        case .launchApp: return target
+        case .launchApp:
+            let cfg = effectiveLaunchConfig
+            if !cfg.displayName.isEmpty { return cfg.displayName }
+            return target
+        case .keyCombo:
+            if let press = keyPress, !press.isEmpty {
+                return press.displayString.isEmpty
+                    ? KeyboardUtil.displayString(keyCode: press.keyCode, modifiers: press.modifiers)
+                    : press.displayString
+            }
+            return target.isEmpty ? "action.keyCombo".localized : target
         case .menuCommand: return title
         case .file: return target
         case .url: return target

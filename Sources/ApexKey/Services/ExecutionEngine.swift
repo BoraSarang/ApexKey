@@ -121,6 +121,18 @@ final class ExecutionEngine {
 
         case .script, .runScriptInShell:
             return executeShellScript(step, context: &context)
+
+        case .appleScript:
+            return executeAppleScript(step, context: &context)
+
+        case .javaScriptForAutomation:
+            return executeJXA(step, context: &context)
+
+        case .launchApp:
+            return executeLaunchApp(step, context: &context)
+
+        case .keyCombo:
+            return executeKeyCombo(step, context: &context)
             
         case .outputToVariable:
             return executeOutputToVariable(step, context: &context)
@@ -379,6 +391,72 @@ final class ExecutionEngine {
         context.lastOutput = .text(resolved)
         if !ok {
             return Result(success: false, controlFlow: .continueExecution, error: "error.user.script_failed".localized)
+        }
+        return .continueRunning
+    }
+
+    // MARK: - AppleScript / JXA
+
+    private func executeAppleScript(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let resolved = VariableResolver.resolveText(step.target, context: makeResolveContext(context))
+        let r = ScriptExecutor.runAppleScript(resolved)
+        context.setOutput(.text(r.output), for: step.id)
+        context.lastOutput = .text(r.output)
+        if !r.success {
+            return Result(success: false, controlFlow: .continueExecution, error: r.errorOutput.isEmpty ? "error.user.script_failed".localized : r.errorOutput)
+        }
+        return .continueRunning
+    }
+
+    private func executeJXA(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let resolved = VariableResolver.resolveText(step.target, context: makeResolveContext(context))
+        let r = ScriptExecutor.runJXA(resolved)
+        context.setOutput(.text(r.output), for: step.id)
+        context.lastOutput = .text(r.output)
+        if !r.success {
+            return Result(success: false, controlFlow: .continueExecution, error: r.errorOutput.isEmpty ? "error.user.script_failed".localized : r.errorOutput)
+        }
+        return .continueRunning
+    }
+
+    // MARK: - 앱 실행/토글
+
+    private func executeLaunchApp(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        var config = step.effectiveLaunchConfig
+        // 변수 토큰 해석 (bundleID/path/args/스킴 전부)
+        let ctx = makeResolveContext(context)
+        config.bundleID = VariableResolver.resolveText(config.bundleID, context: ctx)
+        config.path = VariableResolver.resolveText(config.path, context: ctx)
+        config.args = VariableResolver.resolveText(config.args, context: ctx)
+        config.urlScheme = VariableResolver.resolveText(config.urlScheme, context: ctx)
+        let ok = AppSwitcher.execute(config: config)
+        context.setOutput(.text(config.displayName), for: step.id)
+        context.lastOutput = .text(config.displayName)
+        if !ok {
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+        }
+        return .continueRunning
+    }
+
+    // MARK: - 키 조합 보내기
+
+    private func executeKeyCombo(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        // 구조화 설정 우선, 없으면 레거시 target "keyCode:modifiers" 파싱
+        let combo: HotKeyCombo?
+        if let press = step.keyPress, !press.isEmpty {
+            combo = press
+        } else {
+            combo = ActionExecutor.parseKeyPress(from: VariableResolver.resolveText(step.target, context: makeResolveContext(context)))
+        }
+        guard let combo else {
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+        }
+        let ok = ActionExecutor.sendKeyPress(combo)
+        let label = KeyboardUtil.displayString(keyCode: combo.keyCode, modifiers: combo.modifiers)
+        context.setOutput(.text(label), for: step.id)
+        context.lastOutput = .text(label)
+        if !ok {
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
         return .continueRunning
     }

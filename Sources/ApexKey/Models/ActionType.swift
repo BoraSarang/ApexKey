@@ -56,7 +56,7 @@ enum ActionCategory: String, Codable, CaseIterable, Identifiable {
     /// 해당 카테고리의 액션 타입 목록
     var actionTypes: [ActionType] {
         switch self {
-        case .essential:    return [.launchApp, .menuCommand, .file, .url, .script, .system, .paste, .wait, .coordinateClick, .pauseUntilInput, .macro, .dialog, .text, .clipText, .moveToFront, .wakeDisplay, .clearRecents, .preventSleep, .wallpaper, .darkMode, .focusMode, .screenshot, .pdf, .network, .bluetooth, .timer, .stopwatch, .location, .airDrop, .newQuickNote, .newNote, .readTable, .emailData, .date]
+        case .essential:    return [.launchApp, .keyCombo, .menuCommand, .file, .url, .script, .system, .paste, .wait, .coordinateClick, .pauseUntilInput, .macro, .dialog, .text, .clipText, .moveToFront, .wakeDisplay, .clearRecents, .preventSleep, .wallpaper, .darkMode, .focusMode, .screenshot, .pdf, .network, .bluetooth, .timer, .stopwatch, .location, .airDrop, .newQuickNote, .newNote, .readTable, .emailData, .date]
         case .scripting:    return [.appleScript, .javaScriptForAutomation]
         case .media:        return [.quickLook, .photos, .musicAndVideo, .playMusic, .playPodcast, .tuneStation, .radio, .viewPhotos, .album, .randomPhoto, .slideshow, .getLastPhoto, .camera, .rotateImage, .cropImage, .trimVideo, .takeScreenshot, .saveOutput, .setVolumeMedia, .moveMedia, .bookmark, .podcasts, .news, .stocks, .videoDownloader]
         case .documents:    return [.editDocument, .translate, .textEditShortcut, .noteActions, .createNote, .setParagraphStyle, .newDocument, .viewDocument, .mail, .setMailBody, .setMailRecipients, .drive, .oneDrive, .box, .getFiles, .moveFiles, .renameFiles, .extractArchive, .externalStorage, .fileActions, .getConfirmation, .getAttachment, .getDictionary, .dateFormatter, .listActions, .adjustDate, .formatNumber, .math, .hash, .uuid, .outputDifference, .typeNumber, .typeText, .getClipboard, .setClipboard, .regex, .typeDateTime, .sort, .changeCase, .replaceText, .combineText, .matchText, .splitText, .trimWhitespace, .surroundText, .count, .wordCount, .calculate, .base64Encode, .htmlToMarkdown, .measurement, .scanQRCode, .recognizeText, .recognizeAnimal, .detectLanguage]
@@ -76,6 +76,7 @@ enum ActionCategory: String, Codable, CaseIterable, Identifiable {
 enum ActionType: String, Codable, CaseIterable, Identifiable {
     // === 필수 ===
     case launchApp            // 앱 실행/포커스/토글
+    case keyCombo             // 키 조합 보내기 (수식키+키 전송)
     case menuCommand          // 타 앱의 메뉴 명령 실행 (AXUIElement)
     case file                 // 파일/폴더 열기
     case url                  // URL 열기

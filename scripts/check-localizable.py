@@ -10,6 +10,7 @@
 - StoreCoding 로그 라벨 (DataModels.swift)
 - 앱스토어 카테고리 키워드 매칭 (AppFinder.swift)
 - 시드 데이터·레거시 마이그레이션 (ConfigStore.swift, ConfigStore+Shortcuts.swift)
+- 시스템 액션 내장 셸 스크립트 출력 메시지 (SystemActionExecutor.swift, 터미널 출력)
 
 사용법: python3 scripts/check-localizable.py
 """
@@ -28,6 +29,7 @@ EXCLUDED_FILES = {
     "AppFinder.swift",  # 앱스토어 카테고리 키워드 매칭 (표시 아님)
     "ConfigStore.swift",  # 레거시 마이그레이션 키 + 빌트인 프리셋 (시드)
     "ConfigStore+Shortcuts.swift",  # 시드 데이터 (사용자 결정: 유지)
+    "SystemActionExecutor.swift",  # androidMirror 내장 스크립트의 터미널 출력 메시지
 }
 
 # 라인 단위로 제외할 패턴 (리터럴 내용 기준)

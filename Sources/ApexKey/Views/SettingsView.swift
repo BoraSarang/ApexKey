@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var showGuardAlert = false
     @State private var recordingPanelHotkey = false
     @State private var recordingHUDHotkey = false
+    @State private var recordingPaletteHotkey = false
     @State private var showRestartBanner = false
 
     var body: some View {
@@ -33,6 +34,13 @@ struct SettingsView: View {
                 Toggle("settings.show_system_apps".localized, isOn: $store.showSystemApps)
             }
 
+            Section("settings.toast".localized) {
+                Toggle("settings.toast.success".localized, isOn: $store.showSuccessToast)
+                Text("settings.toast.success.description".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+            }
+
             Section("settings.panel_hotkey".localized) {
                 HStack {
                     Text("settings.panel_hotkey.current".localized)
@@ -52,6 +60,28 @@ struct SettingsView: View {
                 }
                 Button("settings.panel_hotkey.reset".localized) {
                     store.setPanelToggleHotkey(ConfigStore.defaultToggleHotkey)
+                }
+            }
+
+            Section("settings.palette".localized) {
+                HStack {
+                    Text("settings.palette.current".localized)
+                    Spacer()
+                    Text(store.paletteHotkey.displayString)
+                        .font(.system(.body, design: .monospaced))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(theme.tertiaryBackground.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                Text("settings.palette.description".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                Button("settings.palette.change".localized) {
+                    recordingPaletteHotkey = true
+                }
+                Button("settings.palette.reset".localized) {
+                    store.setPaletteHotkey(ConfigStore.defaultPaletteHotkey)
                 }
             }
 
@@ -158,6 +188,20 @@ struct SettingsView: View {
                 }
             ) { combo in
                 store.setMenuHUDHotkey(combo)
+            }
+            .environmentObject(store)
+        }
+        .sheet(isPresented: $recordingPaletteHotkey) {
+            HotKeyRecorderView(
+                title: "settings.palette".localized,
+                subtitle: "ui.appdetail.run_globally".localized,
+                excludedCombo: store.paletteHotkey,
+                onTest: { _ in
+                    store.showPalette.toggle()
+                    return true
+                }
+            ) { combo in
+                store.setPaletteHotkey(combo)
             }
             .environmentObject(store)
         }

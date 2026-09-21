@@ -17,10 +17,11 @@ extension ConfigStore {
         displayString: "⌘⇧↩"
     )
 
-    static let defaultQuickLauncherHotkey = HotKeyCombo(
-        keyCode: 49, // Space
-        modifiers: KeyboardUtil.optionMask | KeyboardUtil.cmdMask,
-        displayString: "⌥⌘Space"
+    /// 명령 팔레트 기본값 — ⌘⌥K (전역 등록이므로 타 앱의 동일 조합을 가로챔. 설정에서 변경 가능).
+    static let defaultPaletteHotkey = HotKeyCombo(
+        keyCode: 40, // K
+        modifiers: KeyboardUtil.cmdMask | KeyboardUtil.optionMask,
+        displayString: "⌘⌥K"
     )
 
     static let defaultMenuHUDHotkey = HotKeyCombo(

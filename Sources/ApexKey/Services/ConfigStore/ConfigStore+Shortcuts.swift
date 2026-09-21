@@ -37,6 +37,7 @@ extension ConfigStore {
         samples.forEach { context.insert(PersistedShortcut.from($0)) }
         saveContext(context)
         shortcuts = samples
+        UserDefaults.standard.set(true, forKey: PrefKeys.didSeedSamples)
         Logger.info("ConfigStore", "[SHORTCUT] 예시 단축어 3개 생성")
     }
 
