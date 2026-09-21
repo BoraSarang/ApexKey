@@ -59,6 +59,7 @@ extension ConfigStore {
         if !shortcut.combo.isEmpty {
             hotKeyService.unregister(shortcut.id)
         }
+        AutomationManager.shared.unregister(shortcutID: shortcut.id)
         shortcuts.removeAll { $0.id == shortcut.id }
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == shortcut.id })

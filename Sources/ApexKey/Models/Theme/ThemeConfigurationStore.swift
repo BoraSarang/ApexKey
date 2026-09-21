@@ -94,7 +94,7 @@ public enum ThemeConfigurationStore {
             let data = try encodeTheme(normalizedTheme)
             try data.write(to: themeFileURL(for: normalizedTheme.metadata.id), options: .atomic)
         } catch {
-            print("[ApexKey] Failed to save theme '\(theme.metadata.name)': \(error)")
+            Logger.error("E-MAC-STORE-5001", "테마 저장 실패 '\(theme.metadata.name)': \(error.localizedDescription)")
         }
     }
 

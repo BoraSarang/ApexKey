@@ -418,7 +418,8 @@ struct ShortcutEditorView: View {
     
     private func duplicateStep(at index: Int) {
         guard index < steps.count else { return }
-        let duplicate = steps[index]
+        var duplicate = steps[index]
+        duplicate.id = UUID()
         steps.insert(duplicate, at: index + 1)
         saveSteps()
     }
@@ -477,9 +478,16 @@ struct ShortcutEditorView: View {
     private func executeShortcut() {
         let shortcutToRun = ShortcutItem(
             id: shortcut.id,
-            name: shortcut.name,
+            name: shortcutName.isEmpty ? shortcut.name : shortcutName,
             steps: steps,
-            combo: shortcut.combo
+            combo: shortcut.combo,
+            icon: shortcut.icon,
+            color: shortcut.color,
+            aiModel: shortcut.aiModel,
+            description: shortcutDescription,
+            automations: shortcutAutomations,
+            variables: shortcutVariables,
+            permissions: shortcut.permissions
         )
         DispatchQueue.global(qos: .userInitiated).async {
             ActionExecutor.shared.execute(shortcutToRun)

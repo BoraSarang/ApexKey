@@ -8,6 +8,9 @@ final class ExecutionEngine {
     /// Run Shortcut이 호출할 단축어 조회 클로저 (ConfigStore에서 주입)
     var shortcutProvider: ((UUID) -> ShortcutItem?)?
     
+    /// Run Shortcut 최대 재귀 깊이 (순환 호출 가드)
+    static let maxRunShortcutDepth = 10
+
     /// 실행 상태
     enum ControlFlow {
         case continueExecution  // 계속 실행
@@ -29,10 +32,14 @@ final class ExecutionEngine {
     
     /// 단축어 실행
     @discardableResult
-    func execute(_ shortcut: ShortcutItem, context: inout UseModelExecutor.ExecutionContext) -> Result {
+    func execute(_ shortcut: ShortcutItem, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
+        if depth > ExecutionEngine.maxRunShortcutDepth {
+            Logger.error("E-MAC-FLOW-7009", "Run Shortcut 재귀 깊이 초과 (\(ExecutionEngine.maxRunShortcutDepth)) — 순환 호출 확인")
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(shortcut.name))
+        }
         Logger.info("ExecutionEngine", "실행 시작: \(shortcut.name) (\(shortcut.steps.count)단계)")
         
-        let result = execute(steps: shortcut.steps, context: &context)
+        let result = execute(steps: shortcut.steps, context: &context, depth: depth)
         
         if result.controlFlow == .continueExecution || result.controlFlow == .stop {
             Logger.info("ExecutionEngine", "실행 완료: \(shortcut.name) (success=\(result.success))")
@@ -41,7 +48,7 @@ final class ExecutionEngine {
     }
     
     /// 단계 배열 실행
-    func execute(steps: [ShortcutStep], context: inout UseModelExecutor.ExecutionContext) -> Result {
+    func execute(steps: [ShortcutStep], context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         var ok = true
         for (index, step) in steps.enumerated() {
             // 스킵된 단계는 건너뜀
@@ -52,7 +59,7 @@ final class ExecutionEngine {
             
             Logger.info("ExecutionEngine", "단계 \(index + 1)/\(steps.count): \(step.type.displayName)")
             
-            let result = executeStep(step, context: &context)
+            let result = executeStep(step, context: &context, depth: depth)
             if !result.success { ok = false }
 
             // 흐름 제어 처리
@@ -72,43 +79,52 @@ final class ExecutionEngine {
     
     // MARK: - 단계 실행
     
-    private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+    private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         switch step.type {
         // === AI 액션 ===
         case .useModel:
-            UseModelExecutor.shared.execute(step, context: &context)
+            let ok = UseModelExecutor.shared.execute(step, context: &context)
+            if !ok {
+                return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+            }
             return .continueRunning
-            
+
         case .writingTool:
-            WritingToolExecutor.shared.execute(step, context: &context)
+            let ok = WritingToolExecutor.shared.execute(step, context: &context)
+            if !ok {
+                return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+            }
             return .continueRunning
-            
+
         case .imagePlayground:
-            ImagePlaygroundExecutor.shared.execute(step, context: &context)
+            let ok = ImagePlaygroundExecutor.shared.execute(step, context: &context)
+            if !ok {
+                return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+            }
             return .continueRunning
             
         // === 흐름 제어 ===
         case .ifElse:
-            return executeIf(step, context: &context)
-            
+            return executeIf(step, context: &context, depth: depth)
+
         case .repeatLoop:
             if let loop = step.repeatLoop, loop.mode == .whileLoop {
                 // whileLoop는 아직 조건 표현식이 없어 횟수 반복으로 폴백 (1회)
                 Logger.error("E-MAC-FLOW-7008", "whileLoop 모드는 미지원 — 1회 반복으로 처리: \(step.title)")
             }
-            return executeRepeatCount(step, context: &context)
-            
+            return executeRepeatCount(step, context: &context, depth: depth)
+
         case .repeatEach:
-            return executeRepeatEach(step, context: &context)
+            return executeRepeatEach(step, context: &context, depth: depth)
             
         case .endRepeat:
             return .continueRunning  // Repeat 블록 내부에서 처리됨
             
         case .chooseFromMenu:
             return executeChooseFromMenu(step, context: &context)
-            
+
         case .runShortcut:
-            return executeRunShortcut(step, context: &context)
+            return executeRunShortcut(step, context: &context, depth: depth)
             
         case .stopShortcut:
             return executeStopShortcut(step, context: &context)
@@ -151,26 +167,26 @@ final class ExecutionEngine {
     
     // MARK: - If/Otherwise
     
-    private func executeIf(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+    private func executeIf(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         guard let branch = step.ifBranch else {
             Logger.error("E-MAC-FLOW-7001", "If 단계에 ifBranch 설정이 없음")
-            return .continueRunning
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
-        
+
         // 조건 평가 — 변수/특수변수(반복 인덱스 등)/매직변수 모두 포함
         let conditionResult = branch.condition.evaluate(with: makeResolveContext(context))
         Logger.info("ExecutionEngine", "If 조건: \(branch.condition.displayString) → \(conditionResult ? "참" : "거짓")")
-        
+
         let stepsToRun = conditionResult ? branch.thenSteps : (branch.elseSteps ?? [])
-        return execute(steps: stepsToRun, context: &context)
+        return execute(steps: stepsToRun, context: &context, depth: depth)
     }
-    
+
     // MARK: - Repeat (횟수 반복)
-    
-    private func executeRepeatCount(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+
+    private func executeRepeatCount(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         guard let loop = step.repeatLoop else {
             Logger.error("E-MAC-FLOW-7002", "Repeat 단계에 repeatLoop 설정이 없음")
-            return .continueRunning
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
         
         // whileLoop/count 미설정 시 기본 1회 (기존 0회 조용한 실패 방지)
@@ -185,13 +201,13 @@ final class ExecutionEngine {
             context.repeatItem = .number(Double(iteration))
             context.setOutput(.number(Double(iteration)), for: loop.repeatIndexVariable ?? UUID())
             
-            let result = execute(steps: loop.steps, context: &context)
+            let result = execute(steps: loop.steps, context: &context, depth: depth)
             switch result.controlFlow {
             case .breakLoop:
                 Logger.info("ExecutionEngine", "반복 중단됨 (iteration \(iteration))")
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
-                return .continueRunning
+                return result.success ? .continueRunning : result
             case .stop, .ended:
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
@@ -211,10 +227,10 @@ final class ExecutionEngine {
     
     // MARK: - Repeat with Each (항목 반복)
     
-    private func executeRepeatEach(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+    private func executeRepeatEach(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         guard let loop = step.repeatLoop else {
             Logger.error("E-MAC-FLOW-7003", "Repeat Each 단계에 repeatLoop 설정이 없음")
-            return .continueRunning
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
         
         // 컬렉션 가져오기
@@ -239,13 +255,13 @@ final class ExecutionEngine {
                 context.setOutput(item, for: itemVarID)
             }
             
-            let result = execute(steps: loop.steps, context: &context)
+            let result = execute(steps: loop.steps, context: &context, depth: depth)
             switch result.controlFlow {
             case .breakLoop:
                 Logger.info("ExecutionEngine", "반복 중단됨 (item \(iteration))")
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
-                return .continueRunning
+                return result.success ? .continueRunning : result
             case .stop, .ended:
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
@@ -268,12 +284,12 @@ final class ExecutionEngine {
     private func executeChooseFromMenu(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
         guard let menu = step.chooseFromMenu else {
             Logger.error("E-MAC-FLOW-7004", "Choose From Menu 단계에 설정이 없음")
-            return .continueRunning
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
-        
+
         guard !menu.options.isEmpty else {
             Logger.error("E-MAC-FLOW-7005", "메뉴 옵션이 없음")
-            return .continueRunning
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
         
         // 메뉴 표시 (동기식 대화상자) — NSAlert.runModal은 메인 스레드에서만 가능
@@ -333,19 +349,19 @@ final class ExecutionEngine {
     
     // MARK: - Run Shortcut
     
-    private func executeRunShortcut(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+    private func executeRunShortcut(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         guard let targetID = UUID(uuidString: step.target) else {
             Logger.error("E-MAC-FLOW-7006", "Run Shortcut 대상 UUID가 유효하지 않음: \(step.target)")
-            return .continueRunning
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
-        
+
         guard let targetShortcut = shortcutProvider?(targetID) else {
             Logger.error("E-MAC-FLOW-7007", "Run Shortcut 대상 단축어 없음: \(targetID.uuidString.prefix(8))")
-            return .continueRunning
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
         }
-        
+
         Logger.info("ExecutionEngine", "단축어 호출: \(targetShortcut.name)")
-        return execute(targetShortcut, context: &context)
+        return execute(targetShortcut, context: &context, depth: depth + 1)
     }
     
     // MARK: - Stop Shortcut

@@ -104,9 +104,9 @@ final class ConfigStore: ObservableObject {
             self.menuHUDStyle = style
             defaults.set(style.rawValue, forKey: PrefKeys.menuHUDStyle)
         }
-        self.toggleHotkey = Self.defaultToggleHotkey
-        self.menuHUDHotkey = Self.defaultMenuHUDHotkey
-        self.paletteHotkey = Self.defaultPaletteHotkey
+        self.toggleHotkey = Self.loadHotkey(forKey: PrefKeys.panelToggleHotkey, fallback: Self.defaultToggleHotkey)
+        self.menuHUDHotkey = Self.loadHotkey(forKey: PrefKeys.menuHUDHotkey, fallback: Self.defaultMenuHUDHotkey)
+        self.paletteHotkey = Self.loadHotkey(forKey: PrefKeys.paletteHotkey, fallback: Self.defaultPaletteHotkey)
         self.showNoShortcutItems = defaults.object(forKey: PrefKeys.showNoShortcutItems) == nil ? true : defaults.bool(forKey: PrefKeys.showNoShortcutItems)
         self.showSuccessToast = defaults.object(forKey: PrefKeys.showSuccessToast) == nil ? true : defaults.bool(forKey: PrefKeys.showSuccessToast)
         self.showSystemApps = defaults.object(forKey: PrefKeys.showSystemApps) == nil ? true : defaults.bool(forKey: PrefKeys.showSystemApps)

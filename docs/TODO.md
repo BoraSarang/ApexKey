@@ -157,8 +157,27 @@
 - [x] L-11: LLM 프롬프트 로컬라이즈 — UseModelExecutor FollowUp 대화 헤더·역할 (3키)
 - [x] L-12: 가드 스크립트 `scripts/check-localizable.py` 추가 + `build_and_run.sh` 게이트 연결
 
+## v0.7 — 전체 리팩토링 + 버그·동작 연결 점검 (2026-09-21, PLAN_v0.7_refactor-bugfix)
+
+- [x] G-01: `print` → Logger (ThemeConfigurationStore)
+- [x] G-02: PATH 단일화 (`ShellEnvironment.extraPaths`)
+- [x] G-03: LaunchConfig 코덱 실패 로그
+- [x] B-01: AI 3종 Bool 반영
+- [x] B-02: RunShortcut 실패 반환 + depth 10 가드
+- [x] B-03: url/file 빈값 false + `toast.reason.file_missing`
+- [x] B-04: If/Repeat/Choose 설정없음 실패 반환
+- [x] B-05: `removeShortcut` 자동화 unregister
+- [x] B-06: 편집기 복제 새 UUID
+- [x] B-07: `executeBinding` 토스트 + lastID
+- [x] B-08: 예약 핫키 영속화 + 중복 검사
+- [x] B-09: 편집기 실행 변수/권한 포함
+- [x] 테스트 8건 + 전체 139건 0실패 + 빌드 성공
+
 ## 다음 백로그
 
+- [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)
+- [ ] `menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)
+- [ ] blob 손상 덮어씀 가드 (P0-8 잔류 — 설계 필요)
 - [ ] 단축키 프로필/빠른 전환
 - [ ] Run Shortcut 호출 시 ConfigStore 자동화 UI에서 조회 단계 연결 (multishortcut 재귀 공유 변수 전달)
 - [ ] Choose from Menu/Use Model 등 단계 저장값(actionParameters) UI 연동 세부 다듬기
