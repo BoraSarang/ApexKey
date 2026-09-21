@@ -5,38 +5,6 @@ import Combine
 
 /// ConfigStore 영역 분할 (R-10) — 동일 클래스 extension, public API 동결.
 extension ConfigStore {
-    // MARK: - 시스템 액션 바인딩
-
-    func systemBindings(for type: SystemActionType) -> [HotKeyBinding] {
-        bindings.filter { $0.actionType == .system && $0.target == type.rawValue }
-    }
-
-    /// 시스템 액션 단축키 추가/교체 (이미 있으면 첫 항목만 갱신)
-    func setSystemBinding(for type: SystemActionType, combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
-        let existing = systemBindings(for: type)
-        if let first = existing.first {
-            let updated = HotKeyBinding(
-                id: first.id,
-                combo: combo,
-                actionType: .system,
-                target: type.rawValue,
-                title: type.displayName,
-                onlyWhenAppActive: false
-            )
-            removeBinding(first)
-            addBinding(updated)
-        } else {
-            addBinding(HotKeyBinding(
-                combo: combo,
-                actionType: .system,
-                target: type.rawValue,
-                title: type.displayName,
-                onlyWhenAppActive: false
-            ))
-        }
-    }
-
     // MARK: - 바인딩 관리
 
     func bindings(for appID: UUID) -> [HotKeyBinding] {

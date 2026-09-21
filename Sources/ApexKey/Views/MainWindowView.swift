@@ -10,7 +10,7 @@ struct MainWindowView: View {
 
     enum ToolSelection: Hashable {
         case shortcut
-        case system
+        case automation
     }
 
     enum SidebarSelection: Hashable {
@@ -113,8 +113,8 @@ struct MainWindowView: View {
             case .shortcut:
                 ShortcutStationView()
                     .environmentObject(store)
-            case .system:
-                SystemActionsView()
+            case .automation:
+                AutomationBrowserView()
                     .environmentObject(store)
             }
         } else if let app = selectedApp {

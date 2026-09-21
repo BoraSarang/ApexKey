@@ -8,6 +8,8 @@ struct ShortcutStationView: View {
 
     @State private var creatingShortcut = false
     @State private var newShortcutName = ""
+    @State private var showingPresetPicker = false
+    @State private var selectedPresetTypes: Set<SystemActionType> = []
     @State private var recordingComboFor: ShortcutItem?
     @State private var runningShortcutID: UUID?
     @State private var pendingDeletion: ShortcutItem?
@@ -30,6 +32,14 @@ struct ShortcutStationView: View {
                         Label("ui.station.new_shortcut".localized, systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
+
+                    Button {
+                        showingPresetPicker = true
+                        selectedPresetTypes = []
+                    } label: {
+                        Label("ui.station.preset_add".localized, systemImage: "gearshape.2")
+                    }
+                    .buttonStyle(.bordered)
 
                     if store.shortcuts.isEmpty {
                         Text("ui.station.empty".localized)
@@ -71,6 +81,11 @@ struct ShortcutStationView: View {
             .padding(24)
             .frame(width: 360, alignment: .topLeading)
         }
+        // 시스템 프리셋 추가
+        .sheet(isPresented: $showingPresetPicker) {
+            presetPickerSheet
+                .environmentObject(store)
+        }
         // 단축키 녹음
         .sheet(item: $recordingComboFor) { shortcut in
             HotKeyRecorderView(
@@ -94,6 +109,99 @@ struct ShortcutStationView: View {
             }
             .environmentObject(store)
         }
+    }
+
+    // MARK: - 프리셋 추가
+
+    private var presetPickerSheet: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "gearshape.2")
+                    .frame(width: 32, height: 32)
+                    .font(.title3)
+                    .foregroundColor(theme.accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ui.station.preset_title".localized)
+                        .font(.headline)
+                    Text("ui.station.preset_intro".localized)
+                        .font(.caption)
+                        .foregroundColor(theme.secondaryText)
+                }
+                Spacer()
+            }
+            .padding(16)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(SystemActionType.allCases) { type in
+                        presetRow(type)
+                    }
+                }
+                .padding(16)
+            }
+
+            Divider()
+
+            HStack {
+                Text("ui.station.preset_selected".localizedFormat(selectedPresetTypes.count))
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                Spacer()
+                Button("ui.cancel".localized) {
+                    showingPresetPicker = false
+                    selectedPresetTypes = []
+                }
+                Button("ui.station.preset_confirm".localized) {
+                    confirmPresets()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedPresetTypes.isEmpty)
+            }
+            .padding(16)
+        }
+        .frame(width: 420, height: 560)
+        .background(theme.primaryBackground)
+    }
+
+    private func presetRow(_ type: SystemActionType) -> some View {
+        let isSelected = selectedPresetTypes.contains(type)
+        return Button {
+            if isSelected {
+                selectedPresetTypes.remove(type)
+            } else {
+                selectedPresetTypes.insert(type)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: type.systemImage)
+                    .frame(width: 24)
+                    .foregroundColor(theme.accentColor)
+                Text(type.displayName)
+                    .font(.body)
+                    .foregroundColor(theme.primaryText)
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? theme.accentColor : theme.secondaryText)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(theme.inputBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(theme.accentColor.opacity(isSelected ? 0.5 : 0), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func confirmPresets() {
+        guard !selectedPresetTypes.isEmpty else { return }
+        store.addPresetShortcuts(Array(selectedPresetTypes))
+        showingPresetPicker = false
+        selectedPresetTypes = []
     }
 
     private var header: some View {
