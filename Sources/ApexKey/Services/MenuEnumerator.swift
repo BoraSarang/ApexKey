@@ -9,15 +9,6 @@ final class MenuEnumerator {
     /// 시스템 전역 메뉴(모든 앱 공통) — 열거 제외 (E-MAC-UX-9005)
     static let excludedMenuBarTitles: Set<String> = ["Apple", "서비스", "Services"]
 
-    /// 시스템 전역 메뉴(모든 앱 공통) — 열거 제외 (E-MAC-UX-9005)
-    static let excludedMenuBarTitles: Set<String> = ["Apple", "서비스", "Services"]
-
-    /// 시스템 전역 메뉴(모든 앱 공통) — 열거 제외 (E-MAC-UX-9005)
-    static let excludedMenuBarTitles: Set<String> = ["Apple", "서비스", "Services"]
-
-    /// 시스템 전역 메뉴(모든 앱 공통) — 열거 제외 (E-MAC-UX-9005)
-    static let excludedMenuBarTitles: Set<String> = ["Apple", "서비스", "Services"]
-
     /// 실행 중인 앱의 번들ID로 메뉴를 열거
     /// - Returns: 루트 메뉴 항목 배열 (대략적인 메뉴바 항목)
     func enumerateMenuItems(bundleID: String) -> [MenuItem] {
@@ -177,51 +168,6 @@ final class MenuEnumerator {
         case .error(let message):
             return classifyOSAScriptError(message, item: item)
         }
-    }
-
-    /// osascript stderr를 원인별로 분류 (E-MAC-UX-9004)
-    private func classifyOSAScriptError(_ message: String, item: MenuItem) -> MenuActionResult {
-        if message.contains("-1743") {
-            Logger.error("E-MAC-MENU-3002", "메뉴 실행 권한 거부(AppleScript -1743): \(item.title)")
-            return .noPermission
-        }
-        if message.contains("-600") {
-            Logger.info("MenuEnumerator", "대상 앱 미실행(AppleScript -600): \(item.title)")
-            return .appNotRunning
-        }
-        Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패(AppleScript): \(item.title) — \(message)")
-        return .menuNotFound
-    }
-    }
-
-    /// osascript stderr를 원인별로 분류 (E-MAC-UX-9004)
-    private func classifyOSAScriptError(_ message: String, item: MenuItem) -> MenuActionResult {
-        if message.contains("-1743") {
-            Logger.error("E-MAC-MENU-3002", "메뉴 실행 권한 거부(AppleScript -1743): \(item.title)")
-            return .noPermission
-        }
-        if message.contains("-600") {
-            Logger.info("MenuEnumerator", "대상 앱 미실행(AppleScript -600): \(item.title)")
-            return .appNotRunning
-        }
-        Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패(AppleScript): \(item.title) — \(message)")
-        return .menuNotFound
-    }
-    }
-
-    /// osascript stderr를 원인별로 분류 (E-MAC-UX-9004)
-    private func classifyOSAScriptError(_ message: String, item: MenuItem) -> MenuActionResult {
-        if message.contains("-1743") {
-            Logger.error("E-MAC-MENU-3002", "메뉴 실행 권한 거부(AppleScript -1743): \(item.title)")
-            return .noPermission
-        }
-        if message.contains("-600") {
-            Logger.info("MenuEnumerator", "대상 앱 미실행(AppleScript -600): \(item.title)")
-            return .appNotRunning
-        }
-        Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패(AppleScript): \(item.title) — \(message)")
-        return .menuNotFound
-    }
     }
 
     /// osascript stderr를 원인별로 분류 (E-MAC-UX-9004)

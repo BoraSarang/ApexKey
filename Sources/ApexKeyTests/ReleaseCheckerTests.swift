@@ -51,8 +51,8 @@ final class ReleaseCheckerTests: XCTestCase {
         XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.0-alpha", current: "1.0.0-beta"))
         XCTAssertTrue(ReleaseChecker.isNewerStrict(latest: "v1.0.1", current: "1.0.0"))
         XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.0", current: "1.0.0"))
-        // 프리릴리스 + 빌드메타 혼합
-        XCTAssertTrue(ReleaseChecker.isNewerStrict(latest: "v1.0.1+build.2", current: "1.0.1+build.1"))
+        // 빌드메타는 우선순위 비교에 영향 없음 (SemVer §10)
+        XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.1+build.2", current: "1.0.1+build.1"))
         XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.1", current: "1.0.1"))
     }
 
