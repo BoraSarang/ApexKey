@@ -3,6 +3,13 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — 코덱·PATH 단일화 (PLAN_v0.13)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공. `json:` 포맷 불변.
+
+- **코덱** — `LaunchConfigCodec` 신설(`prefix`+decode/encode 단일 출처), `ActionExecutor` 코덱은 thin wrapper로 위임 (테스트 참조 유지)
+- **PATH** — `ShellEnvironment.fallbackSystemPaths` 상수 신설, export문·env 폴백 공유
+
 ## 2026-09-22 macos — UI 저장·실행통합 (PLAN_v0.12)
 
 > 테스트 151건 0실패(2 skip) · 빌드 성공.

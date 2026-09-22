@@ -169,7 +169,7 @@ final class ActionExecutor {
         var env = ProcessInfo.processInfo.environment
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let extra = ShellEnvironment.extraPaths(home: home)
-        env["PATH"] = "\(extra):\(env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")"
+        env["PATH"] = "\(extra):\(env["PATH"] ?? ShellEnvironment.fallbackSystemPaths)"
         task.environment = env
         let outPipe = Pipe()
         let errPipe = Pipe()
@@ -270,35 +270,14 @@ final class ActionExecutor {
         return AppSwitcher.toggle(bundleID: bundleID)
     }
 
-    /// LaunchConfig JSON 디코딩 (`json:` 접두사)
+    /// LaunchConfig JSON 디코딩 (`json:` 접두사) — LaunchConfigCodec 위임 (thin wrapper, 테스트 참조 유지)
     static func decodeLaunchConfig(from target: String) -> LaunchConfig? {
-        guard target.hasPrefix("json:") else { return nil }
-        let json = String(target.dropFirst("json:".count))
-        guard let data = json.data(using: .utf8) else {
-            Logger.error("E-MAC-APP-4003", "LaunchConfig UTF-8 변환 실패")
-            return nil
-        }
-        do {
-            return try JSONDecoder().decode(LaunchConfig.self, from: data)
-        } catch {
-            Logger.error("E-MAC-APP-4003", "LaunchConfig 디코딩 실패: \(error.localizedDescription)")
-            return nil
-        }
+        LaunchConfigCodec.decode(from: target)
     }
 
-    /// LaunchConfig → binding.target 인코딩
+    /// LaunchConfig → binding.target 인코딩 — LaunchConfigCodec 위임 (thin wrapper)
     static func encodeLaunchConfig(_ config: LaunchConfig) -> String {
-        do {
-            let data = try JSONEncoder().encode(config)
-            guard let json = String(data: data, encoding: .utf8) else {
-                Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 문자열 변환 실패 — bundleID 폴백")
-                return config.bundleID
-            }
-            return "json:" + json
-        } catch {
-            Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 실패: \(error.localizedDescription) — bundleID 폴백")
-            return config.bundleID
-        }
+        LaunchConfigCodec.encode(config)
     }
 
     // MARK: - 키 조합 보내기 (keyCombo)

@@ -215,6 +215,11 @@
 - [x] U-02: SystemScriptEditor 미저장 침묵 유실 (isDirty인데 닫으면 소실)
 - [x] U-03: execute(binding) 80줄 복제 (executeWithDetail와 전 분기 중복)
 
+## v0.13 — 코덱·PATH 단일화 (2026-09-22, PLAN_v0.13_codec-path)
+
+- [x] C-01: PATH 폴백 리터럴 2벌식 (ShellEnvironment 단일 출처 위반 잔재)
+- [x] C-02: LaunchConfig 코덱 분산 (ActionExecutor·Shortcut·StepSettingsView 3처)
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)
