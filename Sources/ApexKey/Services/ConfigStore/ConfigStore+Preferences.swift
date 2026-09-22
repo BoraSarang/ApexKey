@@ -32,6 +32,8 @@ extension ConfigStore {
         static let panelToggleHotkey = "pref.panelToggleHotkey"
         static let paletteHotkey = "pref.paletteHotkey"
         static let menuHUDHotkey = "pref.menuHUDHotkey"
+        static let updateFrequency = "pref.updateFrequency"
+        static let updateLastChecked = "pref.updateLastChecked"
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")

@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 별도 정보(About) 창
 struct AboutView: View {
+    @EnvironmentObject var store: ConfigStore
     @Environment(\.theme) private var theme
 
     private var version: String {
@@ -37,6 +38,44 @@ struct AboutView: View {
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
 
+            HStack(spacing: 8) {
+                if case .checking = store.updateState {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("update.checking".localized)
+                        .font(.caption)
+                        .foregroundColor(theme.secondaryText)
+                } else {
+                    Button("update.check".localized) {
+                        Task {
+                            // 새 버전이면 AppDelegate 공용 안내 창으로 자동 팝업
+                            let hasUpdate = await store.checkForUpdate()
+                            if hasUpdate {
+                                NotificationCenter.default.post(name: .showUpdateSheet, object: nil)
+                            }
+                        }
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    switch store.updateState {
+                    case let .updateAvailable(tag, _, _):
+                        Text("update.available".localizedFormat(tag))
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    case .upToDate:
+                        Text("update.up_to_date".localized)
+                            .font(.caption)
+                            .foregroundColor(theme.secondaryText)
+                    case let .unavailable(key):
+                        Text(key.localized)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    case .idle, .checking:
+                        EmptyView()
+                    }
+                }
+            }
+
             Divider()
                 .frame(width: 200)
 
@@ -48,7 +87,7 @@ struct AboutView: View {
                 .font(.caption2)
                 .foregroundStyle(theme.tertiaryText)
         }
-        .frame(width: 360, height: 320)
+        .frame(width: 360, height: 360)
         .padding()
         .background(theme.primaryBackground)
     }

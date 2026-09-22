@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var editorWindow: NSWindow?
     private var stepSettingsWindow: NSWindow?
     private var stepTestResultWindow: NSWindow?
+    private var updateWindow: NSWindow?
     // NSWindow.contentViewController는 strong(직접 참조 유지)이지만, NSHostingController가
     // 창 dealloc보다 먼저 해제되는 것을 막기 위해 슈퍼타입으로 안전하게 보관해 둔다.
     private var panelHosting: NSViewController?
@@ -28,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var editorHosting: NSViewController?
     private var stepSettingsHosting: NSViewController?
     private var stepTestResultHosting: NSViewController?
+    private var updateHosting: NSViewController?
     private var toastHosting: NSViewController?
     private var toastWindow: NSPanel?
     private var toastTimer: Timer?
@@ -70,6 +72,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.toggleMenuHUD()
             }
             .store(in: &cancellables)
+
+        // 업데이트 안내 창 요청 (정보 창·메뉴바에서 발신, AppDelegate가 창 소유)
+        NotificationCenter.default.publisher(for: .showUpdateSheet)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.showUpdateWindow()
+            }
+            .store(in: &cancellables)
+
+        // 앱 실행 시 자동 확인 (주기 due일 때만 조용히 조회, 자동 팝업 없음)
+        Task {
+            await store.maybeAutoCheckForUpdate()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -192,10 +207,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let openItem = Self.makeItem(title: "ui.open".localized, action: #selector(togglePanelAction(_:)), key: "o", target: self)
         let infoItem = Self.makeItem(title: "ui.info".localized, action: #selector(showAboutPanel(_:)), key: "", target: self)
         let settingsItem = Self.makeItem(title: "ui.main.settings".localized, action: #selector(showSettingsPanel(_:)), key: ",", target: self)
+        let updateItem = Self.makeItem(title: "menu.check_update".localized, action: #selector(checkForUpdateAction(_:)), key: "", target: self)
         let debugItem = Self.makeItem(title: "ui.menu.debug_log".localized, action: #selector(showDebugPanel(_:)), key: "", target: self)
         menu.addItem(openItem)
         menu.addItem(infoItem)
         menu.addItem(settingsItem)
+        menu.addItem(updateItem)
         menu.addItem(debugItem)
         menu.addItem(.separator())
         menu.addItem(Self.makeItem(title: "ui.quit".localized, action: #selector(terminateApp(_:)), key: "q", target: nil))
@@ -275,6 +292,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
             panel.makeKeyAndOrderFront(nil)
             panel.orderFrontRegardless()
+            // 패널 열 때 주기가 됐으면 조용히 확인 (자동 팝업 없음)
+            if let store {
+                Task {
+                    await store.maybeAutoCheckForUpdate()
+                }
+            }
         }
     }
 
@@ -320,7 +343,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         if aboutWindow == nil {
             let win = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 380, height: 320),
+                contentRect: NSRect(x: 0, y: 0, width: 380, height: 360),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
@@ -328,10 +351,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.title = "ui.window.about".localized
             win.styleMask.remove(.resizable)
             win.isReleasedWhenClosed = false
-            let hosting = NSHostingController(rootView: ThemedRoot { AboutView() })
+            let hosting = NSHostingController(rootView: ThemedRoot { AboutView() }.environmentObject(store))
             aboutHosting = hosting
             win.contentViewController = hosting
-            win.setContentSize(NSSize(width: 380, height: 320))
+            win.setContentSize(NSSize(width: 380, height: 360))
             win.delegate = self
             aboutWindow = win
         }
@@ -545,6 +568,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 디버그 로그 창 열기 (토스트 탭·메뉴 공용)
     func openDebugLog() {
         showDebugPanel(nil)
+    }
+
+    // MARK: - 업데이트 확인·안내 창
+
+    /// 메뉴바 "업데이트 확인…" — 이미 알림 상태면 창만 열고,
+    /// 아니면 조회 후 새 버전일 때 자동 팝업.
+    @objc private func checkForUpdateAction(_ sender: Any?) {
+        guard let store else { return }
+        if store.availableUpdate != nil {
+            showUpdateWindow()
+            return
+        }
+        Task { [weak self] in
+            let hasUpdate = await store.checkForUpdate()
+            if hasUpdate {
+                self?.showUpdateWindow()
+            }
+        }
+    }
+
+    /// 설정 밖에서 여는 업데이트 안내 창 — AppDelegate가 수명주기 소유.
+    /// 설정 경로(.sheet)와 공유하되, dismiss 대신 onClose로 윈도우를 직접 닫는다.
+    func showUpdateWindow() {
+        guard let store, let release = store.availableUpdate else { return }
+        Logger.info("AppDelegate", "[UPDATE] 업데이트 안내 창: \(release.tagName)")
+        NSApp.activate(ignoringOtherApps: true)
+        if updateWindow == nil {
+            let win = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 480, height: 520),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            win.title = "update.section".localized
+            win.isReleasedWhenClosed = false
+            win.delegate = self
+            updateWindow = win
+        }
+        guard let win = updateWindow else { return }
+        let hosting = NSHostingController(rootView:
+            ThemedRoot {
+                UpdateAvailableSheet(
+                    release: release,
+                    currentVersion: ReleaseChecker.currentVersion,
+                    onClose: { [weak self] in self?.updateWindow?.close() }
+                )
+            }.environmentObject(store)
+        )
+        updateHosting = hosting
+        win.contentViewController = hosting
+        win.setContentSize(NSSize(width: 480, height: 520))
+        win.level = store.alwaysOnTop ? .floating : .normal
+        win.center()
+        win.contentView?.layoutSubtreeIfNeeded()
+        win.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - URL Scheme 처리

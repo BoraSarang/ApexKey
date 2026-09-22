@@ -170,4 +170,5 @@ extension Notification.Name {
     static let openSettings = Notification.Name("ApexKey.openSettings")
     static let togglePanel = Notification.Name("ApexKey.togglePanel")
     static let toggleMenuHUD = Notification.Name("ApexKey.toggleMenuHUD")
+    static let showUpdateSheet = Notification.Name("ApexKey.showUpdateSheet")
 }

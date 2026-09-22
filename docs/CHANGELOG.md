@@ -3,6 +3,21 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — GitHub Releases 기반 업데이트 확인 (PLAN_v0.9)
+
+> 유료 Developer 계정 없이 쓰는 릴리스 페이지 이동 방식 (macos-app-update 가이드 이식).
+> 인앱 자동 설치 없음 · DMG 단일 산출물 · 기본 주기 weekly.
+> 테스트 151건 0실패(2 skip) · 빌드 성공 · 현지화 가드 통과 · 실기 재실행 검증.
+
+- **조회** — `ReleaseChecker` 신규 (`releases/latest` + `body` 디코딩, 404=릴리스 0개 별도 구분, User-Agent 번들 버전)
+- **상태** — `ConfigStore+Update` (`UpdateState` 5종 + 주기 4종 기본 weekly + `updateCheckedAt` UserDefaults 영속, 수동 확인 시 자동 팝업용 Bool 반환)
+- **UI** — `ReleaseNotesView`(줄 단위 블록 + 인라인만 해석, View `.font()` 금지) + `UpdateAvailableSheet`(버전·노트·DMG 안내·다운로드=릴리스 페이지 이동, `onClose` 공용)
+- **진입점 3곳** — 설정 섹션(상태+주기+확인+시트) · 정보 창(확인 버튼+상태) · 메뉴바 우클릭(확인 항목+AppDelegate 공용 윈도우), 실행·패널열기 자동확인(조용히)
+- **현지화** — 신규 키 19건 (`update.*` 18 · `menu.check_update`), ko/en 각 778→797키
+- **릴리스 파이프라인** — 태그 `v*.*.*` 조이기 + 태그-번들 일치 검증 + ZIP 제거(DMG 단일) + `release-notes/<tag>.md` 지원
+- **테스트** — `ReleaseCheckerTests` 12건 (버전 비교·디코딩·주기 기본값)
+- **주의** — 다음 릴리스부터 태그-번들 검증 강제. 현재 번들 1.0 vs 최신 태그 v1.2.0이므로 다음 릴리스 전 Info.plist 범프 필요
+
 ## 2026-09-22 macos — 시스템 탭 → 프리셋 통합 + 워크플로우/자동화 (PLAN_v0.8)
 
 > 시스템 동작 9종이 결국 1단계 워크플로우의 고정판임을 정리. 탭을 제거하고 프리셋으로 통합.
