@@ -244,6 +244,18 @@
 - [x] A-06: FSEvent 복합 flags 전 타입 산출·교집합 발동
 - [x] A-07: 핫키 프로브 일회성 signature + beginTest 선행 endTest + 죽은 코드 제거
 
+## v0.18 — UI/UX P1 수정 (2026-09-22, PLAN_v0.18_uiux-p1)
+
+- [x] U-01: alwaysOnTop init 강제 리셋 → 저장값 복원 (E-MAC-UX-9001)
+- [x] U-02: 한글·비ASCII 변수명 regex → `[^{}:]+` 3곳 (VariableResolver/UseModelExecutor/AIModels) (E-MAC-UX-9002)
+- [x] U-03: StopShortcut actionParameters decode → outputVariable 반영 + 편집기 encode (E-MAC-UX-9003)
+- [x] U-04: osascript stderr 분류 — -1743 권한/-600 앱미실행/메뉴없음 (E-MAC-UX-9004)
+- [x] U-05: 하드코딩 Apple/서비스 → excludedMenuBarTitles 상수 (E-MAC-UX-9005)
+- [x] U-06: 빈 메뉴바 조회 실패 warn 승격 (E-MAC-MENU-7006)
+- [x] U-07: ReleaseChecker 403/429 rateLimited + isNewerStrict 프리릴리스 비교 (E-MAC-UX-9007)
+- [x] U-08: AppleLanguages → LanguageManager.setLanguage 단일 출처 (E-MAC-UX-9008)
+- [x] U-09: ThemeManager 하드코드 pref 키 → PrefKeys 상수 (E-MAC-UX-9009)
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 845줄)

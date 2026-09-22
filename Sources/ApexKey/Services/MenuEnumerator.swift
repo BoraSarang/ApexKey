@@ -6,6 +6,9 @@ import AppKit
 final class MenuEnumerator {
     static let shared = MenuEnumerator()
 
+    /// 시스템 전역 메뉴(모든 앱 공통) — 열거 제외 (E-MAC-UX-9005)
+    static let excludedMenuBarTitles: Set<String> = ["Apple", "서비스", "Services"]
+
     /// 실행 중인 앱의 번들ID로 메뉴를 열거
     /// - Returns: 루트 메뉴 항목 배열 (대략적인 메뉴바 항목)
     func enumerateMenuItems(bundleID: String) -> [MenuItem] {
@@ -31,7 +34,8 @@ final class MenuEnumerator {
         var menubarValue: CFTypeRef?
         let status = AXUIElementCopyAttributeValue(axApp, kAXMenuBarAttribute as CFString, &menubarValue)
         guard status == .success, let menubar = menubarValue else {
-            Logger.info("MenuEnumerator", "메뉴바 없음 (pid=\(pid), status=\(status.rawValue))")
+            // 메뉴바 조회 실패 — 0건 성공과 구분하여 warn 승격 (E-MAC-MENU-7006)
+            Logger.error("E-MAC-MENU-7006", "메뉴바 없음 (pid=\(pid), status=\(status.rawValue))")
             return []
         }
         // CFTypeRef → AXUIElement 확인은 타입ID 비교가 정석 (R-04)
@@ -162,9 +166,22 @@ final class MenuEnumerator {
             Logger.info("MenuEnumerator", "메뉴 실행: \(path.joined(separator: " > "))")
             return .success
         case .error(let message):
-            Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패(AppleScript): \(item.title) — \(message)")
-            return .menuNotFound
+            return classifyOSAScriptError(message, item: item)
         }
+    }
+
+    /// osascript stderr를 원인별로 분류 (E-MAC-UX-9004)
+    private func classifyOSAScriptError(_ message: String, item: MenuItem) -> MenuActionResult {
+        if message.contains("-1743") {
+            Logger.error("E-MAC-MENU-3002", "메뉴 실행 권한 거부(AppleScript -1743): \(item.title)")
+            return .noPermission
+        }
+        if message.contains("-600") {
+            Logger.info("MenuEnumerator", "대상 앱 미실행(AppleScript -600): \(item.title)")
+            return .appNotRunning
+        }
+        Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패(AppleScript): \(item.title) — \(message)")
+        return .menuNotFound
     }
 
     /// AppleScript 문자열 리터럴로 안전하게 감싼다 (따옴표·백슬래시 이스케이프)
@@ -208,8 +225,8 @@ final class MenuEnumerator {
     private func menus(in menubar: AXUIElement) -> [MenuItem] {
         var result: [MenuItem] = []
         for menu in children(of: menubar) {
-            // 시스템 전역 Apple( ) 메뉴(이 Mac/시스템 설정/재시동/로그아웃 등)는 모든 앱 동일하므로 제외
-            if elementTitle(of: menu) == "Apple" { continue }
+            // 시스템 전역 메뉴 제외 (Apple/서비스/Services — E-MAC-UX-9005)
+            if Self.excludedMenuBarTitles.contains(elementTitle(of: menu)) { continue }
             result.append(contentsOf: menuItems(from: menu, parentPath: []))
         }
         return result
@@ -232,10 +249,9 @@ final class MenuEnumerator {
         // 자식 재귀 — 빈 AXMenu 컨테이너도 그 안의 실질 항목까지 내려가 flatten
         var childItems: [MenuItem] = []
         for sub in children(of: element) {
-            // 시스템 주입 Services 메뉴(제목 "서비스"/"Services")는 모든 앱 공통이고
-            // 단축키 실행에 무의미하므로 통째로 제외한다.
+            // 시스템 주입 Services 메뉴 제외 (E-MAC-UX-9005)
             let childTitle = elementTitle(of: sub)
-            if childTitle == "서비스" || childTitle == "Services" { continue }
+            if Self.excludedMenuBarTitles.contains(childTitle) { continue }
             childItems.append(contentsOf: menuItems(from: sub, parentPath: ownPath, depth: depth + 1))
         }
 

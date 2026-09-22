@@ -3,6 +3,20 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — UI/UX P1 수정 (PLAN_v0.18)
+
+> 테스트·빌드 게이트 통과 후 기록.
+
+- **E-MAC-UX-9001** — `alwaysOnTop` init가 매 실행 강제 리셋 → 저장값 복원
+- **E-MAC-UX-9002** — 한글·비ASCII 변수명 regex 미매칭 → `\{([^{}:]+)\}` 3곳 통일 (VariableResolver/UseModelExecutor/AIModels)
+- **E-MAC-UX-9003** — Stop Shortcut 출력 변수 미반영 → `actionParameters`에서 `StopShortcutAction` decode 후 `outputVariable` 기록 + 편집기 encode 경로
+- **E-MAC-UX-9004** — osascript stderr 원인 불분류 → -1743 권한거부 / -600 앱미실행 / 그 외 메뉴없음 분류
+- **E-MAC-UX-9005** — `"Apple"`/`"서비스"` 하드코딩 2곳 → `MenuEnumerator.excludedMenuBarTitles` 상수 집합
+- **E-MAC-MENU-7006** — 메뉴바 조회 실패 info → error(warn) 승격
+- **E-MAC-UX-9007** — GitHub 403/429 → `rateLimited` 케이스 + `isNewerStrict` SemVer 프리릴리스 비교 (`isNewer` 행위 불변)
+- **E-MAC-UX-9008** — `ConfigStore.appLanguage`가 직접 `AppleLanguages` 쓰기 → `LanguageManager.setLanguage` 단일 출처
+- **E-MAC-UX-9009** — ThemeManager 하드코드 pref 키 8곳 → `ConfigStore.PrefKeys` 상수 (rawValue 동일, 마이그레이션 불필요)
+
 ## 2026-09-22 macos — 자동화·핫키 P0/P1 (PLAN_v0.17)
 
 > 테스트·빌드 게이트 통과 후 기록.

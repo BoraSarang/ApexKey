@@ -378,7 +378,14 @@ final class ExecutionEngine {
     // MARK: - Stop Shortcut
     
     private func executeStopShortcut(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
-        // StopShortcutAction 설정은 actionParameters에 인코딩됨 (현재는 단순 중지)
+        // StopShortcutAction을 actionParameters에서 디코딩해 outputVariable에 기록 (E-MAC-UX-9003)
+        if let data = step.actionParameters,
+           let action = try? JSONDecoder().decode(StopShortcutAction.self, from: data),
+           let outputVariable = action.outputVariable {
+            let value = action.outputValue ?? context.lastOutput ?? .null
+            context.variables[outputVariable] = value
+            Logger.info("ExecutionEngine", "단축어 중지 → 출력 변수 기록")
+        }
         Logger.info("ExecutionEngine", "단축어 중지")
         return Result(success: true, controlFlow: .ended)
     }

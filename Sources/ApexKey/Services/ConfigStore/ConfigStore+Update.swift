@@ -95,7 +95,7 @@ extension ConfigStore {
             switch error {
             case .noPublishedRelease:
                 updateState = .unavailable("update.none_published")
-            case .fetchFailed, .invalidResponse, .decodeFailed:
+            case .fetchFailed, .invalidResponse, .decodeFailed, .rateLimited:
                 updateState = .unavailable("update.fetch_failed")
             }
             Logger.error("E-MAC-UPDATE-8004", "업데이트 확인 실패: \(error)")

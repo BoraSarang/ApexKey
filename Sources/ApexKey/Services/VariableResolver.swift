@@ -115,7 +115,8 @@ struct VariableResolver {
         }
         
         // 특수 변수 토큰 치환: {clipboard}, {currentDate}, ...
-        let specialPattern = #"\{([a-zA-Z]+)\}"#
+            // 비ASCII(한글 등) 변수명 포함 · `name:UUID` 인용 문법 유지 [E-MAC-UX-9002]
+            let specialPattern = #"\{([^{}:]+)\}"#
         if let regex = try? NSRegularExpression(pattern: specialPattern) {
             let range = NSRange(location: 0, length: resolved.utf16.count)
             let matches = regex.matches(in: resolved, range: range).reversed()

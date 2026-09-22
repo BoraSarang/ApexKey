@@ -405,6 +405,13 @@ struct ShortcutEditorView: View {
             var step = ShortcutStep(type: .comment, target: "", title: "ui.editor.step_comment".localized)
             step.note = ""
             return step
+        case .stopShortcut:
+            var step = ShortcutStep(type: .stopShortcut, target: "", title: "action.stopShortcut".localized)
+            // 출력 변수 선택 가능하도록 actionParameters에 인코딩 (E-MAC-UX-9003)
+            let action = StopShortcutAction(outputVariable: nil)
+            step.actionParameters = try? JSONEncoder().encode(action)
+            step.outputVariables = nil
+            return step
         default:
             return ShortcutStep(type: type, target: "", title: type.displayName)
         }

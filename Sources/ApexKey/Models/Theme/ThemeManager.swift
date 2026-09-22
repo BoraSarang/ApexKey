@@ -41,7 +41,8 @@ public class ThemeManager: ObservableObject {
         Self.fontScale = clamped
 
         if persist {
-            UserDefaults.standard.set(clamped, forKey: "ApexKeyFontScale")
+            // PrefKeys 상수 — rawValue 동일 (E-MAC-UX-9009)
+            UserDefaults.standard.set(clamped, forKey: ConfigStore.PrefKeys.fontScale)
         }
 
         if let custom = activeCustomTheme {
@@ -55,11 +56,11 @@ public class ThemeManager: ObservableObject {
     }
 
     private init() {
-        let savedScale = UserDefaults.standard.double(forKey: "ApexKeyFontScale")
+        let savedScale = UserDefaults.standard.double(forKey: ConfigStore.PrefKeys.fontScale)
         Self.fontScale = savedScale > 0 ? savedScale : 1.0
 
-        let savedThemeId = UserDefaults.standard.string(forKey: "ApexKeyActiveThemeId")
-        let savedMode = UserDefaults.standard.string(forKey: "ApexKeyAppearanceMode") ?? "system"
+        let savedThemeId = UserDefaults.standard.string(forKey: ConfigStore.PrefKeys.activeThemeId)
+        let savedMode = UserDefaults.standard.string(forKey: ConfigStore.PrefKeys.appearanceMode) ?? "system"
         let appearanceMode = AppearanceMode(rawValue: savedMode) ?? .system
 
         if let themeId = savedThemeId, let uuid = UUID(uuidString: themeId),
@@ -124,11 +125,11 @@ public class ThemeManager: ObservableObject {
         appearanceMode = mode
 
         if persist {
-            UserDefaults.standard.set(mode.rawValue, forKey: "ApexKeyAppearanceMode")
+            UserDefaults.standard.set(mode.rawValue, forKey: ConfigStore.PrefKeys.appearanceMode)
         }
         if clearActiveTheme {
             activeCustomTheme = nil
-            UserDefaults.standard.removeObject(forKey: "ApexKeyActiveThemeId")
+            UserDefaults.standard.removeObject(forKey: ConfigStore.PrefKeys.activeThemeId)
         }
 
         guard activeCustomTheme == nil else { return }
@@ -140,7 +141,7 @@ public class ThemeManager: ObservableObject {
     public func applyCustomTheme(_ theme: CustomTheme, persist: Bool = true, animated: Bool = true) {
         activeCustomTheme = theme
         if persist {
-            UserDefaults.standard.set(theme.metadata.id.uuidString, forKey: "ApexKeyActiveThemeId")
+            UserDefaults.standard.set(theme.metadata.id.uuidString, forKey: ConfigStore.PrefKeys.activeThemeId)
         }
 
         let themeInstance = CustomizableTheme(config: theme)
@@ -159,7 +160,7 @@ public class ThemeManager: ObservableObject {
     func clearCustomTheme(persist: Bool = true, animated: Bool = true) {
         activeCustomTheme = nil
         if persist {
-            UserDefaults.standard.removeObject(forKey: "ApexKeyActiveThemeId")
+            UserDefaults.standard.removeObject(forKey: ConfigStore.PrefKeys.activeThemeId)
         }
 
         applyResolvedTheme(for: appearanceMode, animated: animated)

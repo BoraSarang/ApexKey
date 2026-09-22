@@ -64,13 +64,13 @@ final class ConfigStore: ObservableObject {
     @Published var appLanguage: String? = nil {
         didSet {
             if let code = appLanguage, !code.isEmpty {
-                UserDefaults.standard.set([code], forKey: "AppleLanguages")
+                // AppleLanguages 단일 출처는 LanguageManager (E-MAC-UX-9008)
+                LanguageManager.shared.setLanguage(code)
                 UserDefaults.standard.set(code, forKey: PrefKeys.appLanguage)
             } else {
-                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+                LanguageManager.shared.setLanguage(nil)
                 UserDefaults.standard.removeObject(forKey: PrefKeys.appLanguage)
             }
-            UserDefaults.standard.synchronize()
             Logger.info("ConfigStore", "앱 언어 설정 변경: \(appLanguage ?? "시스템") — 재시작 필요")
         }
     }
@@ -109,9 +109,8 @@ final class ConfigStore: ObservableObject {
         if !defaults.bool(forKey: PrefKeys.showInDock), defaults.object(forKey: PrefKeys.showInDock) == nil {
             defaults.set(false, forKey: PrefKeys.showInDock)
         }
-        // 항상 위에: 기본 Off로 초기화 (기존 저장값 무시 → 강제 리셋)
-        defaults.removeObject(forKey: PrefKeys.alwaysOnTop)
-        self.alwaysOnTop = false
+        // 항상 위에: 저장값 복원 (강제 리셋 제거 — E-MAC-UX-9001)
+        self.alwaysOnTop = defaults.bool(forKey: PrefKeys.alwaysOnTop)
         self.showInMenuBar = defaults.bool(forKey: PrefKeys.showInMenuBar)
         self.showInDock = defaults.bool(forKey: PrefKeys.showInDock)
         // 이전 표시 문자열("전체 화면 (KeyCue)" 등) → 새 식별자 마이그레이션
