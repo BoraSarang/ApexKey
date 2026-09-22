@@ -35,6 +35,10 @@ branches: feat/macos-p0-critical-fixes
 1. `f011357` fix(ci): 워크플로우 run 블록에 pipefail 추가
 2. `8ea19af` refactor(macos): CustomTheme.swift 1600줄 8파일 분할
 3. `b7dcf50` refactor(macos): AppDelegate.swift 950줄 extension 7파일 분할
+4. `e830581` docs(macos): v0.20 TODO/CHANGELOG/PLAN 동기화
+5. `88e4167` fix(macos): androidMirrorScriptPath 이식 가능한 경로 폴백 + 번들 시드 (CI E-MAC-SYS-8005)
+
+> PR [#6](https://github.com/BoraSarang/ApexKey/pull/6) — Build & Test SUCCESS
 
 ## 비대상
 
