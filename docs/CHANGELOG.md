@@ -3,6 +3,17 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — P0 크리티컬 5건 수정 (PLAN_v0.10)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공 · 현지화 가드 통과.
+> F-05 전체 비동기화는 @MainActor·동기 API 변경이 필요해 경고 로그 + 후속 과제로 분리.
+
+- **교착** — `AutomationManager.unregister`가 락 보유 채 `rebuildWatchers` 호출 → 락 해제 후 재구축으로 수정
+- **크래시** — 반복 count 0·음수 시 `1...count` 트랩 → `E-MAC-FLOW-7008` + 실패 반환 가드
+- **크래시** — AppDetail URL Scheme `!` 강제 언랩 2곳 → `guard` + `E-MAC-APP-4003` 처리
+- **현지화** — `ui.app_detail.select_system` 중복 정의 제거 (ko/en 796종 확정, 시스템 프리셋 문구 유지)
+- **블로킹** — `performAction` 메인 스레드 경고 로그 추가 (runWait `E-MAC-ACT-3006` 패턴과 동일)
+
 ## 2026-09-22 macos — GitHub Releases 기반 업데이트 확인 (PLAN_v0.9)
 
 > 유료 Developer 계정 없이 쓰는 릴리스 페이지 이동 방식 (macos-app-update 가이드 이식).

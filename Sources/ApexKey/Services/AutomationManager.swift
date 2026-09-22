@@ -41,8 +41,8 @@ final class AutomationManager {
     /// 단축어의 모든 트리거 해제
     func unregister(shortcutID: UUID) {
         lock.lock()
-        defer { lock.unlock() }
         registrations.removeAll { $0.shortcutID == shortcutID }
+        lock.unlock()
         rebuildWatchers()
     }
     

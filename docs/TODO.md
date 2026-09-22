@@ -194,6 +194,14 @@
 - [x] U-06: release.yml (v*.*.*·버전검증·DMG 단일·release-notes)
 - [x] U-07: ReleaseCheckerTests 12건 + 실기 재실행 검증
 
+## v0.10 — P0 크리티컬 수정 (2026-09-22, PLAN_v0.10_p0-fixes)
+
+- [x] F-01: AutomationManager NSLock 교착 (unregister 락 해제 후 rebuild)
+- [x] F-02: 반복 count 0·음수 크래시 가드 (1...count 트랩 방지)
+- [x] F-03: AppDetail URL Scheme 강제 언랩 2곳 제거
+- [x] F-04: Localizable 중복키 `ui.app_detail.select_system` 제거 (ko/en)
+- [x] F-05: 메뉴 실행 메인 블로킹 경고 로그 (performAction 메인 경고, 전체 비동기화는 후속 과제)
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)

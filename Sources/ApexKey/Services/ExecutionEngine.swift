@@ -191,6 +191,10 @@ final class ExecutionEngine {
         
         // whileLoop/count 미설정 시 기본 1회 (기존 0회 조용한 실패 방지)
         let count = loop.count ?? 1
+        guard count > 0 else {
+            Logger.error("E-MAC-FLOW-7008", "반복 횟수 0 이하 — 실행 생략 (count=\(loop.count ?? 0))")
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+        }
         Logger.info("ExecutionEngine", "반복 시작: \(count)회 (\(loop.mode.rawValue))")
         
         let previousRepeatIndex = context.repeatIndex

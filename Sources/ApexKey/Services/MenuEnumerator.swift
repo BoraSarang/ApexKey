@@ -132,6 +132,10 @@ final class MenuEnumerator {
         Logger.info("MenuEnumerator", "메뉴 실행 경로: \(path.joined(separator: " > "))")
 
         // 대상 앱을 전면으로 활성화 후 메뉴바가 준비될 시간 대기 (System Events도 전면 앱 접근이 안정적)
+        // 호출 스레드에서 동기 대기 — 핫키 경로가 메인이라 경고 남김 (runWait E-MAC-ACT-3006과 동일 패턴)
+        if Thread.isMainThread {
+            Logger.error("E-MAC-MENU-3002", "메인 스레드 동기 메뉴 실행 — UI가 0.15초 멈춤 (호출부 백그라운드화는 후속 과제)")
+        }
         AppSwitcher.activate(bundleID: bundleID)
         Thread.sleep(forTimeInterval: 0.15)
 
