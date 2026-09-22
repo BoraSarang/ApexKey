@@ -1,10 +1,10 @@
 name: Release
 
-# 커밋된 태그(vX.Y.Z)를 누르면 macOS Release 빌드 + GitHub Release 생성
+# 커밋된 태그(vX.Y.Z)를 누르면 macOS Release 빌드 + GitHub Release 생성 (DMG 단일)
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -32,6 +32,16 @@ jobs:
 
       - name: 프로젝트 생성
         run: xcodegen generate --spec project.yml
+
+      - name: 태그-번들 버전 일치 검증
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          EXPECTED="${TAG#v}"
+          ACTUAL="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Sources/ApexKey/Info.plist)"
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "버전 불일치: 태그=${EXPECTED} 번들=${ACTUAL} — Info.plist를 먼저 범프하세요"
+            exit 1
+          fi
 
       - name: Release 빌드 (서명 없음 — CI)
         run: |
@@ -69,12 +79,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" \
             "${ARCHIVE_DIR}/${APP_NAME}.app/Contents/Info.plist" 2>/dev/null || true
 
-      - name: ZIP 패키징
-        run: |
-          cd "${ARCHIVE_DIR}"
-          ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}-${RELEASE_VERSION}-macOS.zip"
-
-      - name: DMG 생성 (create-dmg)
+      - name: DMG 생성 (create-dmg, 단일 산출물)
         run: |
           brew install create-dmg || true
           create-dmg \
@@ -86,8 +91,7 @@ jobs:
             --hide-extension "${APP_NAME}.app" \
             --app-drop-link 425 190 \
             "${ARCHIVE_DIR}/${APP_NAME}-${RELEASE_VERSION}-macOS.dmg" \
-            "${ARCHIVE_DIR}/${APP_NAME}.app" || \
-            echo "WARN: DMG 생성 실패 (ZIP만 릴리즈에 포함됨)"
+            "${ARCHIVE_DIR}/${APP_NAME}.app"
 
       - name: 노타라이즈 (선택 — 시크릿 설정 시)
         if: env.NOTARIZE == 'true'
@@ -109,10 +113,17 @@ jobs:
             xcrun stapler staple "${APP_PATH}" || true
           fi
 
-      - name: GitHub Release 생성 및 업로드
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            ${{ env.ARCHIVE_DIR }}/${{ env.APP_NAME }}-${{ env.RELEASE_VERSION }}-macOS.zip
-            ${{ env.ARCHIVE_DIR }}/${{ env.APP_NAME }}-${{ env.RELEASE_VERSION }}-macOS.dmg
-          generate_release_notes: true
+      - name: GitHub Release 생성 및 업로드 (DMG 단일)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # release-notes/<tag>.md가 있으면 그것을 본문으로, 없으면 자동 생성
+          TAG="${GITHUB_REF_NAME}"
+          DMG="${ARCHIVE_DIR}/${APP_NAME}-${RELEASE_VERSION}-macOS.dmg"
+          if [ -f "release-notes/${TAG}.md" ]; then
+            gh release create "${TAG}" --title "ApexKey ${TAG}" \
+              --notes-file "release-notes/${TAG}.md" "${DMG}"
+          else
+            gh release create "${TAG}" --title "ApexKey ${TAG}" \
+              --generate-notes "${DMG}"
+          fi

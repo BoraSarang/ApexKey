@@ -184,6 +184,16 @@
 - [x] S-07: 자동화 탭 신규 — `ToolSelection.automation`, SidebarView 행(트리거 수 배지), `AutomationBrowserView`(워크플로우 카드 + 트리거 목록 + 새 자동화 워크플로우 선택)
 - [x] S-08: 검증 — 테스트 139건 0실패(2 skip) + 빌드 성공 + 현지화 가드 통과
 
+## v0.9 — 업데이트 확인 (2026-09-22)
+
+- [x] U-01: ReleaseChecker 신규 (조회+버전비교+404 구분)
+- [x] U-02: ConfigStore+Update (상태·주기 weekly·확인시각 영속)
+- [x] U-03: ReleaseNotesView + UpdateAvailableSheet (DMG 단일 안내)
+- [x] U-04: 3 진입점 (설정·정보·메뉴바) + 수동 확인 자동 팝업
+- [x] U-05: 현지화 update.* 19키 (ko/en 778→797)
+- [x] U-06: release.yml (v*.*.*·버전검증·DMG 단일·release-notes)
+- [x] U-07: ReleaseCheckerTests 12건 + 실기 재실행 검증
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)

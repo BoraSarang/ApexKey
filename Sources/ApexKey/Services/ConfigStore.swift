@@ -45,6 +45,22 @@ final class ConfigStore: ObservableObject {
     @Published var showSuccessToast: Bool = true {
         didSet { UserDefaults.standard.set(showSuccessToast, forKey: PrefKeys.showSuccessToast) }
     }
+    @Published var updateState: UpdateState = .idle
+    @Published var updateCheckFrequency: UpdateCheckFrequency = .weekly {
+        didSet { UserDefaults.standard.set(updateCheckFrequency.rawValue, forKey: PrefKeys.updateFrequency) }
+    }
+    /// 마지막 업데이트 확인 시각 (UserDefaults 영속 — 재실행해도 주기 유지)
+    @Published var updateCheckedAt: Date? {
+        didSet {
+            if let date = updateCheckedAt {
+                UserDefaults.standard.set(date.timeIntervalSince1970, forKey: PrefKeys.updateLastChecked)
+            } else {
+                UserDefaults.standard.removeObject(forKey: PrefKeys.updateLastChecked)
+            }
+        }
+    }
+    /// 앱 실행 시점 — atLaunch 주기 판정용 ("이번 실행에서 아직 확인 안 했으면")
+    let launchDate = Date()
     @Published var appLanguage: String? = nil {
         didSet {
             if let code = appLanguage, !code.isEmpty {
@@ -110,6 +126,15 @@ final class ConfigStore: ObservableObject {
         self.showNoShortcutItems = defaults.object(forKey: PrefKeys.showNoShortcutItems) == nil ? true : defaults.bool(forKey: PrefKeys.showNoShortcutItems)
         self.showSuccessToast = defaults.object(forKey: PrefKeys.showSuccessToast) == nil ? true : defaults.bool(forKey: PrefKeys.showSuccessToast)
         self.showSystemApps = defaults.object(forKey: PrefKeys.showSystemApps) == nil ? true : defaults.bool(forKey: PrefKeys.showSystemApps)
+        // 업데이트 확인 주기·마지막 확인 시각 로드 (기본 weekly)
+        if let raw = defaults.string(forKey: PrefKeys.updateFrequency),
+           let frequency = UpdateCheckFrequency(rawValue: raw) {
+            self.updateCheckFrequency = frequency
+        }
+        let lastChecked = defaults.double(forKey: PrefKeys.updateLastChecked)
+        if lastChecked > 0 {
+            self.updateCheckedAt = Date(timeIntervalSince1970: lastChecked)
+        }
         // 앱 언어 설정 로드 (nil = 시스템)
         if let savedLang = defaults.string(forKey: PrefKeys.appLanguage), !savedLang.isEmpty {
             self.appLanguage = savedLang

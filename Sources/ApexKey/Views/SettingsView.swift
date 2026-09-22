@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var recordingHUDHotkey = false
     @State private var recordingPaletteHotkey = false
     @State private var showRestartBanner = false
+    @State private var showUpdateSheet = false
 
     var body: some View {
         Form {
@@ -32,6 +33,41 @@ struct SettingsView: View {
                     }
                 Toggle("settings.show_hidden_apps".localized, isOn: $store.showHiddenApps)
                 Toggle("settings.show_system_apps".localized, isOn: $store.showSystemApps)
+            }
+
+            Section("update.section".localized) {
+                HStack {
+                    updateStatusText
+                    Spacer()
+                    if case .checking = store.updateState {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button("update.check".localized) {
+                            Task {
+                                // 수동 확인에서 새 버전이면 시트 자동 팝업
+                                let hasUpdate = await store.checkForUpdate()
+                                if hasUpdate {
+                                    showUpdateSheet = true
+                                }
+                            }
+                        }
+                    }
+                }
+                Picker("update.frequency".localized, selection: Binding(
+                    get: { store.updateCheckFrequency },
+                    set: { store.updateCheckFrequency = $0 }
+                )) {
+                    ForEach(ConfigStore.UpdateCheckFrequency.allCases) { frequency in
+                        Text(frequency.displayName).tag(frequency)
+                    }
+                }
+                .pickerStyle(.menu)
+                if let checkedAt = store.updateCheckedAt {
+                    Text("update.last_checked".localizedFormat(checkedAt.formatted(date: .abbreviated, time: .shortened)))
+                        .font(.caption)
+                        .foregroundColor(theme.secondaryText)
+                }
             }
 
             Section("settings.toast".localized) {
@@ -209,6 +245,34 @@ struct SettingsView: View {
             Button("ui.settings.ok".localized, role: .cancel) {}
         } message: {
             Text("alert.menubar_cannot_disable.message".localized)
+        }
+        .sheet(isPresented: $showUpdateSheet) {
+            if let release = store.availableUpdate {
+                UpdateAvailableSheet(
+                    release: release,
+                    currentVersion: ReleaseChecker.currentVersion
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatusText: some View {
+        switch store.updateState {
+        case .idle:
+            Text("update.check".localized)
+                .foregroundColor(theme.secondaryText)
+        case .checking:
+            Text("update.checking".localized)
+                .foregroundColor(theme.secondaryText)
+        case .upToDate:
+            Text("update.up_to_date".localized)
+        case let .updateAvailable(tag, _, _):
+            Text("update.available".localizedFormat(tag))
+                .foregroundColor(.orange)
+        case let .unavailable(key):
+            Text(key.localized)
+                .foregroundColor(.red)
         }
     }
 
