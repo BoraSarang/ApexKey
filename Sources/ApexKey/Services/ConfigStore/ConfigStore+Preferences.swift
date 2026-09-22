@@ -20,6 +20,10 @@ extension ConfigStore {
 
     enum PrefKeys {
         static let alwaysOnTop = "pref.alwaysOnTop"
+        // ThemeManager 등 기존 하드코드 키 rawValue 유지 (E-MAC-UX-9009)
+        static let fontScale = "ApexKeyFontScale"
+        static let activeThemeId = "ApexKeyActiveThemeId"
+        static let appearanceMode = "ApexKeyAppearanceMode"
         static let showInMenuBar = "pref.showInMenuBar"
         static let showInDock = "pref.showInDock"
         static let menuHUDStyle = "pref.menuHUDStyle"
@@ -34,6 +38,7 @@ extension ConfigStore {
         static let menuHUDHotkey = "pref.menuHUDHotkey"
         static let updateFrequency = "pref.updateFrequency"
         static let updateLastChecked = "pref.updateLastChecked"
+        static let didMigrateLegacyStore = "pref.didMigrateLegacyStore"
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")

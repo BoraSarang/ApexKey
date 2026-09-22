@@ -98,6 +98,15 @@ enum AutomationTrigger: Identifiable, Codable, Hashable {
         case .app, .focus, .stageManager: return "macOS 26.0"
         }
     }
+
+    /// AutomationManager가 실제 감시자를 설치하는 트리거인지.
+    /// false면 등록 시 거부 로그 — UI에서도 비활성화한다.
+    var isWatcherSupported: Bool {
+        switch self {
+        case .timeOfDay, .folder, .battery, .charger: return true
+        default: return false
+        }
+    }
     
     /// 트리거가 백그라운드에서 동작하는지 (앱 실행 없이도 작동)
     var runsInBackground: Bool {
@@ -149,28 +158,83 @@ struct TimeOfDayTrigger: Identifiable, Codable, Hashable {
     var repeatRule: RepeatRule         // 반복 규칙
     var runImmediately: Bool           // 확인 없이 즉시 실행
     var label: String?
-    
+    /// weekly 기준 요일 (Calendar weekday: 1=일 ... 7=토)
+    var weeklyWeekday: Int?
+    /// monthly 기준 날짜 (1...31)
+    var monthlyDay: Int?
+    /// custom 실행 요일 집합 (Calendar weekday)
+    var customWeekdays: Set<Int>?
+
     init(
         id: UUID = UUID(),
         time: DateComponents,
         repeatRule: RepeatRule = .none,
         runImmediately: Bool = true,
-        label: String? = nil
+        label: String? = nil,
+        weeklyWeekday: Int? = nil,
+        monthlyDay: Int? = nil,
+        customWeekdays: Set<Int>? = nil
     ) {
         self.id = id
         self.time = time
         self.repeatRule = repeatRule
         self.runImmediately = runImmediately
         self.label = label
+        self.weeklyWeekday = weeklyWeekday
+        self.monthlyDay = monthlyDay
+        self.customWeekdays = customWeekdays
     }
-    
+
     var displayName: String {
         if let label = label { return label }
         let hour = time.hour ?? 0
         let minute = time.minute ?? 0
         let timeString = String(format: "%02d:%02d", hour, minute)
-        let repeatString = repeatRule.displayName
+        let repeatString = repeatDisplayName
         return "\(timeString) \(repeatString)"
+    }
+
+    /// 반복 규칙 + 기준 요일/날짜 요약
+    var repeatDisplayName: String {
+        switch repeatRule {
+        case .weekly:
+            if let weekday = weeklyWeekday, (1...7).contains(weekday) {
+                let symbol = Calendar.current.weekdaySymbols[weekday - 1]
+                return "\(repeatRule.displayName) \(symbol)"
+            }
+            return repeatRule.displayName
+        case .monthly:
+            if let day = monthlyDay {
+                return "\(repeatRule.displayName) \(day)"
+            }
+            return repeatRule.displayName
+        case .custom:
+            if let days = customWeekdays, !days.isEmpty {
+                let symbols = days.sorted()
+                    .compactMap { $0 >= 1 && $0 <= 7 ? Calendar.current.weekdaySymbols[$0 - 1] : nil }
+                return "\(repeatRule.displayName) \(symbols.joined(separator: ","))"
+            }
+            return repeatRule.displayName
+        default:
+            return repeatRule.displayName
+        }
+    }
+
+    /// 해당 시각에 실행해야 하는지 (기준 요일/날짜 포함)
+    func shouldRun(on date: Date, calendar: Calendar = .current) -> Bool {
+        switch repeatRule {
+        case .none, .daily, .weekdays, .weekends:
+            return repeatRule.shouldRun(on: date, calendar: calendar)
+        case .weekly:
+            guard let weekday = weeklyWeekday, (1...7).contains(weekday) else { return false }
+            return calendar.component(.weekday, from: date) == weekday
+        case .monthly:
+            guard let day = monthlyDay, (1...31).contains(day) else { return false }
+            return calendar.component(.day, from: date) == day
+        case .custom:
+            guard let days = customWeekdays, !days.isEmpty else { return false }
+            return days.contains(calendar.component(.weekday, from: date))
+        }
     }
 }
 
@@ -211,9 +275,10 @@ enum RepeatRule: String, Codable, CaseIterable, Identifiable {
     }
     
     /// 해당 날짜에 실행되어야 하는지 확인
+    /// weekly/monthly/custom은 기준 요일·날짜가 필요하므로 TimeOfDayTrigger.shouldRun을 사용한다.
     func shouldRun(on date: Date, calendar: Calendar = .current) -> Bool {
         switch self {
-        case .none: return true  // 한 번만 실행은 별도 관리
+        case .none: return true  // 1회성 여부는 AutomationManager가 UserDefaults로 가드
         case .daily: return true
         case .weekdays:
             let weekday = calendar.component(.weekday, from: date)
@@ -221,15 +286,9 @@ enum RepeatRule: String, Codable, CaseIterable, Identifiable {
         case .weekends:
             let weekday = calendar.component(.weekday, from: date)
             return weekday == 1 || weekday == 7  // 일, 토
-        case .weekly:
-            // 저장된 요일과 비교 필요 (구현 시 저장된 기준 요일 사용)
-            return true
-        case .monthly:
-            // 저장된 날짜와 비교 필요
-            return true
-        case .custom:
-            // 사용자 지정 요일 배열과 비교
-            return true
+        case .weekly, .monthly, .custom:
+            // 기준 필드 없이 단독 호출 시 미실행 (TimeOfDayTrigger 경로로 우회해야 함)
+            return false
         }
     }
 }

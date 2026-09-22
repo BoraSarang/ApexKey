@@ -3,6 +3,108 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — 대형 파일 분할 + CI pipefail (PLAN_v0.20)
+
+> 테스트 171/0·빌드·현지화 게이트 통과 후 기록. 이동만, 동작 불변.
+
+- **E-MAC-CI-9201** — GitHub Actions 기본 `bash -e`가 `xcodebuild | tail` 파이프 실패 종료코드 삼킴 → `ci.yml`/`release.yml` 모든 `run: |` 블록 `set -euo pipefail`
+- **E-MAC-SYS-8005** — `androidMirrorScriptPath` 하드코된 `/Users/lee/...` 절대경로 → 개발 머신 절대경우 우선, 없으면 Application Support 시드 (번들 `Resources/scrcpy_run.sh` → `#file` 소스 → 최소 대체). CI 단위테스트 `testVerifyAndroidMirrorScriptFileExists`/`testBuiltInPresetsAreFixedWithoutHotkeys` 회귀
+- **분할** — `CustomTheme.swift` 1600줄 → `Models/Theme/` 8파일 (Metadata 86 · Colors 241 · Background 90 · Glass 133 · StyleTokens 220 · CustomTheme 97 · Presets 718 · Color+ThemeHex 94). public 타입 유지
+- **분할** — `AppDelegate.swift` 950줄 → 본체 183 + extension 6파일 (+StatusItem/+Menus/+Windows/+URLScheme/+PaletteHUD) + `AppDelegate+Windowing` (KeyCapablePanel/ToastPanel). cross-file 접근용 멤버 `private` 제거, stored property·라이프사이클 본체 유지
+
+## 2026-09-22 macos — UI 고정프레임·다중모니터·undo (PLAN_v0.19)
+
+> 테스트 171/0·빌드·현지화 게이트 통과 후 기록.
+
+- **E-MAC-UI-9101** — `NSScreen.main` 5곳 다중모니터 오배치 → `AppDelegate.screen(for:)` 유틸 (창 소속 → 마우스 → main → screens.first)
+- **E-MAC-UI-9102** — Toast 340 고정폭 한글 넘침 → minWidth 340 / maxWidth 440 + `fixedSize`
+- **E-MAC-UI-9103** — StepSettings 시트 480×680 고정 → min 480 + ideal 480×680
+- **E-MAC-UI-9104** — HotKeyRecorder 300×80 고정 잘림 → min/ideal 크기
+- **E-MAC-UI-9105** — HUD 4열 고정 소형 화면 열 증발 → `preferredColumnCount` 화면 폭 기반(2/3/4) 동적 분할
+- **E-MAC-UI-9106** — `© 2026` 하드코딩 → `Calendar.current` 연도
+- **E-MAC-UI-9107** — `esc` 비로컬라이즈 → `palette.esc_key` 키 추가 (ko/en 801키 동기화)
+- **E-MAC-UI-9108** — Edit 메뉴 undo/redo 셀렉터 미구현 → `@objc undo/redo` keyWindow.undoManager 위임 연결
+
+## 2026-09-22 macos — UI/UX P1 수정 (PLAN_v0.18)
+
+> 테스트·빌드 게이트 통과 후 기록.
+
+- **E-MAC-UX-9001** — `alwaysOnTop` init가 매 실행 강제 리셋 → 저장값 복원
+- **E-MAC-UX-9002** — 한글·비ASCII 변수명 regex 미매칭 → `\{([^{}:]+)\}` 3곳 통일 (VariableResolver/UseModelExecutor/AIModels)
+- **E-MAC-UX-9003** — Stop Shortcut 출력 변수 미반영 → `actionParameters`에서 `StopShortcutAction` decode 후 `outputVariable` 기록 + 편집기 encode 경로
+- **E-MAC-UX-9004** — osascript stderr 원인 불분류 → -1743 권한거부 / -600 앱미실행 / 그 외 메뉴없음 분류
+- **E-MAC-UX-9005** — `"Apple"`/`"서비스"` 하드코딩 2곳 → `MenuEnumerator.excludedMenuBarTitles` 상수 집합
+- **E-MAC-MENU-7006** — 메뉴바 조회 실패 info → error(warn) 승격
+- **E-MAC-UX-9007** — GitHub 403/429 → `rateLimited` 케이스 + `isNewerStrict` SemVer 프리릴리스 비교 (`isNewer` 행위 불변)
+- **E-MAC-UX-9008** — `ConfigStore.appLanguage`가 직접 `AppleLanguages` 쓰기 → `LanguageManager.setLanguage` 단일 출처
+- **E-MAC-UX-9009** — ThemeManager 하드코드 pref 키 8곳 → `ConfigStore.PrefKeys` 상수 (rawValue 동일, 마이그레이션 불필요)
+
+## 2026-09-22 macos — 자동화·핫키 P0/P1 (PLAN_v0.17)
+
+> 테스트·빌드 게이트 통과 후 기록.
+
+- **P0-4** — `activeTimers`가 `"H:M"`만 저장해 다음 날 같은 시각 발동 차단 → 날짜 포함 키 + unregister 정리 + `.none` UserDefaults 1회 영속
+- **P0-5** — ⌘⇧↩ Carbon 핫키와 `pauseUntilInput` 로컬 모니터가 서로 못 받음 → `resumePauseUntilInput` 병행 해제, 대기 중에는 반복 실행 안 함 (`E-MAC-AUTO-6001`과 무관)
+- **RepeatRule** — weekly/monthly/custom 전부 true → 기준 요일·날짜 필드 + `TimeOfDayTrigger.shouldRun` + 설정 UI
+- **미구현 트리거** — 8종 + file 등록 거부 (`E-MAC-AUTO-6001`) + UI "준비 중" 비활성
+- **폴더** — `ignorePatterns` glob 스킵, FSEvent 복합 flags 전 타입 교집합 발동
+- **핫키** — 프로브 일회성 signature, `beginTest` 선행 `endTest`, 죽은 `forEach { _ in }` 제거
+
+## 2026-09-22 macos — 저장소 P0 데이터 소실 방어 (PLAN_v0.16)
+
+> 테스트·빌드 게이트 통과 후 기록.
+
+- **P0-3** — 디코딩 실패 blob이 `syncShortcut`으로 빈 배열 영구 덮어쓰기 → `encodeKeeping`(실패 시 기존 Data 유지) + 컬럼 단위 쓰기 가드 (`E-MAC-STORE-5003`)
+- **P0-1** — 구 `Application Support/default.store` → 전용 디렉터리 1회 이관 (store·`-wal`·`-shm`, `E-MAC-STORE-5005`)
+- **P0-2** — `ModelContainer` 생성 실패 시 손상 store 격리(`.corrupt-{stamp}`) 후 재시도 + `storeRecoveryBackupPath` 게시 (`E-MAC-STORE-5006`)
+
+## 2026-09-22 macos — 대형 파일 분할 2 (PLAN_v0.15)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공. 이동만, 동작 불변.
+
+- **분할** — `Theme.swift` 888줄 → `Models/Theme/` 4파일 (프로토콜+내장테마 510·매니저 284·외관모드 10·SwiftUI브릿지 95). public·타입명 유지
+
+## 2026-09-22 macos — 대형 파일 분할 1 (PLAN_v0.14)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공. 이동만, 동작 불변.
+
+- **분할** — `StepSettingsView.swift` 1150줄 → `Views/StepSettings/` 6파일 (메인 126·테스트 210·앱실행 220·조건 359·AI 119·기타 126). `sectionCard`만 private→internal
+
+## 2026-09-22 macos — 코덱·PATH 단일화 (PLAN_v0.13)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공. `json:` 포맷 불변.
+
+- **코덱** — `LaunchConfigCodec` 신설(`prefix`+decode/encode 단일 출처), `ActionExecutor` 코덱은 thin wrapper로 위임 (테스트 참조 유지)
+- **PATH** — `ShellEnvironment.fallbackSystemPaths` 상수 신설, export문·env 폴백 공유
+
+## 2026-09-22 macos — UI 저장·실행통합 (PLAN_v0.12)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공.
+
+- **저장 유실** — 편집기 빨간X·Cmd+W로 닫아도 이름/설명/단계 저장 (`onDisappear` 추가)
+- **저장 유실** — SystemScriptEditor 미저장 스크립트 닫힘 시 자동 저장 (침묵 소실 방지)
+- **중복 제거** — `execute(binding)` 80줄 분기를 `executeWithDetail` 위임으로 통합 (반환 동등, 실패 1줄 로그)
+
+## 2026-09-22 macos — P1 엔진·핫키 정합화 (PLAN_v0.11)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공.
+
+- **반복 탈출** — `execute(steps:)`가 breakLoop를 삼켜 Break 후에도 반복이 끝까지 실행 + 성공 둔갑 → `ok` 누적·`.breakLoop` 상위 전파로 수정
+- **재귀 가드** — RunShortcut depth `> 10` → `>=` (실제 11단계 허용 off-by-one)
+- **변수 출력** — repeatIndexVariable nil이면 매번 랜덤 UUID에 기록 → 지정된 때만 기록
+- **핫키** — `registerAllBindings` 실패 집계 로그 (`E-MAC-HTKEY-1001`, 재설정 안내)
+
+## 2026-09-22 macos — P0 크리티컬 5건 수정 (PLAN_v0.10)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공 · 현지화 가드 통과.
+> F-05 전체 비동기화는 @MainActor·동기 API 변경이 필요해 경고 로그 + 후속 과제로 분리.
+
+- **교착** — `AutomationManager.unregister`가 락 보유 채 `rebuildWatchers` 호출 → 락 해제 후 재구축으로 수정
+- **크래시** — 반복 count 0·음수 시 `1...count` 트랩 → `E-MAC-FLOW-7008` + 실패 반환 가드
+- **크래시** — AppDetail URL Scheme `!` 강제 언랩 2곳 → `guard` + `E-MAC-APP-4003` 처리
+- **현지화** — `ui.app_detail.select_system` 중복 정의 제거 (ko/en 796종 확정, 시스템 프리셋 문구 유지)
+- **블로킹** — `performAction` 메인 스레드 경고 로그 추가 (runWait `E-MAC-ACT-3006` 패턴과 동일)
+
 ## 2026-09-22 macos — GitHub Releases 기반 업데이트 확인 (PLAN_v0.9)
 
 > 유료 Developer 계정 없이 쓰는 릴리스 페이지 이동 방식 (macos-app-update 가이드 이식).

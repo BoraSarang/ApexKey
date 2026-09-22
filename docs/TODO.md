@@ -194,9 +194,89 @@
 - [x] U-06: release.yml (v*.*.*·버전검증·DMG 단일·release-notes)
 - [x] U-07: ReleaseCheckerTests 12건 + 실기 재실행 검증
 
+## v0.10 — P0 크리티컬 수정 (2026-09-22, PLAN_v0.10_p0-fixes)
+
+- [x] F-01: AutomationManager NSLock 교착 (unregister 락 해제 후 rebuild)
+- [x] F-02: 반복 count 0·음수 크래시 가드 (1...count 트랩 방지)
+- [x] F-03: AppDetail URL Scheme 강제 언랩 2곳 제거
+- [x] F-04: Localizable 중복키 `ui.app_detail.select_system` 제거 (ko/en)
+- [x] F-05: 메뉴 실행 메인 블로킹 경고 로그 (performAction 메인 경고, 전체 비동기화는 후속 과제)
+
+## v0.11 — P1 엔진·핫키 정합화 (2026-09-22, PLAN_v0.11_p1-engine-hotkey)
+
+- [x] G-01: breakLoop 성공 둔갑 + Break 무시 (execute가 breakLoop를 삼켜 반복이 끝까지 실행되던 문제, ok 누적·상위 전파)
+- [x] G-02: RunShortcut depth off-by-one (`> 10` → `>=`, 실제 11단계 허용)
+- [x] G-03: 반복 인덱스 쓰레기 출력 (repeatIndexVariable nil이면 매번 랜덤 UUID 기록)
+- [x] G-04: registerAllBindings 실패 묵살 (반환값 무시 → 실패 수 로그)
+
+## v0.12 — UI 저장·실행통합 (2026-09-22, PLAN_v0.12_ui-save-exec)
+
+- [x] U-01: 편집기 빨간X 이름·설명 유실 (onDisappear는 자동화만 저장)
+- [x] U-02: SystemScriptEditor 미저장 침묵 유실 (isDirty인데 닫으면 소실)
+- [x] U-03: execute(binding) 80줄 복제 (executeWithDetail와 전 분기 중복)
+
+## v0.13 — 코덱·PATH 단일화 (2026-09-22, PLAN_v0.13_codec-path)
+
+- [x] C-01: PATH 폴백 리터럴 2벌식 (ShellEnvironment 단일 출처 위반 잔재)
+- [x] C-02: LaunchConfig 코덱 분산 (ActionExecutor·Shortcut·StepSettingsView 3처)
+
+## v0.14 — 대형 파일 분할 1 (2026-09-22, PLAN_v0.14_split-stepsettings)
+
+- [x] D-01: StepSettingsView 1150줄 → StepSettings/ 6파일 (이동만, sectionCard internal 전환)
+
+## v0.15 — 대형 파일 분할 2 (2026-09-22, PLAN_v0.15_split-theme)
+
+- [x] D-02: Theme.swift 888줄 → Theme/ 4파일 (이동만, public 유지)
+
+## v0.16 — 저장소 P0 데이터 소실 방어 (2026-09-22, PLAN_v0.16_store-p0)
+
+- [x] S-01: blob 쓰기 가드 — StoreCoding.encodeKeeping + undecodableBlobColumns + syncShortcut 손상 컬럼 원본 유지 (P0-3)
+- [x] S-02: 레거시 저장소 1회 이관 — Application Support/default.store → com.borasarang.ApexKey/ (store+wal+shm) (P0-1)
+- [x] S-03: 컨테이너 실패 격리 — .corrupt-{stamp} 이동 후 재시도 + storeRecoveryBackupPath 게시 (P0-2)
+
+## v0.17 — 자동화·핫키 P0/P1 (2026-09-22, PLAN_v0.17_automation-p0)
+
+- [x] A-01: activeTimers 날짜 키(yyyy-MM-dd-HH:mm) + unregister 정리 + .none UserDefaults 1회 영속 (P0-4)
+- [x] A-02: ⌘⇧↩ 사이보그 교착 — resumePauseUntilInput Carbon 경로 + 대기 중 반복 실행 금지 (P0-5)
+- [x] A-03: RepeatRule weekly/monthly/custom 실구현 + TimeOfDayTrigger 기준 필드 + 설정 UI
+- [x] A-04: 미구현 트리거 8종·file — isWatcherSupported 가드 + E-MAC-AUTO-6001 + UI 비활성
+- [x] A-05: ignorePatterns glob 적용
+- [x] A-06: FSEvent 복합 flags 전 타입 산출·교집합 발동
+- [x] A-07: 핫키 프로브 일회성 signature + beginTest 선행 endTest + 죽은 코드 제거
+
+## v0.18 — UI/UX P1 수정 (2026-09-22, PLAN_v0.18_uiux-p1)
+
+- [x] U-01: alwaysOnTop init 강제 리셋 → 저장값 복원 (E-MAC-UX-9001)
+- [x] U-02: 한글·비ASCII 변수명 regex → `[^{}:]+` 3곳 (VariableResolver/UseModelExecutor/AIModels) (E-MAC-UX-9002)
+- [x] U-03: StopShortcut actionParameters decode → outputVariable 반영 + 편집기 encode (E-MAC-UX-9003)
+- [x] U-04: osascript stderr 분류 — -1743 권한/-600 앱미실행/메뉴없음 (E-MAC-UX-9004)
+- [x] U-05: 하드코딩 Apple/서비스 → excludedMenuBarTitles 상수 (E-MAC-UX-9005)
+- [x] U-06: 빈 메뉴바 조회 실패 warn 승격 (E-MAC-MENU-7006)
+- [x] U-07: ReleaseChecker 403/429 rateLimited + isNewerStrict 프리릴리스 비교 (E-MAC-UX-9007)
+- [x] U-08: AppleLanguages → LanguageManager.setLanguage 단일 출처 (E-MAC-UX-9008)
+- [x] U-09: ThemeManager 하드코드 pref 키 → PrefKeys 상수 (E-MAC-UX-9009)
+
+## v0.19 — UI 고정프레임·다중모니터·undo (2026-09-22, PLAN_v0.19_ui-screen-frame)
+
+- [x] U-10: NSScreen.main 5곳 → screen(for:) 유틸 (창 소속→마우스→main→screens.first)
+- [x] U-11: Toast 340 고정폭 → minWidth 340/maxWidth 440 + fixedSize
+- [x] U-12: StepSettings 시트 480×680 → min+ideal 크기
+- [x] U-13: HotKeyRecorder 300×80 → min+ideal 크기
+- [x] U-14: HUD 4열 고정 → 화면 폭 기반 preferredColumnCount 동적
+- [x] U-15: © 2026 하드코딩 → Calendar 연도 (AboutView)
+- [x] U-16: `esc` 비로컬라이즈 → palette.esc_key 키 (ko/en)
+- [x] U-17: Edit 메뉴 undo/redo 셀렉터 → AppDelegate @objc undo/redo 위임 연결
+
+## v0.20 — 대형 파일 분할 + CI pipefail (2026-09-22, PLAN_v0.20_refactor-split-ci)
+
+- [x] R-01: CI `run: |` 블록 `set -euo pipefail` (ci.yml 2 + release.yml 7) — E-MAC-CI-9201
+- [x] R-02: CustomTheme.swift 1600줄 → Theme/ 8파일 분할 (Metadata/Colors/Background/Glass/StyleTokens/CustomTheme/Presets/Color+ThemeHex)
+- [x] R-03: AppDelegate.swift 950줄 → 본체 + extension 6 + Windowing (cross-file `private` 제거)
+- [x] R-04: androidMirrorScriptPath 하드코 절대경로 → Application Support 시드 폴백 (CI 테스트 2건) — E-MAC-SYS-8005
+
 ## 다음 백로그
 
-- [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)
+- [x] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 950줄) — v0.20
 - [ ] `menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)
 - [ ] blob 손상 덮어씀 가드 (P0-8 잔류 — 설계 필요)
 - [ ] 단축키 프로필/빠른 전환

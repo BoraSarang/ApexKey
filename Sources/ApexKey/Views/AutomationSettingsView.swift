@@ -73,10 +73,18 @@ struct AutomationSettingsView: View {
                 Text(trigger.category.displayName + " · " + trigger.minimumOSVersion)
                     .font(.caption2)
                     .foregroundColor(theme.secondaryText)
+                if !trigger.isWatcherSupported {
+                    Text("ui.automation.soon".localized)
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+                if case .timeOfDay = trigger {
+                    timeRepeatEditor(for: trigger)
+                }
             }
-            
+
             Spacer()
-            
+
             Button(role: .destructive) {
                 automations.remove(at: index)
             } label: {
@@ -87,6 +95,91 @@ struct AutomationSettingsView: View {
         .padding(10)
         .background(theme.inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// 시간 트리거 반복 규칙 편집 (weekly/monthly/custom 기준 요일·날짜) (P1)
+    @ViewBuilder
+    private func timeRepeatEditor(for trigger: AutomationTrigger) -> some View {
+        if case .timeOfDay(var timeTrigger) = trigger {
+            let index = automations.firstIndex(where: { $0.id == trigger.id })
+            VStack(alignment: .leading, spacing: 6) {
+                Picker("repeat.rule".localized, selection: Binding(
+                    get: { timeTrigger.repeatRule },
+                    set: { newValue in
+                        guard let index else { return }
+                        timeTrigger.repeatRule = newValue
+                        if newValue == .weekly, timeTrigger.weeklyWeekday == nil {
+                            timeTrigger.weeklyWeekday = Calendar.current.component(.weekday, from: Date())
+                        }
+                        if newValue == .monthly, timeTrigger.monthlyDay == nil {
+                            timeTrigger.monthlyDay = Calendar.current.component(.day, from: Date())
+                        }
+                        if newValue == .custom, timeTrigger.customWeekdays == nil || timeTrigger.customWeekdays?.isEmpty == true {
+                            timeTrigger.customWeekdays = [Calendar.current.component(.weekday, from: Date())]
+                        }
+                        automations[index] = .timeOfDay(timeTrigger)
+                    }
+                )) {
+                    ForEach(RepeatRule.allCases) { rule in
+                        Text(rule.displayName).tag(rule)
+                    }
+                }
+                .pickerStyle(.menu)
+                .controlSize(.small)
+
+                switch timeTrigger.repeatRule {
+                case .weekly:
+                    Picker("ui.automation.weekday".localized, selection: Binding(
+                        get: { timeTrigger.weeklyWeekday ?? Calendar.current.component(.weekday, from: Date()) },
+                        set: { day in
+                            guard let index else { return }
+                            timeTrigger.weeklyWeekday = day
+                            automations[index] = .timeOfDay(timeTrigger)
+                        }
+                    )) {
+                        ForEach(1...7, id: \.self) { day in
+                            Text(Calendar.current.weekdaySymbols[day - 1]).tag(day)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                case .monthly:
+                    Stepper(
+                        "ui.automation.month_day_fmt".localizedFormat(String(timeTrigger.monthlyDay ?? 1)),
+                        value: Binding(
+                            get: { timeTrigger.monthlyDay ?? 1 },
+                            set: { day in
+                                guard let index else { return }
+                                timeTrigger.monthlyDay = day
+                                automations[index] = .timeOfDay(timeTrigger)
+                            }
+                        ),
+                        in: 1...31
+                    )
+                    .font(.caption)
+                case .custom:
+                    HStack(spacing: 4) {
+                        ForEach(1...7, id: \.self) { day in
+                            let selected = timeTrigger.customWeekdays?.contains(day) ?? false
+                            Button {
+                                guard let index else { return }
+                                var days = timeTrigger.customWeekdays ?? []
+                                if selected { days.remove(day) } else { days.insert(day) }
+                                timeTrigger.customWeekdays = days
+                                automations[index] = .timeOfDay(timeTrigger)
+                            } label: {
+                                Text(String(Calendar.current.weekdaySymbols[day - 1].prefix(1)))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+                            .tint(selected ? .accentColor : nil)
+                        }
+                    }
+                default:
+                    EmptyView()
+                }
+            }
+            .padding(.top, 4)
+        }
     }
     
     // MARK: - 추가 섹션
@@ -123,7 +216,8 @@ struct AutomationSettingsView: View {
                 addTriggerButton(title: "ui.automation.folder".localized, icon: "folder") {
                     add(.folder(FolderTrigger(folderPath: "")))
                 }
-                addTriggerButton(title: "ui.automation.file".localized, icon: "doc") {
+                // 단일 파일 트리거는 감시자 미구현 — 추가 버튼 비활성 (P1)
+                addTriggerButton(title: "ui.automation.file".localized, icon: "doc", enabled: false) {
                     add(.file(FileTrigger(filePath: "")))
                 }
             case .power:
@@ -141,20 +235,28 @@ struct AutomationSettingsView: View {
         }
     }
     
-    private func addTriggerButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+    private func addTriggerButton(title: String, icon: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
                 Text(title)
                 Spacer()
-                Image(systemName: "plus")
+                if enabled {
+                    Image(systemName: "plus")
+                } else {
+                    Text("ui.automation.soon".localized)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 10)
-            .background(Color.accentColor.opacity(0.1))
+            .background(Color.accentColor.opacity(enabled ? 0.1 : 0.04))
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.6)
     }
     
     private func add(_ trigger: AutomationTrigger) {

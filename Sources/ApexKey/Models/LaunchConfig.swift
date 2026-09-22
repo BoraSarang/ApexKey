@@ -80,6 +80,43 @@ struct LaunchConfig: Codable, Hashable {
     }
 }
 
+/// `json:{LaunchConfig}` target 코덱 — 단일 출처 (D3).
+/// ActionExecutor·StepSettingsView·Shortcut이 공유. 포맷 변경 시 여기만 수정한다.
+enum LaunchConfigCodec {
+    static let prefix = "json:"
+
+    /// target → LaunchConfig (`json:` 없으면 nil = 레거시 bundleID 취급)
+    static func decode(from target: String) -> LaunchConfig? {
+        guard target.hasPrefix(prefix) else { return nil }
+        let json = String(target.dropFirst(prefix.count))
+        guard let data = json.data(using: .utf8) else {
+            Logger.error("E-MAC-APP-4003", "LaunchConfig UTF-8 변환 실패")
+            return nil
+        }
+        do {
+            return try JSONDecoder().decode(LaunchConfig.self, from: data)
+        } catch {
+            Logger.error("E-MAC-APP-4003", "LaunchConfig 디코딩 실패: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// LaunchConfig → target (실패 시 bundleID 폴백)
+    static func encode(_ config: LaunchConfig) -> String {
+        do {
+            let data = try JSONEncoder().encode(config)
+            guard let json = String(data: data, encoding: .utf8) else {
+                Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 문자열 변환 실패 — bundleID 폴백")
+                return config.bundleID
+            }
+            return prefix + json
+        } catch {
+            Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 실패: \(error.localizedDescription) — bundleID 폴백")
+            return config.bundleID
+        }
+    }
+}
+
 /// 앱 실행 모드 (Thor 스타일 토글 유지)
 enum LaunchMode: String, Codable, CaseIterable, Identifiable {
     case toggle    // 실행 중+전면이면 숨김, 아니면 활성화/실행

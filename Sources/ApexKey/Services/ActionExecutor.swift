@@ -9,87 +9,15 @@ final class ActionExecutor {
     private let menuEnumerator = MenuEnumerator.shared
 
     /// binding 실행. 성공 여부를 반환 (메뉴 명령 등 성공 판별 가능한 경우 유효)
+    /// 분기는 executeWithDetail에 위임 — 전 분기 2벌 유지 시 한쪽 누락 사고 확정 (D7)
     @discardableResult
     func execute(_ binding: HotKeyBinding) -> Bool {
         Logger.info("ActionExecutor", "실행 시작: \(binding.actionType.displayName) (target=\(binding.target), title=\(binding.title))")
-        switch binding.actionType {
-        case .launchApp:
-            return executeLaunch(target: binding.target, title: binding.title)
-        case .keyCombo:
-            if let press = Self.parseKeyPress(from: binding.target) {
-                return Self.sendKeyPress(press)
-            }
-            Logger.error("E-MAC-ACT-3004", "잘못된 키 조합 형식: \(binding.target) — 'keyCode:modifiers' 형식이어야 합니다")
-            return false
-        case .menuCommand:
-            let item = MenuItem(title: binding.title, menuPath: binding.menuPath)
-            let result = menuEnumerator.performAction(item, in: binding.target)
-            if result.isSuccess {
-                Logger.info("ActionExecutor", "메뉴 명령 성공: \(binding.title) (\(binding.target))")
-            } else {
-                Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패: \(result.description) — \(binding.title) (\(binding.target))")
-            }
-            return result.isSuccess
-        case .url:
-            guard let url = URL(string: binding.target), url.scheme != nil else {
-                Logger.error("E-MAC-MENU-3003", "잘못된 URL target: \(binding.target)")
-                return false
-            }
-            NSWorkspace.shared.open(url)
-            Logger.info("ActionExecutor", "URL 열기: \(url.absoluteString)")
-            return true
-        case .file:
-            let trimmed = binding.target.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else {
-                Logger.error("E-MAC-ACT-3008", "파일 경로 미지정 — 실행 건너뜀")
-                return false
-            }
-            guard FileManager.default.fileExists(atPath: trimmed) else {
-                Logger.error("E-MAC-ACT-3008", "파일 없음: \(trimmed)")
-                return false
-            }
-            let url = URL(fileURLWithPath: trimmed)
-            NSWorkspace.shared.open(url)
-            Logger.info("ActionExecutor", "파일 열기: \(url.path)")
-            return true
-        case .script:
-            return runShellScript(binding.target)
-        case .runScriptInShell:
-            return runShellScript(binding.target)
-        case .appleScript:
-            let r = ScriptExecutor.runAppleScript(binding.target)
-            return r.success
-        case .javaScriptForAutomation:
-            let r = ScriptExecutor.runJXA(binding.target)
-            return r.success
-        case .system:
-            if let type = SystemActionType(rawValue: binding.target) {
-                let ok = SystemActionExecutor.execute(type)
-                Logger.info("ActionExecutor", "시스템 액션 \(ok ? "성공" : "실패"): \(type.displayName)")
-                return ok
-            } else {
-                Logger.error("E-MAC-SYS-8003", "알 수 없는 시스템 액션: \(binding.target)")
-                return false
-            }
-        case .paste:
-            runPaste(binding.target)
-            return true
-        case .wait:
-            runWait(binding.target)
-            return true
-        case .coordinateClick:
-            runCoordinateClick(binding.target)
-            return true
-        case .pauseUntilInput:
-            runPauseUntilInput()
-            return true
-        case .macro:
-            runMacro(binding.target)
-            return true
-        default:
-            Logger.error("E-MAC-ACT-3005", "미구현 액션 타입: \(binding.actionType.rawValue)")
-            return false
+        let result = executeWithDetail(binding)
+        if !result.success {
+            Logger.info("ActionExecutor", "실행 실패: \(binding.actionType.displayName) — \(result.message ?? "")")
         }
+        return result.success
     }
 
     /// onlyWhenAppActive 옵션 판별 — 대상 앱이 활성 상태일 때만 실행
@@ -241,7 +169,7 @@ final class ActionExecutor {
         var env = ProcessInfo.processInfo.environment
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let extra = ShellEnvironment.extraPaths(home: home)
-        env["PATH"] = "\(extra):\(env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")"
+        env["PATH"] = "\(extra):\(env["PATH"] ?? ShellEnvironment.fallbackSystemPaths)"
         task.environment = env
         let outPipe = Pipe()
         let errPipe = Pipe()
@@ -342,35 +270,14 @@ final class ActionExecutor {
         return AppSwitcher.toggle(bundleID: bundleID)
     }
 
-    /// LaunchConfig JSON 디코딩 (`json:` 접두사)
+    /// LaunchConfig JSON 디코딩 (`json:` 접두사) — LaunchConfigCodec 위임 (thin wrapper, 테스트 참조 유지)
     static func decodeLaunchConfig(from target: String) -> LaunchConfig? {
-        guard target.hasPrefix("json:") else { return nil }
-        let json = String(target.dropFirst("json:".count))
-        guard let data = json.data(using: .utf8) else {
-            Logger.error("E-MAC-APP-4003", "LaunchConfig UTF-8 변환 실패")
-            return nil
-        }
-        do {
-            return try JSONDecoder().decode(LaunchConfig.self, from: data)
-        } catch {
-            Logger.error("E-MAC-APP-4003", "LaunchConfig 디코딩 실패: \(error.localizedDescription)")
-            return nil
-        }
+        LaunchConfigCodec.decode(from: target)
     }
 
-    /// LaunchConfig → binding.target 인코딩
+    /// LaunchConfig → binding.target 인코딩 — LaunchConfigCodec 위임 (thin wrapper)
     static func encodeLaunchConfig(_ config: LaunchConfig) -> String {
-        do {
-            let data = try JSONEncoder().encode(config)
-            guard let json = String(data: data, encoding: .utf8) else {
-                Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 문자열 변환 실패 — bundleID 폴백")
-                return config.bundleID
-            }
-            return "json:" + json
-        } catch {
-            Logger.error("E-MAC-APP-4003", "LaunchConfig 인코딩 실패: \(error.localizedDescription) — bundleID 폴백")
-            return config.bundleID
-        }
+        LaunchConfigCodec.encode(config)
     }
 
     // MARK: - 키 조합 보내기 (keyCombo)
@@ -490,6 +397,31 @@ final class ActionExecutor {
 
     // MARK: - 사이보그 모드 (입력 대기)
 
+    private let pauseSync = NSLock()
+    private var pauseSemaphore: DispatchSemaphore?
+    private var pauseMonitor: Any?
+
+    /// 대기 중이면 해제하고 true 반환 — ⌘⇧↩ Carbon 핫키 경로에서 호출 (P0-5)
+    /// 로컬 NSEvent 모니터는 Carbon 전역 핫키를 받지 못하므로 병행 경로가 필요하다.
+    @discardableResult
+    func resumePauseUntilInput() -> Bool {
+        pauseSync.lock()
+        guard let sem = pauseSemaphore else {
+            pauseSync.unlock()
+            return false
+        }
+        pauseSemaphore = nil
+        let monitor = pauseMonitor
+        pauseMonitor = nil
+        pauseSync.unlock()
+        if let monitor {
+            DispatchQueue.main.async { NSEvent.removeMonitor(monitor) }
+        }
+        Logger.info("ActionExecutor", "사이보그 모드: 계속 신호 수신 — 해제")
+        sem.signal()
+        return true
+    }
+
     private func runPauseUntilInput() {
         // 호출 스레드를 블로킹하는데 모니터는 메인 런루프에 등록되므로,
         // 메인에서 호출하면 교착. 그 경우 백그라운드로 넘긴다 (R-03)
@@ -508,28 +440,67 @@ final class ActionExecutor {
 
         let semaphore = DispatchSemaphore(value: 0)
 
+        pauseSync.lock()
+        if let previous = pauseSemaphore {
+            // 중첩 대기 시 이전을 먼저 해제
+            pauseSemaphore = nil
+            previous.signal()
+        }
+        pauseSemaphore = semaphore
+        pauseSync.unlock()
+
         // 로컬 모니터는 메인 런루프에서만 이벤트를 수신하므로 메인 스레드에 등록
-        DispatchQueue.main.async {
+        // (앱 포커스 중 로컬 키 경로 보완 — Carbon 경로는 resumePauseUntilInput)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
             var monitorRef: Any?
             monitorRef = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self else { return event }
                 let combo = KeyboardUtil.combo(from: event)
-                if combo.keyCode == 36
+                let repeatCombo = ConfigStore.defaultRepeatHotkey
+                if combo.keyCode == repeatCombo.keyCode
                     && combo.modifiers & KeyboardUtil.cmdMask != 0
                     && combo.modifiers & KeyboardUtil.shiftMask != 0 {
                     if let monitor = monitorRef {
                         NSEvent.removeMonitor(monitor)
                     }
-                    Logger.info("ActionExecutor", "사이보그 모드: 입력 감지 — 계속")
-                    semaphore.signal()
+                    Logger.info("ActionExecutor", "사이보그 모드: 로컬 입력 감지 — 계속")
+                    self.pauseSync.lock()
+                    if let sem = self.pauseSemaphore {
+                        self.pauseSemaphore = nil
+                        self.pauseMonitor = nil
+                        self.pauseSync.unlock()
+                        sem.signal()
+                    } else {
+                        self.pauseSync.unlock()
+                    }
                     return nil
                 }
                 return event
             }
+            self.pauseSync.lock()
+            if self.pauseSemaphore != nil {
+                if let old = self.pauseMonitor { NSEvent.removeMonitor(old) }
+                self.pauseMonitor = monitorRef
+            } else if let monitorRef {
+                // 이미 Carbon 경로로 해제된 뒤 설치된 모니터는 제거
+                NSEvent.removeMonitor(monitorRef)
+            }
+            self.pauseSync.unlock()
         }
 
         // 호출 스레드 블로킹 (백그라운드) — 메인 런루프는 자유로워 이벤트 수신 가능
         semaphore.wait()
+
+        pauseSync.lock()
+        if pauseSemaphore === semaphore {
+            pauseSemaphore = nil
+            if let monitor = pauseMonitor {
+                pauseMonitor = nil
+                DispatchQueue.main.async { NSEvent.removeMonitor(monitor) }
+            }
+        }
+        pauseSync.unlock()
     }
 
     // MARK: - 매크로

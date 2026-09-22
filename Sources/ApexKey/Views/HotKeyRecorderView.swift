@@ -64,7 +64,9 @@ struct HotKeyRecorderView: View {
             // 키 표시 영역
             Text(currentCombo.displayString.isEmpty ? "ui.recorder.press_keys".localized : currentCombo.displayString)
                 .font(.system(size: 40, weight: .bold, design: .monospaced))
-                .frame(width: 300, height: 80)
+                // 긴 단축키 조합도 잘리지 않게 최소 300 유지, 길면 확장
+                .frame(minWidth: 300, minHeight: 80)
+                .frame(idealWidth: 300, idealHeight: 80)
                 .background(keyBackground)
                 .cornerRadius(10)
                 .foregroundColor(keyForeground)

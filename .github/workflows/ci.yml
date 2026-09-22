@@ -27,6 +27,7 @@ jobs:
 
       - name: Debug 빌드
         run: |
+          set -euo pipefail
           xcodebuild \
             -project "${APP_NAME}.xcodeproj" \
             -scheme "${APP_NAME}" \
@@ -38,6 +39,7 @@ jobs:
 
       - name: 단위 테스트
         run: |
+          set -euo pipefail
           xcodebuild test \
             -project "${APP_NAME}.xcodeproj" \
             -scheme "${APP_NAME}" \

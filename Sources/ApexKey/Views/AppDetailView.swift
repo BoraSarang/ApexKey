@@ -84,7 +84,15 @@ struct AppDetailView: View {
             HotKeyRecorderView(
                 title: "\(app.name) (\(recordingScheme ?? "")://)",
                 subtitle: "ui.appdetail.open_url".localized,
-                onTest: { _ in if let s = recordingScheme { NSWorkspace.shared.open(URL(string: "\(s)://")!) }; return true }
+                onTest: { _ in
+                    guard let s = recordingScheme,
+                          let url = URL(string: "\(s)://") else {
+                        Logger.error("E-MAC-APP-4003", "잘못된 URL 스킴 — 테스트 생략")
+                        return false
+                    }
+                    NSWorkspace.shared.open(url)
+                    return true
+                }
             ) { combo in
                 if let s = recordingScheme { onRecord(combo: combo, scheme: s) }
             }
@@ -424,7 +432,11 @@ struct AppDetailView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 4))
                                 Spacer()
                                 Button {
-                                    NSWorkspace.shared.open(URL(string: "\(scheme)://")!)
+                                    guard let url = URL(string: "\(scheme)://") else {
+                                        Logger.error("E-MAC-APP-4003", "잘못된 URL 스킴 — 열기 생략: \(scheme)")
+                                        return
+                                    }
+                                    NSWorkspace.shared.open(url)
                                 } label: {
                                     Label("ui.run".localized, systemImage: "play.fill")
                                 }

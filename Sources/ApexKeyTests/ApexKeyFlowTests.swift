@@ -169,6 +169,143 @@ final class ApexKeyFlowTests: XCTestCase {
         XCTAssertTrue(RepeatRule.none.shouldRun(on: any))
     }
 
+    // MARK: - v0.17 반복 규칙 실구현·자동화 가드
+
+    func testTimeOfDayTriggerWeeklyRequiresWeekday() {
+        let cal = Calendar.current
+        // 2026-09-03 목요일(5)
+        let thu = cal.date(from: DateComponents(year: 2026, month: 9, day: 3, hour: 9))!
+        var trigger = TimeOfDayTrigger(
+            time: DateComponents(hour: 9, minute: 0),
+            repeatRule: .weekly,
+            weeklyWeekday: 5
+        )
+        XCTAssertTrue(trigger.shouldRun(on: thu, calendar: cal))
+        trigger.weeklyWeekday = 1 // 일요일
+        XCTAssertFalse(trigger.shouldRun(on: thu, calendar: cal))
+        // 기준 요일 미설정 시 미실행 (허위 상주 방지)
+        trigger.weeklyWeekday = nil
+        XCTAssertFalse(trigger.shouldRun(on: thu, calendar: cal))
+    }
+
+    func testTimeOfDayTriggerMonthlyRequiresDay() {
+        let cal = Calendar.current
+        let thu = cal.date(from: DateComponents(year: 2026, month: 9, day: 3, hour: 9))!
+        var trigger = TimeOfDayTrigger(
+            time: DateComponents(hour: 9, minute: 0),
+            repeatRule: .monthly,
+            monthlyDay: 3
+        )
+        XCTAssertTrue(trigger.shouldRun(on: thu, calendar: cal))
+        trigger.monthlyDay = 10
+        XCTAssertFalse(trigger.shouldRun(on: thu, calendar: cal))
+        trigger.monthlyDay = nil
+        XCTAssertFalse(trigger.shouldRun(on: thu, calendar: cal))
+    }
+
+    func testTimeOfDayTriggerCustomWeekdays() {
+        let cal = Calendar.current
+        let thu = cal.date(from: DateComponents(year: 2026, month: 9, day: 3, hour: 9))!
+        var trigger = TimeOfDayTrigger(
+            time: DateComponents(hour: 9, minute: 0),
+            repeatRule: .custom,
+            customWeekdays: [5]
+        )
+        XCTAssertTrue(trigger.shouldRun(on: thu, calendar: cal))
+        trigger.customWeekdays = [2]
+        XCTAssertFalse(trigger.shouldRun(on: thu, calendar: cal))
+        trigger.customWeekdays = []
+        XCTAssertFalse(trigger.shouldRun(on: thu, calendar: cal))
+    }
+
+    func testRepeatRuleWeeklyAloneDoesNotFire() {
+        // 기준 요일 필드 없는 단독 shouldRun은 항상 false (기존 허위 true 제거)
+        let any = Date()
+        XCTAssertFalse(RepeatRule.weekly.shouldRun(on: any))
+        XCTAssertFalse(RepeatRule.monthly.shouldRun(on: any))
+        XCTAssertFalse(RepeatRule.custom.shouldRun(on: any))
+    }
+
+    func testTimeDedupKeyIncludesDate() {
+        let cal = Calendar(identifier: .gregorian)
+        var comps = DateComponents(year: 2026, month: 9, day: 22, hour: 9, minute: 0)
+        let day1 = cal.date(from: comps)!
+        comps.day = 23
+        let day2 = cal.date(from: comps)!
+        comps.minute = 1
+        let day2min = cal.date(from: comps)!
+        let k1 = AutomationManager.timeDedupKey(for: day1, calendar: cal)
+        let k2 = AutomationManager.timeDedupKey(for: day2, calendar: cal)
+        let k3 = AutomationManager.timeDedupKey(for: day2min, calendar: cal)
+        XCTAssertEqual(k1, "2026-09-22-09:00")
+        XCTAssertEqual(k2, "2026-09-23-09:00")
+        XCTAssertNotEqual(k1, k2) // P0-4: 다음 날 같은 시각 발동 가능
+        XCTAssertNotEqual(k2, k3)
+        XCTAssertEqual(k2, AutomationManager.timeDedupKey(for: day2, calendar: cal)) // 같은 분 안정
+    }
+
+    func testFolderEventTypesFromCompoundFlags() {
+        let created = FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated)
+        let modified = FSEventStreamEventFlags(kFSEventStreamEventFlagItemModified)
+        let compound = created | modified
+        let types = AutomationManager.folderEventTypes(from: compound)
+        XCTAssertTrue(types.contains(.added))
+        XCTAssertTrue(types.contains(.modified))
+        let single = AutomationManager.folderEventTypes(from: created)
+        XCTAssertEqual(single, [.added])
+    }
+
+    func testPathMatchesIgnorePatterns() {
+        XCTAssertTrue(AutomationManager.pathMatchesIgnorePatterns("/tmp/a/foo.tmp", patterns: ["*.tmp"]))
+        XCTAssertTrue(AutomationManager.pathMatchesIgnorePatterns("/tmp/a/foo.tmp", patterns: ["/tmp/a/*"]))
+        XCTAssertFalse(AutomationManager.pathMatchesIgnorePatterns("/tmp/a/foo.txt", patterns: ["*.tmp"]))
+        XCTAssertFalse(AutomationManager.pathMatchesIgnorePatterns("/tmp/a/foo.txt", patterns: []))
+    }
+
+    func testUnimplementedTriggersRejectedByWatcherSupport() {
+        // 미구현 8종 + file — isWatcherSupported false
+        let unsupported: [AutomationTrigger] = [
+            .file(FileTrigger(filePath: "/tmp/x")),
+            .externalDrive(ExternalDriveTrigger()),
+            .display(DisplayTrigger()),
+            .wifi(WiFiTrigger()),
+            .bluetooth(BluetoothTrigger()),
+            .app(AppTrigger(bundleID: "com.example.app")),
+            .focus(FocusTrigger()),
+            .stageManager(StageManagerTrigger()),
+        ]
+        for t in unsupported {
+            XCTAssertFalse(t.isWatcherSupported, t.displayName)
+        }
+        XCTAssertTrue(AutomationTrigger.timeOfDay(TimeOfDayTrigger(time: DateComponents(hour: 1))).isWatcherSupported)
+        XCTAssertTrue(AutomationTrigger.folder(FolderTrigger(folderPath: "/tmp")).isWatcherSupported)
+        XCTAssertTrue(AutomationTrigger.battery(BatteryTrigger(condition: .fallsBelow, threshold: 0.2)).isWatcherSupported)
+        XCTAssertTrue(AutomationTrigger.charger(ChargerTrigger()).isWatcherSupported)
+    }
+
+    func testTimeOfDayCodableRoundTripWithNewFields() throws {
+        let trigger = TimeOfDayTrigger(
+            time: DateComponents(hour: 8, minute: 30),
+            repeatRule: .weekly,
+            weeklyWeekday: 3,
+            monthlyDay: 15,
+            customWeekdays: [2, 4, 6]
+        )
+        let data = try JSONEncoder().encode(trigger)
+        let decoded = try JSONDecoder().decode(TimeOfDayTrigger.self, from: data)
+        XCTAssertEqual(decoded.weeklyWeekday, 3)
+        XCTAssertEqual(decoded.monthlyDay, 15)
+        XCTAssertEqual(decoded.customWeekdays, [2, 4, 6])
+        // 구 JSON(신규 필드 없음) 호환 — nil 기본
+        let legacy = """
+        {"id":"\(UUID().uuidString)","time":{"hour":9,"minute":0},"repeatRule":"daily","runImmediately":true}
+        """.data(using: .utf8)!
+        let legacyDecoded = try JSONDecoder().decode(TimeOfDayTrigger.self, from: legacy)
+        XCTAssertNil(legacyDecoded.weeklyWeekday)
+        XCTAssertNil(legacyDecoded.monthlyDay)
+        XCTAssertNil(legacyDecoded.customWeekdays)
+    }
+
     // MARK: - VariableValue
 
     func testVariableValueCodableRoundTrip() {
@@ -425,5 +562,48 @@ final class ApexKeyFlowTests: XCTestCase {
         XCTAssertNil(context.variables[bVar.id])
         // stop 결과 종료
         XCTAssertEqual(result.controlFlow, .ended)
+    }
+
+    // MARK: - v0.18 UI/UX P1 (E-MAC-UX-9002/9003/9005)
+
+    func testKoreanVariableNameResolved() {
+        // E-MAC-UX-9002: 한글 변수명 {마법변수}가 치환되어야 함
+        var ctx = VariableResolver.ResolveContext()
+        ctx.repeatIndex = 7
+        let resolved = VariableResolver.resolveText("인덱스={repeatIndex}", context: ctx)
+        XCTAssertEqual(resolved, "인덱스=7")
+        // 한글 특수변수명은 SpecialVariable에 없으므로 치환되지 않음 (누락 아님)
+        let unresolved = VariableResolver.resolveText("{한글변수}", context: ctx)
+        XCTAssertEqual(unresolved, "{한글변수}")
+    }
+
+    func testStopShortcutWritesOutputVariable() {
+        // E-MAC-UX-9003: actionParameters의 StopShortcutAction outputVariable에 기록
+        let outVar = Variable.manual(name: "최종", valueType: .text)
+        let stopAction = StopShortcutAction(outputVariable: outVar.id, outputValue: .text("중지됨"))
+        var stop = ShortcutStep(type: .stopShortcut, target: "", title: "중지")
+        stop.actionParameters = try? JSONEncoder().encode(stopAction)
+
+        let after = ShortcutStep(
+            type: .setVariable,
+            target: "도달 안 됨",
+            title: "B",
+            outputVariables: [Variable.manual(name: "B", valueType: .text)]
+        )
+        let shortcut = ShortcutItem(name: "Stop 출력", steps: [stop, after])
+        var context = UseModelExecutor.ExecutionContext()
+        context.lastOutput = .text("이전값")
+
+        let result = ExecutionEngine.shared.execute(shortcut, context: &context)
+        XCTAssertEqual(result.controlFlow, .ended)
+        XCTAssertEqual(context.variables[outVar.id], .text("중지됨"))
+    }
+
+    func testExcludedMenuBarTitles() {
+        // E-MAC-UX-9005: 시스템 전역 메뉴 3종 상수 집합
+        XCTAssertTrue(MenuEnumerator.excludedMenuBarTitles.contains("Apple"))
+        XCTAssertTrue(MenuEnumerator.excludedMenuBarTitles.contains("서비스"))
+        XCTAssertTrue(MenuEnumerator.excludedMenuBarTitles.contains("Services"))
+        XCTAssertFalse(MenuEnumerator.excludedMenuBarTitles.contains("파일"))
     }
 }

@@ -13,6 +13,16 @@ enum StoreCoding {
         }
     }
 
+    /// 인코딩 실패 시 기존 Data 유지 — 빈 blob으로 원본을 덮어쓰지 않는다 (P0-3)
+    static func encodeKeeping<T: Encodable>(_ value: T, previous: Data, label: String) -> Data {
+        do {
+            return try JSONEncoder().encode(value)
+        } catch {
+            Logger.error("E-MAC-STORE-5002", "\(label) 인코딩 실패 — 기존 데이터 유지: \(error.localizedDescription)")
+            return previous
+        }
+    }
+
     static func decode<T: Decodable>(_ type: T.Type, from data: Data, label: String, fallback: T) -> T {
         do {
             return try JSONDecoder().decode(type, from: data)
@@ -21,6 +31,14 @@ enum StoreCoding {
             return fallback
         }
     }
+}
+
+/// PersistedShortcut JSON blob 컬럼 — 디코딩 실패 시 컬럼 단위 쓰기 가드용 (P0-3)
+enum StoreBlobColumn: String, CaseIterable {
+    case steps
+    case triggers
+    case variables
+    case permissions
 }
 
 /// SwiftData 영속 모델 — 등록된 앱
@@ -195,6 +213,16 @@ final class PersistedShortcut {
         self.triggersData = StoreCoding.encode(automations, label: "자동화 트리거")
         self.variablesData = StoreCoding.encode(variables, label: "사용자 변수")
         self.permissionsData = StoreCoding.encode(permissions, label: "단축어 권한")
+    }
+
+    /// 원본 blob 중 디코딩 불가한 컬럼 — 해당 컬럼은 sync 시 원본 Data 유지 (P0-3)
+    func undecodableBlobColumns() -> Set<StoreBlobColumn> {
+        var cols: Set<StoreBlobColumn> = []
+        if (try? JSONDecoder().decode([ShortcutStep].self, from: stepsData)) == nil { cols.insert(.steps) }
+        if (try? JSONDecoder().decode([AutomationTrigger].self, from: triggersData)) == nil { cols.insert(.triggers) }
+        if (try? JSONDecoder().decode([Variable].self, from: variablesData)) == nil { cols.insert(.variables) }
+        if (try? JSONDecoder().decode(ShortcutPermissions.self, from: permissionsData)) == nil { cols.insert(.permissions) }
+        return cols
     }
 
     func toShortcut() -> ShortcutItem {

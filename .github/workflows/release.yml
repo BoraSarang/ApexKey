@@ -35,6 +35,7 @@ jobs:
 
       - name: 태그-번들 버전 일치 검증
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           EXPECTED="${TAG#v}"
           ACTUAL="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Sources/ApexKey/Info.plist)"
@@ -45,6 +46,7 @@ jobs:
 
       - name: Release 빌드 (서명 없음 — CI)
         run: |
+          set -euo pipefail
           xcodebuild \
             -project "${APP_NAME}.xcodeproj" \
             -scheme "${APP_NAME}" \
@@ -56,6 +58,7 @@ jobs:
 
       - name: 단위 테스트
         run: |
+          set -euo pipefail
           xcodebuild test \
             -project "${APP_NAME}.xcodeproj" \
             -scheme "${APP_NAME}" \
@@ -67,6 +70,7 @@ jobs:
 
       - name: 앱 번들 준비
         run: |
+          set -euo pipefail
           APP_PATH="build/Build/Products/Release/${APP_NAME}.app"
           mkdir -p "${ARCHIVE_DIR}"
           cp -R "${APP_PATH}" "${ARCHIVE_DIR}/${APP_NAME}.app"
@@ -81,6 +85,7 @@ jobs:
 
       - name: DMG 생성 (create-dmg, 단일 산출물)
         run: |
+          set -euo pipefail
           brew install create-dmg || true
           create-dmg \
             --volname "${APP_NAME}" \
@@ -96,6 +101,7 @@ jobs:
       - name: 노타라이즈 (선택 — 시크릿 설정 시)
         if: env.NOTARIZE == 'true'
         run: |
+          set -euo pipefail
           APP_PATH="${ARCHIVE_DIR}/${APP_NAME}.app"
           ZIP="${ARCHIVE_DIR}/notarize-upload.zip"
           # 코드 서명 (Developer ID — 설치된 인증서 사용)
@@ -117,6 +123,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           # release-notes/<tag>.md가 있으면 그것을 본문으로, 없으면 자동 생성
           TAG="${GITHUB_REF_NAME}"
           DMG="${ARCHIVE_DIR}/${APP_NAME}-${RELEASE_VERSION}-macOS.dmg"

@@ -39,7 +39,7 @@ final class UseModelExecutor {
             }
             
             // 특수 변수 토큰: {clipboard}, { currentDate}, etc.
-            let specialPattern = #"\{([a-zA-Z]+)\}"#
+            let specialPattern = #"\{([^{}:]+)\}"#
             if let regex = try? NSRegularExpression(pattern: specialPattern),
                let match = regex.firstMatch(in: token, range: NSRange(location: 0, length: token.utf16.count)),
                let varRange = Range(match.range(at: 1), in: token) {

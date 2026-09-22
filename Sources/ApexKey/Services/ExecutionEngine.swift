@@ -33,7 +33,7 @@ final class ExecutionEngine {
     /// 단축어 실행
     @discardableResult
     func execute(_ shortcut: ShortcutItem, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
-        if depth > ExecutionEngine.maxRunShortcutDepth {
+        if depth >= ExecutionEngine.maxRunShortcutDepth {
             Logger.error("E-MAC-FLOW-7009", "Run Shortcut 재귀 깊이 초과 (\(ExecutionEngine.maxRunShortcutDepth)) — 순환 호출 확인")
             return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(shortcut.name))
         }
@@ -65,7 +65,9 @@ final class ExecutionEngine {
             // 흐름 제어 처리
             switch result.controlFlow {
             case .breakLoop:
-                return Result(success: true, controlFlow: .continueExecution)
+                // 반복 탈출은 상위로 전파 (반복 핸들러가 변환 담당).
+                // 그때까지 실패가 있으면 전체 실패로 전파 (성공 둔갑 방지)
+                return Result(success: ok && result.success, controlFlow: .breakLoop)
             case .continueLoop:
                 continue
             case .stop, .ended:
@@ -191,6 +193,10 @@ final class ExecutionEngine {
         
         // whileLoop/count 미설정 시 기본 1회 (기존 0회 조용한 실패 방지)
         let count = loop.count ?? 1
+        guard count > 0 else {
+            Logger.error("E-MAC-FLOW-7008", "반복 횟수 0 이하 — 실행 생략 (count=\(loop.count ?? 0))")
+            return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+        }
         Logger.info("ExecutionEngine", "반복 시작: \(count)회 (\(loop.mode.rawValue))")
         
         let previousRepeatIndex = context.repeatIndex
@@ -199,7 +205,10 @@ final class ExecutionEngine {
         for iteration in 1...count {
             context.repeatIndex = iteration
             context.repeatItem = .number(Double(iteration))
-            context.setOutput(.number(Double(iteration)), for: loop.repeatIndexVariable ?? UUID())
+            // 인덱스 변수가 지정된 때만 기록 (nil이면 매번 랜덤 UUID에 쌓이는 쓰레기 출력 방지)
+            if let indexVarID = loop.repeatIndexVariable {
+                context.setOutput(.number(Double(iteration)), for: indexVarID)
+            }
             
             let result = execute(steps: loop.steps, context: &context, depth: depth)
             switch result.controlFlow {
@@ -250,7 +259,9 @@ final class ExecutionEngine {
             let iteration = index + 1
             context.repeatIndex = iteration
             context.repeatItem = item
-            context.setOutput(.number(Double(iteration)), for: loop.repeatIndexVariable ?? UUID())
+            if let indexVarID = loop.repeatIndexVariable {
+                context.setOutput(.number(Double(iteration)), for: indexVarID)
+            }
             if let itemVarID = loop.repeatItemVariable {
                 context.setOutput(item, for: itemVarID)
             }
@@ -367,7 +378,14 @@ final class ExecutionEngine {
     // MARK: - Stop Shortcut
     
     private func executeStopShortcut(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
-        // StopShortcutAction 설정은 actionParameters에 인코딩됨 (현재는 단순 중지)
+        // StopShortcutAction을 actionParameters에서 디코딩해 outputVariable에 기록 (E-MAC-UX-9003)
+        if let data = step.actionParameters,
+           let action = try? JSONDecoder().decode(StopShortcutAction.self, from: data),
+           let outputVariable = action.outputVariable {
+            let value = action.outputValue ?? context.lastOutput ?? .null
+            context.variables[outputVariable] = value
+            Logger.info("ExecutionEngine", "단축어 중지 → 출력 변수 기록")
+        }
         Logger.info("ExecutionEngine", "단축어 중지")
         return Result(success: true, controlFlow: .ended)
     }

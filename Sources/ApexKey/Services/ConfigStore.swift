@@ -64,17 +64,21 @@ final class ConfigStore: ObservableObject {
     @Published var appLanguage: String? = nil {
         didSet {
             if let code = appLanguage, !code.isEmpty {
-                UserDefaults.standard.set([code], forKey: "AppleLanguages")
+                // AppleLanguages 단일 출처는 LanguageManager (E-MAC-UX-9008)
+                LanguageManager.shared.setLanguage(code)
                 UserDefaults.standard.set(code, forKey: PrefKeys.appLanguage)
             } else {
-                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+                LanguageManager.shared.setLanguage(nil)
                 UserDefaults.standard.removeObject(forKey: PrefKeys.appLanguage)
             }
-            UserDefaults.standard.synchronize()
             Logger.info("ConfigStore", "앱 언어 설정 변경: \(appLanguage ?? "시스템") — 재시작 필요")
         }
     }
     var container: ModelContainer?
+    /// 원본 blob 디코딩 실패 컬럼 — 해당 컬럼은 sync 시 원본 Data 유지 (P0-3)
+    var corruptedShortcutBlobColumns: [UUID: Set<StoreBlobColumn>] = [:]
+    /// 저장소 손상 격리 후 재생성된 경우 백업 경로 (UI 안내용, P0-2)
+    @Published var storeRecoveryBackupPath: String? = nil
     private var cancellables = Set<AnyCancellable>()
 
     let hotKeyService = HotKeyService.shared
@@ -105,9 +109,8 @@ final class ConfigStore: ObservableObject {
         if !defaults.bool(forKey: PrefKeys.showInDock), defaults.object(forKey: PrefKeys.showInDock) == nil {
             defaults.set(false, forKey: PrefKeys.showInDock)
         }
-        // 항상 위에: 기본 Off로 초기화 (기존 저장값 무시 → 강제 리셋)
-        defaults.removeObject(forKey: PrefKeys.alwaysOnTop)
-        self.alwaysOnTop = false
+        // 항상 위에: 저장값 복원 (강제 리셋 제거 — E-MAC-UX-9001)
+        self.alwaysOnTop = defaults.bool(forKey: PrefKeys.alwaysOnTop)
         self.showInMenuBar = defaults.bool(forKey: PrefKeys.showInMenuBar)
         self.showInDock = defaults.bool(forKey: PrefKeys.showInDock)
         // 이전 표시 문자열("전체 화면 (KeyCue)" 등) → 새 식별자 마이그레이션
@@ -148,13 +151,33 @@ final class ConfigStore: ObservableObject {
         let storeURL = storeDirectory.appendingPathComponent("default.store")
         do {
             try FileManager.default.createDirectory(at: storeDirectory, withIntermediateDirectories: true)
-            container = try ModelContainer(
+        } catch {
+            Logger.error("E-MAC-STORE-5001", "저장소 디렉터리 생성 실패 (\(storeDirectory.path)): \(error.localizedDescription)")
+        }
+        // 구 기본 경로 → 전용 경로 1회 이관 (P0-1)
+        Self.migrateLegacyStoreIfNeeded(appSupport: appSupport, storeDirectory: storeDirectory, storeURL: storeURL)
+        func makeContainer() throws -> ModelContainer {
+            try ModelContainer(
                 for: schema,
                 configurations: [ModelConfiguration(schema: schema, url: storeURL)]
             )
+        }
+        do {
+            container = try makeContainer()
             load()
         } catch {
             Logger.error("E-MAC-STORE-5001", "ModelContainer 생성 실패 (\(storeURL.path)): \(error.localizedDescription)")
+            // 손상 store 격리 후 재시도 — 실패 시 무음 no-op 방지 (P0-2)
+            if let backupPath = Self.quarantineStore(at: storeURL) {
+                do {
+                    container = try makeContainer()
+                    storeRecoveryBackupPath = backupPath
+                    Logger.error("E-MAC-STORE-5006", "손상 저장소 격리 후 재생성 성공 — 이전 데이터 백업: \(backupPath)")
+                    load()
+                } catch {
+                    Logger.error("E-MAC-STORE-5001", "저장소 재생성 실패 (\(storeURL.path)): \(error.localizedDescription)")
+                }
+            }
         }
 
         // 글로벌 핫키 눌림 처리
@@ -169,10 +192,13 @@ final class ConfigStore: ObservableObject {
                     return
                 }
                  if bindingID == self.repeatLastID {
-                    // ⌘⇧↩ → 마지막 바인딩 반복
+                    // ⌘⇧↩ → 사이보그 모드 대기 중이면 계속, 아니면 마지막 바인딩 반복 (P0-5)
+                    if self.actionExecutor.resumePauseUntilInput() {
+                        return
+                    }
                     self.repeatLastBinding()
                     return
-                }
+                 }
                 if bindingID == self.paletteID {
                     // ⌘⌥K → 명령 팔레트 토글
                     self.showPalette.toggle()
@@ -242,6 +268,15 @@ final class ConfigStore: ObservableObject {
         scripts = persistedScripts.map { $0.toScript() }
         let shortcutFetch = FetchDescriptor<PersistedShortcut>()
         let persistedShortcuts = fetchContext(context, shortcutFetch)
+        // 디코딩 실패 blob 컬럼 기록 — 이후 sync가 원본을 덮어쓰지 않도록 (P0-3)
+        corruptedShortcutBlobColumns.removeAll()
+        for p in persistedShortcuts {
+            let corrupt = p.undecodableBlobColumns()
+            if !corrupt.isEmpty {
+                corruptedShortcutBlobColumns[p.id] = corrupt
+                Logger.error("E-MAC-STORE-5003", "blob 디코딩 실패 — 해당 컬럼 쓰기 가드: \(p.name) (\(corrupt.map(\.rawValue).sorted().joined(separator: ",")))")
+            }
+        }
         shortcuts = persistedShortcuts.map { $0.toShortcut() }
         if apps.isEmpty {
             // 첫 실행 시 설치된 앱 자동 로드
@@ -303,6 +338,61 @@ final class ConfigStore: ObservableObject {
 
 
     // MARK: - 저장 헬퍼
+
+    /// 구 기본 경로(~/Library/Application Support/default.store) → 전용 디렉터리 1회 이관 (P0-1)
+    /// store 본체와 SQLite sidecar(`-wal`/`-shm`)를 함께 이동한다.
+    nonisolated static func migrateLegacyStoreIfNeeded(
+        appSupport: URL,
+        storeDirectory: URL,
+        storeURL: URL,
+        defaults: UserDefaults = .standard
+    ) {
+        guard !defaults.bool(forKey: PrefKeys.didMigrateLegacyStore) else { return }
+        defaults.set(true, forKey: PrefKeys.didMigrateLegacyStore)
+        let fm = FileManager.default
+        let legacyURL = appSupport.appendingPathComponent("default.store")
+        guard fm.fileExists(atPath: legacyURL.path) else { return }
+        if fm.fileExists(atPath: storeURL.path) {
+            Logger.info("ConfigStore", "레거시 저장소 존재하나 신규 경로 우선 — 구 경로 보관: \(legacyURL.path)")
+            return
+        }
+        do {
+            try fm.createDirectory(at: storeDirectory, withIntermediateDirectories: true)
+            for suffix in ["", "-wal", "-shm"] {
+                let src = URL(fileURLWithPath: legacyURL.path + suffix)
+                let dst = URL(fileURLWithPath: storeURL.path + suffix)
+                guard fm.fileExists(atPath: src.path) else { continue }
+                if fm.fileExists(atPath: dst.path) {
+                    try fm.removeItem(at: dst)
+                }
+                try fm.moveItem(at: src, to: dst)
+            }
+            Logger.info("ConfigStore", "레거시 저장소 이관 완료: \(legacyURL.path) → \(storeURL.path)")
+        } catch {
+            Logger.error("E-MAC-STORE-5005", "레거시 저장소 이관 실패: \(error.localizedDescription)")
+        }
+    }
+
+    /// 컨테이너 생성 실패 시 store + sidecar를 `.corrupt-{stamp}`로 이동 (P0-2)
+    /// - Returns: 본체 백업 경로 (이동 성공 시), 실패 시 nil
+    @discardableResult
+    nonisolated static func quarantineStore(at storeURL: URL) -> String? {
+        let fm = FileManager.default
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        var primaryBackup: URL?
+        for suffix in ["", "-wal", "-shm"] {
+            let src = URL(fileURLWithPath: storeURL.path + suffix)
+            guard fm.fileExists(atPath: src.path) else { continue }
+            let dst = URL(fileURLWithPath: storeURL.path + ".corrupt-\(stamp)" + suffix)
+            do {
+                try fm.moveItem(at: src, to: dst)
+                if suffix.isEmpty { primaryBackup = dst }
+            } catch {
+                Logger.error("E-MAC-STORE-5001", "저장소 격리 실패 (\(src.path)): \(error.localizedDescription)")
+            }
+        }
+        return primaryBackup?.path
+    }
 
     /// ModelContext 저장 + 실패 시 에러 로그 (R-05: try? 묵살 해소)
     /// 호출 위치 식별은 #function 기본값으로 자동 기록한다.

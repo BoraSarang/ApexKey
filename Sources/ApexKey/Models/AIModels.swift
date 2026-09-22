@@ -173,7 +173,8 @@ struct UseModelStep: Identifiable, Codable, Hashable {
     
     /// 프롬프트에서 Special Variable 토큰 추출
     var specialVariableTokens: [String] {
-        let pattern = #"\{([a-zA-Z]+)\}"#
+        // 비ASCII(한글 등) 변수명 포함 [E-MAC-UX-9002]
+        let pattern = #"\{([^{}:]+)\}"#
         let regex = try? NSRegularExpression(pattern: pattern)
         let range = NSRange(location: 0, length: prompt.utf16.count)
         let matches = regex?.matches(in: prompt, options: [], range: range) ?? []

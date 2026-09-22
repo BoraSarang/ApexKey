@@ -48,11 +48,19 @@ extension ConfigStore {
     }
 
     func registerAllBindings() {
-        bindings.forEach { _ = hotKeyService.register($0.id, combo: $0.combo) }
+        // 등록 실패는 조용히 넘어가지 않고 집계 로그 (재부팅 후 타 앱 선점 등)
+        var failed = 0
+        bindings.forEach {
+            if !hotKeyService.register($0.id, combo: $0.combo) { failed += 1 }
+        }
         shortcuts.forEach { shortcut in
-            if !shortcut.combo.isEmpty {
-                _ = hotKeyService.register(shortcut.id, combo: shortcut.combo)
+            if !shortcut.combo.isEmpty,
+               !hotKeyService.register(shortcut.id, combo: shortcut.combo) {
+                failed += 1
             }
+        }
+        if failed > 0 {
+            Logger.error("E-MAC-HTKEY-1001", "핫키 \(failed)건 미등록 (타 앱 선점 가능) — 해당 단축키 재설정 필요")
         }
     }
 
