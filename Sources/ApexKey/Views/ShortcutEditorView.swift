@@ -61,6 +61,12 @@ struct ShortcutEditorView: View {
             // 독립 단계 설정 창에서 Binding으로 수정된 내용 자동 저장
             saveSteps()
         }
+        .onDisappear {
+            // 빨간X·Cmd+W로 닫아도 이름/설명/단계 저장 (saveAndClose를 거치지 않는 경로)
+            saveName()
+            saveDescription()
+            saveSteps()
+        }
         .sheet(isPresented: $showingActionDetail) {
             if let type = selectedActionType {
                 ActionDetailView(

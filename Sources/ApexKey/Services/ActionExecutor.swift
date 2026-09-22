@@ -9,87 +9,15 @@ final class ActionExecutor {
     private let menuEnumerator = MenuEnumerator.shared
 
     /// binding 실행. 성공 여부를 반환 (메뉴 명령 등 성공 판별 가능한 경우 유효)
+    /// 분기는 executeWithDetail에 위임 — 전 분기 2벌 유지 시 한쪽 누락 사고 확정 (D7)
     @discardableResult
     func execute(_ binding: HotKeyBinding) -> Bool {
         Logger.info("ActionExecutor", "실행 시작: \(binding.actionType.displayName) (target=\(binding.target), title=\(binding.title))")
-        switch binding.actionType {
-        case .launchApp:
-            return executeLaunch(target: binding.target, title: binding.title)
-        case .keyCombo:
-            if let press = Self.parseKeyPress(from: binding.target) {
-                return Self.sendKeyPress(press)
-            }
-            Logger.error("E-MAC-ACT-3004", "잘못된 키 조합 형식: \(binding.target) — 'keyCode:modifiers' 형식이어야 합니다")
-            return false
-        case .menuCommand:
-            let item = MenuItem(title: binding.title, menuPath: binding.menuPath)
-            let result = menuEnumerator.performAction(item, in: binding.target)
-            if result.isSuccess {
-                Logger.info("ActionExecutor", "메뉴 명령 성공: \(binding.title) (\(binding.target))")
-            } else {
-                Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패: \(result.description) — \(binding.title) (\(binding.target))")
-            }
-            return result.isSuccess
-        case .url:
-            guard let url = URL(string: binding.target), url.scheme != nil else {
-                Logger.error("E-MAC-MENU-3003", "잘못된 URL target: \(binding.target)")
-                return false
-            }
-            NSWorkspace.shared.open(url)
-            Logger.info("ActionExecutor", "URL 열기: \(url.absoluteString)")
-            return true
-        case .file:
-            let trimmed = binding.target.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else {
-                Logger.error("E-MAC-ACT-3008", "파일 경로 미지정 — 실행 건너뜀")
-                return false
-            }
-            guard FileManager.default.fileExists(atPath: trimmed) else {
-                Logger.error("E-MAC-ACT-3008", "파일 없음: \(trimmed)")
-                return false
-            }
-            let url = URL(fileURLWithPath: trimmed)
-            NSWorkspace.shared.open(url)
-            Logger.info("ActionExecutor", "파일 열기: \(url.path)")
-            return true
-        case .script:
-            return runShellScript(binding.target)
-        case .runScriptInShell:
-            return runShellScript(binding.target)
-        case .appleScript:
-            let r = ScriptExecutor.runAppleScript(binding.target)
-            return r.success
-        case .javaScriptForAutomation:
-            let r = ScriptExecutor.runJXA(binding.target)
-            return r.success
-        case .system:
-            if let type = SystemActionType(rawValue: binding.target) {
-                let ok = SystemActionExecutor.execute(type)
-                Logger.info("ActionExecutor", "시스템 액션 \(ok ? "성공" : "실패"): \(type.displayName)")
-                return ok
-            } else {
-                Logger.error("E-MAC-SYS-8003", "알 수 없는 시스템 액션: \(binding.target)")
-                return false
-            }
-        case .paste:
-            runPaste(binding.target)
-            return true
-        case .wait:
-            runWait(binding.target)
-            return true
-        case .coordinateClick:
-            runCoordinateClick(binding.target)
-            return true
-        case .pauseUntilInput:
-            runPauseUntilInput()
-            return true
-        case .macro:
-            runMacro(binding.target)
-            return true
-        default:
-            Logger.error("E-MAC-ACT-3005", "미구현 액션 타입: \(binding.actionType.rawValue)")
-            return false
+        let result = executeWithDetail(binding)
+        if !result.success {
+            Logger.info("ActionExecutor", "실행 실패: \(binding.actionType.displayName) — \(result.message ?? "")")
         }
+        return result.success
     }
 
     /// onlyWhenAppActive 옵션 판별 — 대상 앱이 활성 상태일 때만 실행

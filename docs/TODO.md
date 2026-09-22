@@ -209,6 +209,12 @@
 - [x] G-03: 반복 인덱스 쓰레기 출력 (repeatIndexVariable nil이면 매번 랜덤 UUID 기록)
 - [x] G-04: registerAllBindings 실패 묵살 (반환값 무시 → 실패 수 로그)
 
+## v0.12 — UI 저장·실행통합 (2026-09-22, PLAN_v0.12_ui-save-exec)
+
+- [x] U-01: 편집기 빨간X 이름·설명 유실 (onDisappear는 자동화만 저장)
+- [x] U-02: SystemScriptEditor 미저장 침묵 유실 (isDirty인데 닫으면 소실)
+- [x] U-03: execute(binding) 80줄 복제 (executeWithDetail와 전 분기 중복)
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)
