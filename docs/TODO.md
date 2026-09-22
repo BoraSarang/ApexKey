@@ -220,9 +220,13 @@
 - [x] C-01: PATH 폴백 리터럴 2벌식 (ShellEnvironment 단일 출처 위반 잔재)
 - [x] C-02: LaunchConfig 코덱 분산 (ActionExecutor·Shortcut·StepSettingsView 3처)
 
+## v0.14 — 대형 파일 분할 1 (2026-09-22, PLAN_v0.14_split-stepsettings)
+
+- [x] D-01: StepSettingsView 1150줄 → StepSettings/ 6파일 (이동만, sectionCard internal 전환)
+
 ## 다음 백로그
 
-- [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)
+- [ ] 대형 파일 분할 (CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)
 - [ ] `menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)
 - [ ] blob 손상 덮어씀 가드 (P0-8 잔류 — 설계 필요)
 - [ ] 단축키 프로필/빠른 전환

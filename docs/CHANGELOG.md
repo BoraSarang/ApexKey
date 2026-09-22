@@ -3,6 +3,12 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — 대형 파일 분할 1 (PLAN_v0.14)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공. 이동만, 동작 불변.
+
+- **분할** — `StepSettingsView.swift` 1150줄 → `Views/StepSettings/` 6파일 (메인 126·테스트 210·앱실행 220·조건 359·AI 119·기타 126). `sectionCard`만 private→internal
+
 ## 2026-09-22 macos — 코덱·PATH 단일화 (PLAN_v0.13)
 
 > 테스트 151건 0실패(2 skip) · 빌드 성공. `json:` 포맷 불변.
