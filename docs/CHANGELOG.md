@@ -8,6 +8,7 @@
 > 테스트 171/0·빌드·현지화 게이트 통과 후 기록. 이동만, 동작 불변.
 
 - **E-MAC-CI-9201** — GitHub Actions 기본 `bash -e`가 `xcodebuild | tail` 파이프 실패 종료코드 삼킴 → `ci.yml`/`release.yml` 모든 `run: |` 블록 `set -euo pipefail`
+- **E-MAC-SYS-8005** — `androidMirrorScriptPath` 하드코된 `/Users/lee/...` 절대경로 → 개발 머신 절대경우 우선, 없으면 Application Support 시드 (번들 `Resources/scrcpy_run.sh` → `#file` 소스 → 최소 대체). CI 단위테스트 `testVerifyAndroidMirrorScriptFileExists`/`testBuiltInPresetsAreFixedWithoutHotkeys` 회귀
 - **분할** — `CustomTheme.swift` 1600줄 → `Models/Theme/` 8파일 (Metadata 86 · Colors 241 · Background 90 · Glass 133 · StyleTokens 220 · CustomTheme 97 · Presets 718 · Color+ThemeHex 94). public 타입 유지
 - **분할** — `AppDelegate.swift` 950줄 → 본체 183 + extension 6파일 (+StatusItem/+Menus/+Windows/+URLScheme/+PaletteHUD) + `AppDelegate+Windowing` (KeyCapablePanel/ToastPanel). cross-file 접근용 멤버 `private` 제거, stored property·라이프사이클 본체 유지
 

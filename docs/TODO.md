@@ -272,6 +272,7 @@
 - [x] R-01: CI `run: |` 블록 `set -euo pipefail` (ci.yml 2 + release.yml 7) — E-MAC-CI-9201
 - [x] R-02: CustomTheme.swift 1600줄 → Theme/ 8파일 분할 (Metadata/Colors/Background/Glass/StyleTokens/CustomTheme/Presets/Color+ThemeHex)
 - [x] R-03: AppDelegate.swift 950줄 → 본체 + extension 6 + Windowing (cross-file `private` 제거)
+- [x] R-04: androidMirrorScriptPath 하드코 절대경로 → Application Support 시드 폴백 (CI 테스트 2건) — E-MAC-SYS-8005
 
 ## 다음 백로그
 
