@@ -52,7 +52,9 @@ struct StepSettingsView: View {
             // 하단 테스트 푸터 (항상 가시 — 스크롤 안 됨)
             StepTestFooter(step: $step)
         }
-        .frame(width: 480, height: 680)
+        // 소형 창에서도 밀리지 않게 최소 크기 유지 — 상단은 헤더, 하단은 푸터 고정
+        .frame(minWidth: 480, minHeight: 480)
+        .frame(idealWidth: 480, idealHeight: 680)
         .background(theme.secondaryBackground)
     }
     

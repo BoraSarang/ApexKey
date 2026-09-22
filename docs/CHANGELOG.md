@@ -3,6 +3,19 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — UI 고정프레임·다중모니터·undo (PLAN_v0.19)
+
+> 테스트 171/0·빌드·현지화 게이트 통과 후 기록.
+
+- **E-MAC-UI-9101** — `NSScreen.main` 5곳 다중모니터 오배치 → `AppDelegate.screen(for:)` 유틸 (창 소속 → 마우스 → main → screens.first)
+- **E-MAC-UI-9102** — Toast 340 고정폭 한글 넘침 → minWidth 340 / maxWidth 440 + `fixedSize`
+- **E-MAC-UI-9103** — StepSettings 시트 480×680 고정 → min 480 + ideal 480×680
+- **E-MAC-UI-9104** — HotKeyRecorder 300×80 고정 잘림 → min/ideal 크기
+- **E-MAC-UI-9105** — HUD 4열 고정 소형 화면 열 증발 → `preferredColumnCount` 화면 폭 기반(2/3/4) 동적 분할
+- **E-MAC-UI-9106** — `© 2026` 하드코딩 → `Calendar.current` 연도
+- **E-MAC-UI-9107** — `esc` 비로컬라이즈 → `palette.esc_key` 키 추가 (ko/en 801키 동기화)
+- **E-MAC-UI-9108** — Edit 메뉴 undo/redo 셀렉터 미구현 → `@objc undo/redo` keyWindow.undoManager 위임 연결
+
 ## 2026-09-22 macos — UI/UX P1 수정 (PLAN_v0.18)
 
 > 테스트·빌드 게이트 통과 후 기록.

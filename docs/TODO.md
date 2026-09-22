@@ -256,9 +256,20 @@
 - [x] U-08: AppleLanguages → LanguageManager.setLanguage 단일 출처 (E-MAC-UX-9008)
 - [x] U-09: ThemeManager 하드코드 pref 키 → PrefKeys 상수 (E-MAC-UX-9009)
 
+## v0.19 — UI 고정프레임·다중모니터·undo (2026-09-22, PLAN_v0.19_ui-screen-frame)
+
+- [x] U-10: NSScreen.main 5곳 → screen(for:) 유틸 (창 소속→마우스→main→screens.first)
+- [x] U-11: Toast 340 고정폭 → minWidth 340/maxWidth 440 + fixedSize
+- [x] U-12: StepSettings 시트 480×680 → min+ideal 크기
+- [x] U-13: HotKeyRecorder 300×80 → min+ideal 크기
+- [x] U-14: HUD 4열 고정 → 화면 폭 기반 preferredColumnCount 동적
+- [x] U-15: © 2026 하드코딩 → Calendar 연도 (AboutView)
+- [x] U-16: `esc` 비로컬라이즈 → palette.esc_key 키 (ko/en)
+- [x] U-17: Edit 메뉴 undo/redo 셀렉터 → AppDelegate @objc undo/redo 위임 연결
+
 ## 다음 백로그
 
-- [ ] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 845줄)
+- [ ] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 845줄) — v0.20
 - [ ] `menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)
 - [ ] blob 손상 덮어씀 가드 (P0-8 잔류 — 설계 필요)
 - [ ] 단축키 프로필/빠른 전환

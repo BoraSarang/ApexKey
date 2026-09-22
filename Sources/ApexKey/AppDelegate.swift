@@ -5,6 +5,15 @@ import Combine
 /// 메뉴바 상태 아이템 + 독립 플로팅 창 관리
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+
+    /// 창이 놓일 화면 — NSScreen.main(key 기준)이 아니라 창 소속→마우스→main→첫 화면 순
+    static func screen(for window: NSWindow?) -> NSScreen? {
+        if let win = window, let s = win.screen { return s }
+        let mouse = NSEvent.mouseLocation
+        if let s = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) { return s }
+        return NSScreen.main ?? NSScreen.screens.first
+    }
+
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
     private var settingsWindow: NSWindow?
@@ -267,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.setContentSize(NSSize(width: 900, height: 620))
 
         // 화면 중앙 첫 배치
-        if let screen = NSScreen.main {
+        if let screen = Self.screen(for: panel) {
             let r = screen.visibleFrame
             panel.setFrameOrigin(NSPoint(
                 x: r.midX - panel.frame.width / 2,
@@ -556,7 +565,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 우상단 (메뉴바 아래) 배치
     private func placeToast(_ win: NSPanel) {
-        guard let screen = NSScreen.main else { return }
+        guard let screen = Self.screen(for: win) else { return }
         let visible = screen.visibleFrame
         let size = win.frame.size
         win.setFrameOrigin(NSPoint(
@@ -736,7 +745,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             paletteHosting = hosting
             win.contentViewController = hosting
 
-            if let screen = NSScreen.main {
+            if let screen = Self.screen(for: win) {
                 let r = screen.visibleFrame
                 let x = r.midX - win.frame.width / 2
                 let y = r.midY - win.frame.height / 2
@@ -870,7 +879,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.contentViewController = hosting
         }
 
-        guard let win = menuHUDOverlayWindow, let screen = NSScreen.main else { return }
+        guard let win = menuHUDOverlayWindow, let screen = Self.screen(for: win) ?? NSScreen.main else { return }
         // 전체 화면 프레임 (메뉴바 포함해 덮음)
         win.setFrame(screen.frame, display: true)
         win.layoutIfNeeded()
@@ -894,12 +903,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 화면 상단 1/3 지점(중앙)에 고정 크기로 HUD 배치
     private func placeMenuHUD(_ win: NSPanel) {
-        guard let screen = NSScreen.main else { return }
+        guard let screen = Self.screen(for: win) else { return }
         let visible = screen.visibleFrame
         let x = visible.midX - 230
         let y = visible.maxY - 420 - 120
         win.setFrame(NSRect(x: x, y: y, width: 460, height: 420), display: true)
         win.layoutIfNeeded()
+    }
+
+    // MARK: - 실행 취소/다시 실행 (Edit 메뉴 — 텍스트 필드 미처리 시 위임)
+
+    @objc func undo(_ sender: Any?) {
+        if let mgr = NSApp.keyWindow?.undoManager, mgr.canUndo {
+            mgr.undo()
+            return
+        }
+        Logger.info("AppDelegate", "[UNDO] 실행 취소 가능한 컨텍스트 없음")
+    }
+
+    @objc func redo(_ sender: Any?) {
+        if let mgr = NSApp.keyWindow?.undoManager, mgr.canRedo {
+            mgr.redo()
+            return
+        }
+        Logger.info("AppDelegate", "[REDO] 다시 실행 가능한 컨텍스트 없음")
     }
 }
 

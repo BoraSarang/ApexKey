@@ -297,7 +297,7 @@ struct CommandPaletteView: View {
                 .buttonStyle(.plain)
                 .help("palette.clear".localized)
             }
-            Text("esc")
+            Text("palette.esc_key".localized)
                 .font(.caption)
                 .foregroundColor(theme.secondaryText.opacity(0.6))
         }
