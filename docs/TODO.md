@@ -224,9 +224,13 @@
 
 - [x] D-01: StepSettingsView 1150줄 → StepSettings/ 6파일 (이동만, sectionCard internal 전환)
 
+## v0.15 — 대형 파일 분할 2 (2026-09-22, PLAN_v0.15_split-theme)
+
+- [x] D-02: Theme.swift 888줄 → Theme/ 4파일 (이동만, public 유지)
+
 ## 다음 백로그
 
-- [ ] 대형 파일 분할 (CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)
+- [ ] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 845줄)
 - [ ] `menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)
 - [ ] blob 손상 덮어씀 가드 (P0-8 잔류 — 설계 필요)
 - [ ] 단축키 프로필/빠른 전환
