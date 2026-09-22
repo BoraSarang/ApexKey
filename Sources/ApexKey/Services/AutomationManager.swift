@@ -22,7 +22,8 @@ final class AutomationManager {
     private var timers: [Timer] = []
     private var lastBatteryLevel: Double = -1
     private var lastChargerConnected: Bool?
-    private var activeTimers: [String: String] = [:]  // timeOfDay 마지막 실행 분 키("HH:MM")
+    /// timeOfDay 마지막 발동 분 키 — 날짜 포함(yyyy-MM-dd-HH:mm) (P0-4)
+    private var activeTimers: [String: String] = [:]
     private let lock = NSLock()
     
     /// 실행 중인 트리거 등록 수
@@ -37,17 +38,27 @@ final class AutomationManager {
         }
         rebuildWatchers()
     }
-    
+
     /// 단축어의 모든 트리거 해제
     func unregister(shortcutID: UUID) {
         lock.lock()
+        let removed = registrations.filter { $0.shortcutID == shortcutID }
         registrations.removeAll { $0.shortcutID == shortcutID }
+        // 세션 가드 딕셔너리 정리 — 삭제된 트리거 키 누적 방지
+        for reg in removed {
+            activeTimers.removeValue(forKey: reg.trigger.id.uuidString)
+        }
+        lastFired.removeValue(forKey: shortcutID)
         lock.unlock()
         rebuildWatchers()
     }
-    
-    /// 단일 트리거 등록
+
+    /// 단일 트리거 등록 — 미구현 감시자는 거부 (P1 미구현 8종 무음 방지)
     func register(shortcutID: UUID, shortcutName: String, trigger: AutomationTrigger) {
+        guard trigger.isWatcherSupported else {
+            Logger.error("E-MAC-AUTO-6001", "미구현 트리거 등록 거부: \(shortcutName) (\(trigger.displayName))")
+            return
+        }
         lock.lock()
         registrations.append(Registration(shortcutID: shortcutID, shortcutName: shortcutName, trigger: trigger))
         lock.unlock()
@@ -113,26 +124,50 @@ final class AutomationManager {
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: now)
         let minute = calendar.component(.minute, from: now)
-        
+
         for (reg, trigger) in triggers {
             let targetHour = trigger.time.hour ?? 0
             let targetMinute = trigger.time.minute ?? 0
             guard hour == targetHour, minute == targetMinute else { continue }
-            
-            // 반복 규칙 확인
-            guard trigger.repeatRule.shouldRun(on: now) else { continue }
-            
-            // 같은 분에 중복 실행 방지
+
+            // 반복 규칙 확인 (기준 요일/날짜 포함)
+            guard trigger.shouldRun(on: now, calendar: calendar) else { continue }
+
+            // 한 번만: 앱 재시작 후에도 재발동 금지 (P0-4/P1)
+            if trigger.repeatRule == .none, Self.hasFiredOnce(trigger.id) { continue }
+
+            // 같은 분(날짜 포함) 중복 실행 방지 — "H:M" 키는 다음 날 같은 시각까지 차단하던 버그 (P0-4)
             let key = reg.trigger.id.uuidString
-            let minuteKey = "\(hour):\(minute)"
-            if activeTimers[key] == minuteKey {
-                continue
+            let dedupKey = Self.timeDedupKey(for: now, calendar: calendar)
+            if activeTimers[key] == dedupKey { continue }
+
+            activeTimers[key] = dedupKey
+            if trigger.repeatRule == .none {
+                Self.markFiredOnce(trigger.id)
             }
-            
-            activeTimers[key] = minuteKey
             Logger.info("AutomationManager", "시간 트리거 발동: \(reg.shortcutName) (\(trigger.displayName))")
             fire(reg, event: .timeEvent(triggerID: trigger.id))
         }
+    }
+
+    /// 날짜가 포함된 분 단위 중복 방지 키 (P0-4)
+    nonisolated static func timeDedupKey(for date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        return String(
+            format: "%04d-%02d-%02d-%02d:%02d",
+            c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0
+        )
+    }
+
+    private static let firedOnceKeyPrefix = "automation.firedOnce."
+
+    /// repeatRule.none 1회 발동 여부 (UserDefaults 영속)
+    nonisolated static func hasFiredOnce(_ triggerID: UUID) -> Bool {
+        UserDefaults.standard.bool(forKey: firedOnceKeyPrefix + triggerID.uuidString)
+    }
+
+    nonisolated static func markFiredOnce(_ triggerID: UUID) {
+        UserDefaults.standard.set(true, forKey: firedOnceKeyPrefix + triggerID.uuidString)
     }
     
     // MARK: - 폴더 트리거 (FSEvents)
@@ -188,42 +223,59 @@ final class AutomationManager {
         }
         lock.unlock()
 
-        let derivedEventType = Self.folderEventType(from: flags)
+        let derivedTypes = Self.folderEventTypes(from: flags)
 
         for path in paths {
-            let parentPath = (path as NSString).deletingLastPathComponent
-            for folderTrigger in folderTriggers where
-                path.hasPrefix(folderTrigger.1.folderPath) &&
-                (folderTrigger.1.watchSubfolders || (parentPath == folderTrigger.1.folderPath)) {
-                // 트리거가 감시 중인 이벤트 타입인지 확인
-                guard let eventType = derivedEventType,
-                      folderTrigger.1.eventTypes.contains(eventType) else { continue }
+            // 무시 패턴 glob 매치 시 스킵 (P1 ignorePatterns)
+            for folderTrigger in folderTriggers {
+                guard path.hasPrefix(folderTrigger.1.folderPath) else { continue }
+                let parentPath = (path as NSString).deletingLastPathComponent
+                guard folderTrigger.1.watchSubfolders || parentPath == folderTrigger.1.folderPath else { continue }
+                guard Self.pathMatchesIgnorePatterns(path, patterns: folderTrigger.1.ignorePatterns) == false else { continue }
+
+                // 복합 FSEvent flags에서 트리거가 요청한 타입이 하나라도 있으면 발동 (P1)
+                let matched = derivedTypes.filter { folderTrigger.1.eventTypes.contains($0) }
+                guard !matched.isEmpty else { continue }
 
                 let url = URL(fileURLWithPath: path)
-                let event = TriggerEventData.folderEvent(triggerID: folderTrigger.1.id, eventType: eventType, fileURLs: [url])
-                Logger.info("AutomationManager", "폴더 트리거 발동: \(path) (\(eventType.displayName))")
-                fire(folderTrigger.0, event: event)
+                for eventType in matched {
+                    let event = TriggerEventData.folderEvent(triggerID: folderTrigger.1.id, eventType: eventType, fileURLs: [url])
+                    Logger.info("AutomationManager", "폴더 트리거 발동: \(path) (\(eventType.displayName))")
+                    fire(folderTrigger.0, event: event)
+                }
             }
         }
     }
 
-    /// FSEvent 플래그 → FolderEventType 매핑
-    private static func folderEventType(from flags: FSEventStreamEventFlags) -> FolderEventType? {
+    /// FSEvent 플래그 → FolderEventType 목록 (복합 flags 전부 산출)
+    nonisolated static func folderEventTypes(from flags: FSEventStreamEventFlags) -> [FolderEventType] {
+        var types: [FolderEventType] = []
         #if os(macOS)
         if flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated) != 0 {
-            return .added
+            types.append(.added)
         }
         if flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRenamed) != 0 {
-            return .renamed
+            types.append(.renamed)
         }
         if flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved) != 0 {
-            return .removed
+            types.append(.removed)
         }
         if flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemModified) != 0 {
-            return .modified
+            types.append(.modified)
         }
         #endif
-        return nil
+        return types
+    }
+
+    /// glob ignorePatterns 매치 — fnmatch(이름 또는 전체 경로)
+    nonisolated static func pathMatchesIgnorePatterns(_ path: String, patterns: [String]) -> Bool {
+        guard !patterns.isEmpty else { return false }
+        let name = (path as NSString).lastPathComponent
+        for pattern in patterns {
+            if fnmatch(pattern, name, 0) == 0 { return true }
+            if fnmatch(pattern, path, 0) == 0 { return true }
+        }
+        return false
     }
     
     // MARK: - 하드웨어/배터리/충전기 트리거

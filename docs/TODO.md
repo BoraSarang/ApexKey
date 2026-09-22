@@ -234,6 +234,16 @@
 - [x] S-02: 레거시 저장소 1회 이관 — Application Support/default.store → com.borasarang.ApexKey/ (store+wal+shm) (P0-1)
 - [x] S-03: 컨테이너 실패 격리 — .corrupt-{stamp} 이동 후 재시도 + storeRecoveryBackupPath 게시 (P0-2)
 
+## v0.17 — 자동화·핫키 P0/P1 (2026-09-22, PLAN_v0.17_automation-p0)
+
+- [x] A-01: activeTimers 날짜 키(yyyy-MM-dd-HH:mm) + unregister 정리 + .none UserDefaults 1회 영속 (P0-4)
+- [x] A-02: ⌘⇧↩ 사이보그 교착 — resumePauseUntilInput Carbon 경로 + 대기 중 반복 실행 금지 (P0-5)
+- [x] A-03: RepeatRule weekly/monthly/custom 실구현 + TimeOfDayTrigger 기준 필드 + 설정 UI
+- [x] A-04: 미구현 트리거 8종·file — isWatcherSupported 가드 + E-MAC-AUTO-6001 + UI 비활성
+- [x] A-05: ignorePatterns glob 적용
+- [x] A-06: FSEvent 복합 flags 전 타입 산출·교집합 발동
+- [x] A-07: 핫키 프로브 일회성 signature + beginTest 선행 endTest + 죽은 코드 제거
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 845줄)

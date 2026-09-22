@@ -3,6 +3,17 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — 자동화·핫키 P0/P1 (PLAN_v0.17)
+
+> 테스트·빌드 게이트 통과 후 기록.
+
+- **P0-4** — `activeTimers`가 `"H:M"`만 저장해 다음 날 같은 시각 발동 차단 → 날짜 포함 키 + unregister 정리 + `.none` UserDefaults 1회 영속
+- **P0-5** — ⌘⇧↩ Carbon 핫키와 `pauseUntilInput` 로컬 모니터가 서로 못 받음 → `resumePauseUntilInput` 병행 해제, 대기 중에는 반복 실행 안 함 (`E-MAC-AUTO-6001`과 무관)
+- **RepeatRule** — weekly/monthly/custom 전부 true → 기준 요일·날짜 필드 + `TimeOfDayTrigger.shouldRun` + 설정 UI
+- **미구현 트리거** — 8종 + file 등록 거부 (`E-MAC-AUTO-6001`) + UI "준비 중" 비활성
+- **폴더** — `ignorePatterns` glob 스킵, FSEvent 복합 flags 전 타입 교집합 발동
+- **핫키** — 프로브 일회성 signature, `beginTest` 선행 `endTest`, 죽은 `forEach { _ in }` 제거
+
 ## 2026-09-22 macos — 저장소 P0 데이터 소실 방어 (PLAN_v0.16)
 
 > 테스트·빌드 게이트 통과 후 기록.

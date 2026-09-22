@@ -101,7 +101,9 @@ final class HotKeyService {
     /// - Returns: 등록 가능하면 true (ApexKey 내부 중복 포함 여부는 호출부의 registeredCombos로 판단)
     func isComboAvailable(_ combo: HotKeyCombo) -> Bool {
         guard !combo.isEmpty else { return false }
-        var hotKeyID = EventHotKeyID(signature: 0x5EED5EED, id: 0x4170)
+        // 일회성 고유 signature — 프로브/실등록 시그니처 충돌·선점 경합 완화 (P1)
+        var hotKeyID = EventHotKeyID(signature: nextSignature, id: 0x4170)
+        nextSignature &+= 1
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(combo.keyCode,
                                          OptionBits(combo.modifiers),
@@ -122,6 +124,7 @@ final class HotKeyService {
 
     /// 테스트용 임시 등록 시작. 성공 시 등록된 testID 반환, 실패 시 nil.
     func beginTest(_ combo: HotKeyCombo) -> UUID? {
+        endTest() // 이전 테스트 등록 누수 방지 (P1)
         guard !combo.isEmpty else { return nil }
         let id = UUID()
         guard register(id, combo: combo) else { return nil }
@@ -138,8 +141,6 @@ final class HotKeyService {
 
     /// 전부 해제
     func unregisterAll() {
-        hotKeyRefs.keys.forEach { _ in }
-        // 안전하게 순회 후 해제
         let allIDs = Array(hotKeyRefs.keys)
         allIDs.forEach { unregister($0) }
     }

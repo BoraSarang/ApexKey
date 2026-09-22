@@ -193,10 +193,13 @@ final class ConfigStore: ObservableObject {
                     return
                 }
                  if bindingID == self.repeatLastID {
-                    // ⌘⇧↩ → 마지막 바인딩 반복
+                    // ⌘⇧↩ → 사이보그 모드 대기 중이면 계속, 아니면 마지막 바인딩 반복 (P0-5)
+                    if self.actionExecutor.resumePauseUntilInput() {
+                        return
+                    }
                     self.repeatLastBinding()
                     return
-                }
+                 }
                 if bindingID == self.paletteID {
                     // ⌘⌥K → 명령 팔레트 토글
                     self.showPalette.toggle()

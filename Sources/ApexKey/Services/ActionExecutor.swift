@@ -397,6 +397,31 @@ final class ActionExecutor {
 
     // MARK: - 사이보그 모드 (입력 대기)
 
+    private let pauseSync = NSLock()
+    private var pauseSemaphore: DispatchSemaphore?
+    private var pauseMonitor: Any?
+
+    /// 대기 중이면 해제하고 true 반환 — ⌘⇧↩ Carbon 핫키 경로에서 호출 (P0-5)
+    /// 로컬 NSEvent 모니터는 Carbon 전역 핫키를 받지 못하므로 병행 경로가 필요하다.
+    @discardableResult
+    func resumePauseUntilInput() -> Bool {
+        pauseSync.lock()
+        guard let sem = pauseSemaphore else {
+            pauseSync.unlock()
+            return false
+        }
+        pauseSemaphore = nil
+        let monitor = pauseMonitor
+        pauseMonitor = nil
+        pauseSync.unlock()
+        if let monitor {
+            DispatchQueue.main.async { NSEvent.removeMonitor(monitor) }
+        }
+        Logger.info("ActionExecutor", "사이보그 모드: 계속 신호 수신 — 해제")
+        sem.signal()
+        return true
+    }
+
     private func runPauseUntilInput() {
         // 호출 스레드를 블로킹하는데 모니터는 메인 런루프에 등록되므로,
         // 메인에서 호출하면 교착. 그 경우 백그라운드로 넘긴다 (R-03)
@@ -415,28 +440,67 @@ final class ActionExecutor {
 
         let semaphore = DispatchSemaphore(value: 0)
 
+        pauseSync.lock()
+        if let previous = pauseSemaphore {
+            // 중첩 대기 시 이전을 먼저 해제
+            pauseSemaphore = nil
+            previous.signal()
+        }
+        pauseSemaphore = semaphore
+        pauseSync.unlock()
+
         // 로컬 모니터는 메인 런루프에서만 이벤트를 수신하므로 메인 스레드에 등록
-        DispatchQueue.main.async {
+        // (앱 포커스 중 로컬 키 경로 보완 — Carbon 경로는 resumePauseUntilInput)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
             var monitorRef: Any?
             monitorRef = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self else { return event }
                 let combo = KeyboardUtil.combo(from: event)
-                if combo.keyCode == 36
+                let repeatCombo = ConfigStore.defaultRepeatHotkey
+                if combo.keyCode == repeatCombo.keyCode
                     && combo.modifiers & KeyboardUtil.cmdMask != 0
                     && combo.modifiers & KeyboardUtil.shiftMask != 0 {
                     if let monitor = monitorRef {
                         NSEvent.removeMonitor(monitor)
                     }
-                    Logger.info("ActionExecutor", "사이보그 모드: 입력 감지 — 계속")
-                    semaphore.signal()
+                    Logger.info("ActionExecutor", "사이보그 모드: 로컬 입력 감지 — 계속")
+                    self.pauseSync.lock()
+                    if let sem = self.pauseSemaphore {
+                        self.pauseSemaphore = nil
+                        self.pauseMonitor = nil
+                        self.pauseSync.unlock()
+                        sem.signal()
+                    } else {
+                        self.pauseSync.unlock()
+                    }
                     return nil
                 }
                 return event
             }
+            self.pauseSync.lock()
+            if self.pauseSemaphore != nil {
+                if let old = self.pauseMonitor { NSEvent.removeMonitor(old) }
+                self.pauseMonitor = monitorRef
+            } else if let monitorRef {
+                // 이미 Carbon 경로로 해제된 뒤 설치된 모니터는 제거
+                NSEvent.removeMonitor(monitorRef)
+            }
+            self.pauseSync.unlock()
         }
 
         // 호출 스레드 블로킹 (백그라운드) — 메인 런루프는 자유로워 이벤트 수신 가능
         semaphore.wait()
+
+        pauseSync.lock()
+        if pauseSemaphore === semaphore {
+            pauseSemaphore = nil
+            if let monitor = pauseMonitor {
+                pauseMonitor = nil
+                DispatchQueue.main.async { NSEvent.removeMonitor(monitor) }
+            }
+        }
+        pauseSync.unlock()
     }
 
     // MARK: - 매크로
