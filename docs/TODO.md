@@ -202,6 +202,13 @@
 - [x] F-04: Localizable 중복키 `ui.app_detail.select_system` 제거 (ko/en)
 - [x] F-05: 메뉴 실행 메인 블로킹 경고 로그 (performAction 메인 경고, 전체 비동기화는 후속 과제)
 
+## v0.11 — P1 엔진·핫키 정합화 (2026-09-22, PLAN_v0.11_p1-engine-hotkey)
+
+- [x] G-01: breakLoop 성공 둔갑 + Break 무시 (execute가 breakLoop를 삼켜 반복이 끝까지 실행되던 문제, ok 누적·상위 전파)
+- [x] G-02: RunShortcut depth off-by-one (`> 10` → `>=`, 실제 11단계 허용)
+- [x] G-03: 반복 인덱스 쓰레기 출력 (repeatIndexVariable nil이면 매번 랜덤 UUID 기록)
+- [x] G-04: registerAllBindings 실패 묵살 (반환값 무시 → 실패 수 로그)
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (StepSettingsView 1143줄·CustomTheme 1600줄·Theme 888줄·AppDelegate 845줄)

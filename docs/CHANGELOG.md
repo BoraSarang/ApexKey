@@ -3,6 +3,15 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — P1 엔진·핫키 정합화 (PLAN_v0.11)
+
+> 테스트 151건 0실패(2 skip) · 빌드 성공.
+
+- **반복 탈출** — `execute(steps:)`가 breakLoop를 삼켜 Break 후에도 반복이 끝까지 실행 + 성공 둔갑 → `ok` 누적·`.breakLoop` 상위 전파로 수정
+- **재귀 가드** — RunShortcut depth `> 10` → `>=` (실제 11단계 허용 off-by-one)
+- **변수 출력** — repeatIndexVariable nil이면 매번 랜덤 UUID에 기록 → 지정된 때만 기록
+- **핫키** — `registerAllBindings` 실패 집계 로그 (`E-MAC-HTKEY-1001`, 재설정 안내)
+
 ## 2026-09-22 macos — P0 크리티컬 5건 수정 (PLAN_v0.10)
 
 > 테스트 151건 0실패(2 skip) · 빌드 성공 · 현지화 가드 통과.
