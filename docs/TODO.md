@@ -267,9 +267,15 @@
 - [x] U-16: `esc` 비로컬라이즈 → palette.esc_key 키 (ko/en)
 - [x] U-17: Edit 메뉴 undo/redo 셀렉터 → AppDelegate @objc undo/redo 위임 연결
 
+## v0.20 — 대형 파일 분할 + CI pipefail (2026-09-22, PLAN_v0.20_refactor-split-ci)
+
+- [x] R-01: CI `run: |` 블록 `set -euo pipefail` (ci.yml 2 + release.yml 7) — E-MAC-CI-9201
+- [x] R-02: CustomTheme.swift 1600줄 → Theme/ 8파일 분할 (Metadata/Colors/Background/Glass/StyleTokens/CustomTheme/Presets/Color+ThemeHex)
+- [x] R-03: AppDelegate.swift 950줄 → 본체 + extension 6 + Windowing (cross-file `private` 제거)
+
 ## 다음 백로그
 
-- [ ] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 845줄) — v0.20
+- [x] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 950줄) — v0.20
 - [ ] `menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)
 - [ ] blob 손상 덮어씀 가드 (P0-8 잔류 — 설계 필요)
 - [ ] 단축키 프로필/빠른 전환

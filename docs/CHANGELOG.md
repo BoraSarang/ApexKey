@@ -3,6 +3,14 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — 대형 파일 분할 + CI pipefail (PLAN_v0.20)
+
+> 테스트 171/0·빌드·현지화 게이트 통과 후 기록. 이동만, 동작 불변.
+
+- **E-MAC-CI-9201** — GitHub Actions 기본 `bash -e`가 `xcodebuild | tail` 파이프 실패 종료코드 삼킴 → `ci.yml`/`release.yml` 모든 `run: |` 블록 `set -euo pipefail`
+- **분할** — `CustomTheme.swift` 1600줄 → `Models/Theme/` 8파일 (Metadata 86 · Colors 241 · Background 90 · Glass 133 · StyleTokens 220 · CustomTheme 97 · Presets 718 · Color+ThemeHex 94). public 타입 유지
+- **분할** — `AppDelegate.swift` 950줄 → 본체 183 + extension 6파일 (+StatusItem/+Menus/+Windows/+URLScheme/+PaletteHUD) + `AppDelegate+Windowing` (KeyCapablePanel/ToastPanel). cross-file 접근용 멤버 `private` 제거, stored property·라이프사이클 본체 유지
+
 ## 2026-09-22 macos — UI 고정프레임·다중모니터·undo (PLAN_v0.19)
 
 > 테스트 171/0·빌드·현지화 게이트 통과 후 기록.
