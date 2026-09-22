@@ -47,6 +47,7 @@ extension ConfigStore {
         }
         AutomationManager.shared.unregister(shortcutID: shortcut.id)
         shortcuts.removeAll { $0.id == shortcut.id }
+        corruptedShortcutBlobColumns.removeValue(forKey: shortcut.id)
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == shortcut.id })
         if let found = fetchContext(context, fetch).first {
@@ -139,7 +140,14 @@ extension ConfigStore {
             found.comboKeyCode = shortcut.combo.keyCode
             found.comboModifiers = shortcut.combo.modifiers
             found.comboDisplayString = shortcut.combo.displayString
-            found.stepsData = StoreCoding.encode(shortcut.steps, label: "단축어 단계")
+            // 디코딩 실패한 blob 컬럼은 원본 Data 유지 — 메모리 fallback([])으로 영구 삭제 방지 (P0-3)
+            let corrupt = corruptedShortcutBlobColumns[shortcut.id] ?? []
+            if !corrupt.isEmpty {
+                Logger.error("E-MAC-STORE-5003", "손상 blob 컬럼 쓰기 건너뜀: \(shortcut.name) (\(corrupt.map(\.rawValue).sorted().joined(separator: ",")))")
+            }
+            if !corrupt.contains(.steps) {
+                found.stepsData = StoreCoding.encodeKeeping(shortcut.steps, previous: found.stepsData, label: "단축어 단계")
+            }
             found.iconRaw = shortcut.icon.displayName
             found.colorRaw = shortcut.color.rawValue
             found.aiModelRaw = shortcut.aiModel.rawValue
@@ -150,9 +158,15 @@ extension ConfigStore {
             found.modifiedAt = shortcut.modifiedAt
             found.lastRunAt = shortcut.lastRunAt
             found.runCount = shortcut.runCount
-            found.triggersData = StoreCoding.encode(shortcut.automations, label: "자동화 트리거")
-            found.variablesData = StoreCoding.encode(shortcut.variables, label: "사용자 변수")
-            found.permissionsData = StoreCoding.encode(shortcut.permissions, label: "단축어 권한")
+            if !corrupt.contains(.triggers) {
+                found.triggersData = StoreCoding.encodeKeeping(shortcut.automations, previous: found.triggersData, label: "자동화 트리거")
+            }
+            if !corrupt.contains(.variables) {
+                found.variablesData = StoreCoding.encodeKeeping(shortcut.variables, previous: found.variablesData, label: "사용자 변수")
+            }
+            if !corrupt.contains(.permissions) {
+                found.permissionsData = StoreCoding.encodeKeeping(shortcut.permissions, previous: found.permissionsData, label: "단축어 권한")
+            }
         }
         saveContext(context)
     }

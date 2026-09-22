@@ -3,6 +3,14 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-22 macos — 저장소 P0 데이터 소실 방어 (PLAN_v0.16)
+
+> 테스트·빌드 게이트 통과 후 기록.
+
+- **P0-3** — 디코딩 실패 blob이 `syncShortcut`으로 빈 배열 영구 덮어쓰기 → `encodeKeeping`(실패 시 기존 Data 유지) + 컬럼 단위 쓰기 가드 (`E-MAC-STORE-5003`)
+- **P0-1** — 구 `Application Support/default.store` → 전용 디렉터리 1회 이관 (store·`-wal`·`-shm`, `E-MAC-STORE-5005`)
+- **P0-2** — `ModelContainer` 생성 실패 시 손상 store 격리(`.corrupt-{stamp}`) 후 재시도 + `storeRecoveryBackupPath` 게시 (`E-MAC-STORE-5006`)
+
 ## 2026-09-22 macos — 대형 파일 분할 2 (PLAN_v0.15)
 
 > 테스트 151건 0실패(2 skip) · 빌드 성공. 이동만, 동작 불변.

@@ -228,6 +228,12 @@
 
 - [x] D-02: Theme.swift 888줄 → Theme/ 4파일 (이동만, public 유지)
 
+## v0.16 — 저장소 P0 데이터 소실 방어 (2026-09-22, PLAN_v0.16_store-p0)
+
+- [x] S-01: blob 쓰기 가드 — StoreCoding.encodeKeeping + undecodableBlobColumns + syncShortcut 손상 컬럼 원본 유지 (P0-3)
+- [x] S-02: 레거시 저장소 1회 이관 — Application Support/default.store → com.borasarang.ApexKey/ (store+wal+shm) (P0-1)
+- [x] S-03: 컨테이너 실패 격리 — .corrupt-{stamp} 이동 후 재시도 + storeRecoveryBackupPath 게시 (P0-2)
+
 ## 다음 백로그
 
 - [ ] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 845줄)

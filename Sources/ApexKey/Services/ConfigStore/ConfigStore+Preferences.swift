@@ -34,6 +34,7 @@ extension ConfigStore {
         static let menuHUDHotkey = "pref.menuHUDHotkey"
         static let updateFrequency = "pref.updateFrequency"
         static let updateLastChecked = "pref.updateLastChecked"
+        static let didMigrateLegacyStore = "pref.didMigrateLegacyStore"
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")
