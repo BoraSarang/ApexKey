@@ -20,14 +20,24 @@ struct VariableResolver {
     }
     
     // MARK: - 변수 값 해석
-    
+
+    /// Double이 정수를 손실 없이 표현할 수 있는 상한 (2^53).
+    /// 이 값을 넘는 수는 `Int(_)` 변환이 크래시하거나 상실을 유발하므로 정수 포맷 대상에서 제외한다.
+    static let exactlyRepresentableIntegerBound: Double = 9_007_199_254_740_992.0
+
     /// VariableValue → 표시 문자열 (프롬프트 치환용)
     static func stringValue(_ value: VariableValue) -> String {
         switch value {
         case .text(let v): return v
         case .number(let v):
             // 정수는 ".0" 없이 표시 (예: 2 → "2", 2.5 → "2.5")
-            if v == v.rounded() { return String(Int(v)) }
+            // E-MAC-VAR-1002: inf/NaN은 v == v.rounded()가 참이지만 String(Int(_))는
+            // fatalError로 크래시한다. 2^53(Double이 정수를 정확히 표현하는 상한) 이상은
+            // 애초에 "정수"가 아니므로 이 경로에서 제외한다.
+            // 도달 경로: ExecutionEngine.inferValue의 Double("inf")/"nan"/"1e300".
+            if v.isFinite, v.magnitude < Self.exactlyRepresentableIntegerBound, v == v.rounded() {
+                return String(Int(v))
+            }
             return String(v)
         case .boolean(let v): return v ? "variable.boolean_true".localized : "variable.boolean_false".localized
         case .list(let arr): return arr.map { stringValue($0) }.joined(separator: ", ")
