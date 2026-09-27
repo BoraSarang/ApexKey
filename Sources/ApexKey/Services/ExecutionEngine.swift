@@ -417,9 +417,16 @@ final class ExecutionEngine {
     
     // MARK: - 셸 스크립트
 
-    /// 스크립트 단계 실행 — 변수 토큰({매직변수} 등)을 해석한 뒤 셸에서 실행
+    /// 스크립트 단계 실행 — 변수 토큰({마법변수} 등)을 해석한 뒤 셸에서 실행
     private func executeShellScript(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
-        let resolved = VariableResolver.resolveText(step.target, context: makeResolveContext(context))
+        // E-MAC-SCRIPT-6004: 치환된 값은 셸 리터럴로 인용한다.
+        // {clipboard}·{lastResult}는 비신뢰 출처(사용자 클립보드, 직전 AI/웹 결과)이므로
+        // 인용 없이 `/bin/zsh -c`에 들어가면 메타문자가 실행될 수 있다.
+        let resolved = VariableResolver.resolveText(
+            step.target,
+            context: makeResolveContext(context),
+            escaping: ShellEnvironment.literal
+        )
         let ok = ActionExecutor.shared.runShellScript(resolved)
         context.setOutput(.text(resolved), for: step.id)
         context.lastOutput = .text(resolved)

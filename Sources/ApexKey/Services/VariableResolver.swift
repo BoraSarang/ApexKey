@@ -105,9 +105,19 @@ struct VariableResolver {
     // MARK: - 문자열 치환
     
     /// 문자열 내 모든 변수 토큰 치환
-    static func resolveText(_ text: String, context: ResolveContext) -> String {
+    ///
+    /// - Parameter escaping: **치환된 값에만** 적용되는 변환. 템플릿(=사용자가 작성한 나머지 명령)은
+    ///   그대로 둔다. E-MAC-SCRIPT-6004 — 셸 명령에 `{clipboard}`·`{lastResult}`를 넣으면
+    ///   `{lastResult}`는 직전 AI/웹 결과일 수 있어 비신뢰 입력이 `/bin/zsh -c`에 그대로 도달한다.
+    ///   셸 경로에서는 `ShellEnvironment.literal`을 넘겨 값이 셸 리터럴로 인용되게 한다.
+    ///   기본값은 항등 변환(AppleScript/JXA/URL 경로는 각 형식의 인용 규칙을 쓰거나 인용이 불필요).
+    static func resolveText(
+        _ text: String,
+        context: ResolveContext,
+        escaping: (String) -> String = { $0 }
+    ) -> String {
         var resolved = text
-        
+
         // 매직 변수 토큰 치환: {마법변수:stepID:name}
         let magicPattern = #"\{마법변수:([^:]+):([^}]+)\}"#
         if let regex = try? NSRegularExpression(pattern: magicPattern) {
@@ -119,11 +129,11 @@ struct VariableResolver {
                 let stepIDStr = String(resolved[stepIDRange])
                 if let stepID = UUID(uuidString: stepIDStr),
                    let value = context.stepOutputs[stepID] {
-                    resolved.replaceSubrange(fullRange, with: stringValue(value))
+                    resolved.replaceSubrange(fullRange, with: escaping(stringValue(value)))
                 }
             }
         }
-        
+
         // 특수 변수 토큰 치환: {clipboard}, {currentDate}, ...
             // 비ASCII(한글 등) 변수명 포함 · `name:UUID` 인용 문법 유지 [E-MAC-UX-9002]
             let specialPattern = #"\{([^{}:]+)\}"#
@@ -136,11 +146,11 @@ struct VariableResolver {
                 let varName = String(resolved[varRange])
                 if let special = SpecialVariable(rawValue: varName) {
                     let value = resolveSpecialVariable(special, context: context)
-                    resolved.replaceSubrange(fullRange, with: stringValue(value))
+                    resolved.replaceSubrange(fullRange, with: escaping(stringValue(value)))
                 }
             }
         }
-        
+
         return resolved
     }
     
