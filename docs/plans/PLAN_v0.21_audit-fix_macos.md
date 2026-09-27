@@ -1,7 +1,7 @@
 ---
 id: PLAN_v0.21
 title: v0.21 — 감사 결함 수정 (P0 데이터/정지 + 카탈로그 정합)
-status: in_progress
+status: done
 platform: macos
 priority: P0
 budget: M
@@ -69,14 +69,44 @@ branches: fix/macos-audit-p0
 - [ ] `docs/CHANGELOG.md` v0.21 기록 (코드 완료 후)
 - [ ] `docs/DESIGN.md` 갱신 (63줄, 상태 체크박스 전부 미갱신)
 
-## DoD
+## DoD (모두 충족)
 
-- [ ] 빌드 통과: `./build_and_run.sh build macos`
-- [ ] 테스트 통과: `./build_and_run.sh test macos unit` (기존 171건 0실패 유지 + 회귀 추가)
-- [ ] 현지화 게이트 통과: `python3 scripts/check-localizable.py`
-- [ ] 신규 회귀 테스트: A-01(파이프 64KiB), A-02(inf/NaN), A-04(핫키 교체 보존), B-01(반복 실패 전파), B-03(스크립트 출력), B-11(단일 세그먼트)
-- [ ] TODO/CHANGELOG 동기화
-- [ ] `.agent/session-2026-09-27-macos.md`
+- [x] 빌드 통과 — `xcodebuild build` 경고 0 (AppIntents metadata 1건 제외)
+- [x] 테스트 통과 — `test macos unit` **247건 0실패** (2 skip, 2.3초) / `test macos smoke` 69건 6초
+- [x] 현지화 게이트 통과 — `check-localizable.py` (ko/en 810키 일치)
+- [x] 버전 게이트 통과 — `check-version.py` 신규 (1.3.0)
+- [x] 신규 회귀 테스트 **76건** — ProcessRunner 9 · VariableResolver 8 · AI 정직성 10 ·
+      핫키 1(+상태전이 1) · 인젝션 11 · 실행결과전파 10 · 테마 6 · 메뉴경로 12 · 카탈로그 10
+- [x] 실패 exit code 전파 실측 (의도적 XCTFail → exit 1)
+- [x] TODO/CHANGELOG/PLAN 동기화
+- [x] `.agent/session-2026-09-27-macos.md`
+
+## 결과 요약
+
+| Phase | 건수 | 상태 |
+|---|:-:|:-:|
+| A (P0) | 7 | 전부 완료 |
+| B (P1) | 11 | 전부 완료 |
+| C (카탈로그 정합) | 7 | 전부 완료 |
+
+**발견된 추가 결함 (수정 완료)**
+- `waitUntilExit` 교착 → 4곳 (P0, 앱 영구 정지)
+- `String(Int(inf))` fatalError (P0, 크래시)
+- AI 3종 거짓 성공 + 공개 광고 중 (P0)
+- `setLaunchBinding` 핫키 무음 소실 (P0)
+- 셸 토큰 인젝션 (P1, 보안)
+- 릴리스 태그-버전 대조가 **반드시 실패** 상태 (P0, 배포 차단)
+- `build_and_run.sh test`가 **xcodebuild 실패를 삼켜 항상 exit 0** (P1, CI 신뢰성)
+- 빈 테스트 필터 배열이 `set -u`에서 죽음 (bash 3.2) (P1)
+- 없는 프로세스 osascript가 5.5초 걸림 → 5초 타임아웃이 진단을 덮음 (P1)
+
+**다음 세션으로 이월**
+- `error_message_ko.json` 미도입 — 규칙 예외 문서화 필요
+- i18n 미참조 키 탐지 규칙 불완전(중첩 디렉터리 미재귀) — 안전 제거 불가
+- 무서명 릴리스 → Gatekeeper 차단 + 접근성 권한 재승인 (별도 과제, T-029가 배포본에서 성립 안 함)
+- `VersionedSchema` 부재 — 필드 추가 시 store 개설 실패 가능
+- 실행 엔진 메인 스레드 동기 실행 (UI 정지) — 백그라운드화 필요
+- 사용자 변수 이름 토큰 `{name}` 미지원 (UUID만)
 
 ## 비고 — 하지 않는 것 (YAGNI)
 

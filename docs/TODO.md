@@ -143,8 +143,8 @@
 ## v0.5 — 다국어 지원 (i18n, PLAN_v0.5_i18n)
 
 - [x] T-140: Localizable.strings(ko/en) 생성 + LanguageManager 싱글턴 + ConfigStore appLanguage 저장
-- [x] T-141: SettingsView 언어 선택 섹션(Picker: 시스템/한국어/영어) + 재시작 필요 안내
-- [x] T-142: 전체 UI 문자열 키 추출·ko/en 번역 + Text(LocalizedStringKey) 치환 + ActionMetadata 연계
+- [x] T-141: SettingsView 언어 선택 섹션(Picker: 시스템/한국어/영어) + 재시작 필요 안내 — **파이프 교착 제거 (4곳 → ProcessRunner, 동시 드레인 + 타임아웃) — 9건 테스트**
+- [x] T-142: 전체 UI 문자열 키 추출·ko/en 번역 + Text(LocalizedStringKey) 치환 + ActionMetadata 연계 — **`String(Int(v))` 크래시 가드 (2^53 미만 + 유한) — 8건 테스트**
 
 ## v0.6 — 잔여 문자열 다국어화 (PLAN_v0.6_l10n)
 
@@ -286,37 +286,37 @@
 
 ### Phase A — P0
 
-- [ ] T-141: **파이프 교착 제거 (앱 영구 정지)** — `waitUntilExit()` 후 `readDataToEndOfFile()` 4곳을 동시 드레인으로. 64KiB 초과 출력 시 메인스레드 교착 → 핫키·패널·메뉴바 전체 정지 (강제종료 외 복구 불가)
-- [ ] T-142: **`String(Int(v))` 크래시 가드** — `inf`/`NaN` fatalError (`VariableResolver.swift:30`)
-- [ ] T-143: **AI 3종 스텁 거짓 성공 제거** — `UseModel`/`WritingTool`/`ImagePlayground`가 FoundationModels 미연동 상태에서 `return true`. 실패 반환 + 카탈로그/README/웹 문구 정정
-- [ ] T-144: **`setLaunchBinding` 파괴-후-검증 제거** — 삭제 전 중복 사전 검증, `addBinding` → `Bool` 반환. 핫키 무음 소실
-- [ ] T-145: **셸 인젝션 방어** — `ShellEnvironment.quoted(_:)` 도입. AppleScript 경로만 이스케이프가 있는 비대칭
-- [ ] T-146: **Info.plist 버전 단일 출처화** — `project.yml` `MARKETING_VERSION`으로 이전. 현재 1.0 고정이라 `release.yml` 태그 대조에서 **다음 릴리스가 반드시 실패**
-- [ ] T-147: **테스트 격리** — 싱글론 오염 테스트(`HotKeyService.shared`에 ⌘H 실제 등록·미해제) 제거
+- [x] T-141: **파이프 교착 제거 (앱 영구 정지)** — `waitUntilExit()` 후 `readDataToEndOfFile()` 4곳을 동시 드레인으로. 64KiB 초과 출력 시 메인스레드 교착 → 핫키·패널·메뉴바 전체 정지 (강제종료 외 복구 불가)
+- [x] T-142: **`String(Int(v))` 크래시 가드** — `inf`/`NaN` fatalError (`VariableResolver.swift:30`)
+- [x] T-143: **AI 3종 스텁 거짓 성공 제거** — `UseModel`/`WritingTool`/`ImagePlayground`가 FoundationModels 미연동 상태에서 `return true`. 실패 반환 + 카탈로그/README/웹 문구 정정 — **AI 3종 스텁 → 실패 반환 + 가용성 판정 정직화 + README/웹 문구 정정 — 10건 테스트**
+- [x] T-144: **`setLaunchBinding` 파괴-후-검증 제거** — 삭제 전 중복 사전 검증, `addBinding` → `Bool` 반환. 핫키 무음 소실 — **`setLaunchBinding` 파괴-후-검증 → 사전 검증 + `HotKeyApplyResult` 반환**
+- [x] T-145: **셸 인젝션 방어** — `ShellEnvironment.quoted(_:)` 도입. AppleScript 경로만 이스케이프가 있는 비대칭 — **셸 인젝션 방어 — `ShellEnvironment.literal` + `resolveText(escaping:)` — 11건 테스트**
+- [x] T-146: **Info.plist 버전 단일 출처화** — `project.yml` `MARKETING_VERSION`으로 이전. 현재 1.0 고정이라 `release.yml` 태그 대조에서 **다음 릴리스가 반드시 실패** — **Info.plist 버전 단일 출처화 — project.yml `MARKETING_VERSION` + `check-version.py` 게이트**
+- [x] T-147: **테스트 격리** — 싱글론 오염 테스트(`HotKeyService.shared`에 ⌘H 실제 등록·미해제) 제거 — **테스트 격리 — ⌘H 싱글론 오염 제거 + 핫키 상태 전이 테스트**
 
 ### Phase B — P1
 
-- [ ] T-148: **반복 내부 실패 전파** — `executeRepeatCount`/`Each`가 내부 `success:false`를 버리고 성공 반환
-- [ ] T-149: **에러 메시지 보존** — `execute(steps:)`가 `error` 문자열을 버림 → 토스트에 실제 원인 미노출
-- [ ] T-150: **스크립트 출력이 소스코드로 기록** — `runShellScript`가 stdout을 버림
-- [ ] T-151: **일반 액션 `setOutput` 누락** — `default:` 분기가 출력을 남기지 않아 `{lastResult}`가 과거 잔여값
-- [ ] T-152: **핫키 저장 실패 전달** — `onRecord` → `Bool` 반환. 현재 "적용되었습니다"가 거짓말
-- [ ] T-153: **`removeApp` 연관 바인딩 정리** — `pruneRemovedApps()`가 매 실행 호출 → **외장드라이브 뽑으면 고아 핫키가 매번 재등록**
-- [ ] T-154: **`showHiddenApps` 영속화** — 설정 토글이 매 실행 리셋
-- [ ] T-155: **테마 활성 ID 키 이중 정의 해소** — `ApexKeyActiveThemeId` vs `activeThemeId` 연결 코드 0건
-- [ ] T-156: **FSEventStream 해제 전 콜백 큐 동기화** — use-after-free 창
-- [ ] T-157: **osascript 오류 분류 정정** — 미실행 앱·없는 메뉴가 전부 `-1728`. `-1743`은 Automation TCC (현재 "손쉬운 사용 권한"으로 오표기)
-- [ ] T-158: **`menuPath` 단일 세그먼트 처리** — `count==1`이면 구조적으로 100% 실패. `ApexKeyStoreTests:99-103`이 이를 green 고정 중 → 테스트 갱신 필요
+- [x] T-148: **반복 내부 실패 전파** — `executeRepeatCount`/`Each`가 내부 `success:false`를 버리고 성공 반환 — **반복 내부 실패 전파 (`executeRepeatCount`/`Each`) — 10건 테스트**
+- [x] T-149: **에러 메시지 보존** — `execute(steps:)`가 `error` 문자열을 버림 → 토스트에 실제 원인 미노출 — **에러 메시지 보존 — 최초 실패 사유를 Result로 전파**
+- [x] T-150: **스크립트 출력이 소스코드로 기록** — `runShellScript`가 stdout을 버림 — **셸 단계 출력이 소스코드가 아닌 실제 stdout**
+- [x] T-151: **일반 액션 `setOutput` 누락** — `default:` 분기가 출력을 남기지 않아 `{lastResult}`가 과거 잔여값 — **일반 액션 `default:` 분기의 `setOutput` 누락**
+- [x] T-152: **핫키 저장 실패 전달** — `onRecord` → `Bool` 반환. 현재 "적용되었습니다"가 거짓말 — **핫키 저장 실패 전달 — `onRecord` → `String?` 반환**
+- [x] T-153: **`removeApp` 연관 바인딩 정리** — `pruneRemovedApps()`가 매 실행 호출 → **외장드라이브 뽑으면 고아 핫키가 매번 재등록** — **`removeApp` 연관 바인딩 + Carbon 핫키 정리 (E-MAC-STORE-5007)**
+- [x] T-154: **`showHiddenApps` 영속화** — 설정 토글이 매 실행 리셋 — **`showHiddenApps` 영속화 (E-MAC-STORE-5008)**
+- [x] T-155: **테마 활성 ID 키 이중 정의 해소** — `ApexKeyActiveThemeId` vs `activeThemeId` 연결 코드 0건 — **테마 활성 ID 키 단일 출처화 (E-MAC-UX-9011) — 6건 테스트**
+- [x] T-156: **FSEventStream 해제 전 콜백 큐 동기화** — use-after-free 창 — **FSEventStream 해제 전 콜백 큐 barrier 동기화 (E-MAC-AUTO-8002)**
+- [x] T-157: **osascript 오류 분류 정정** — 미실행 앱·없는 메뉴가 전부 `-1728`. `-1743`은 Automation TCC (현재 "손쉬운 사용 권한"으로 오표기) — **osascript 오류 분류 정정 — `-600` 제거, `-1728` 경로 오류, `-1743` Automation (E-MAC-MENU-7007)**
+- [x] T-158: **`menuPath` 단일 세그먼트 처리** — `count==1`이면 구조적으로 100% 실패. `ApexKeyStoreTests:99-103`이 이를 green 고정 중 → 테스트 갱신 필요 — **`menuPath` 단일 세그먼트 처리 — 최상위 메뉴 클릭으로 분기 (E-MAC-MENU-7008) — 12건 테스트**
 
 ### Phase C — 카탈로그 정합
 
-- [ ] T-159: **미구현 125종 카탈로그 정리 + 컴파일 타임 정합성 검사** — `ActionType` ↔ 핸들러
-- [ ] T-160: **자동화 트리거 8종 숨김 + 배지 정합** — `automationTriggerCount`가 실제 등록 수가 아님. README 광고 4종(display·wifi·bluetooth·app) 비작동
-- [ ] T-161: **하드코 절대경로 제거** — `SystemActionExecutor.swift:70-71`
-- [ ] T-162: **죽은 코드 정리** — `resolveToken`/`ControlFlow.breakLoop`·`continueLoop`/`RunShortcutAction`/`Variable.tokenString`/`runsInBackground`/`isUsableKeyCode`/`moveBinding`
-- [ ] T-163: **죽은 자산 정리** — 미사용 스크립트 6개, 죽은 i18n 키 23개
-- [ ] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일
-- [ ] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재
+- [x] T-159: **미구현 125종 카탈로그 정리 + 컴파일 타임 정합성 검사** — `ActionType` ↔ 핸들러 — **미구현 125종 카탈로그 정합 + **컴파일 타임 전수 검사** — 10건 테스트**
+- [x] T-160: **자동화 트리거 8종 숨김 + 배지 정합** — `automationTriggerCount`가 실제 등록 수가 아님. README 광고 4종(display·wifi·bluetooth·app) 비작동 — **자동화 트리거 배지 정합 + README 정정 (E-MAC-AUTO-8003)**
+- [x] T-161: **하드코 절대경로 제거** — `SystemActionExecutor.swift:70-71` — **하드코 절대경로 제거 (E-MAC-SYS-8006)**
+- [x] T-162: **죽은 코드 정리** — `resolveToken`/`ControlFlow.breakLoop`·`continueLoop`/`RunShortcutAction`/`Variable.tokenString`/`runsInBackground`/`isUsableKeyCode`/`moveBinding` — **죽은 코드 정리 — isUsableKeyCode/moveBinding/moveStep·MoveDirection/stopAll/Result.stopped**
+- [x] T-163: **죽은 자산 정리** — 미사용 스크립트 6개, 죽은 i18n 키 23개 — **죽은 자산 정리 — 미사용 스크립트 6개, ui.system.* 키 9건**
+- [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
+- [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
 ## 다음 백로그
 
