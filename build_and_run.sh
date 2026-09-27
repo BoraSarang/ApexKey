@@ -72,10 +72,13 @@ if [ "$MODE" = "test" ]; then
   esac
   info "예산 ${BUDGET}초 (초과 시 경고)"
 
+  # `set -u` 하에서 빈 배열을 "${ARR[@]}"로 펼치면 macOS 기본 bash 3.2에서
+  # "unbound variable"로 죽는다. unit/full은 필터가 비어 있으므로 안전 idiom을 쓴다.
+  # (PIPESTATUS는 pipefail을 잠시 끄는 동안 캡처해야 한다)
   set +o pipefail
   xcodebuild test -project "${APP_NAME}.xcodeproj" -scheme "${APP_NAME}" \
     -destination 'platform=macOS' -derivedDataPath "${BUILD_DIR}" \
-    "${TEST_FILTER[@]}" \
+    ${TEST_FILTER[@]+"${TEST_FILTER[@]}"} \
     CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=6GPJQ7BQC9 2>&1 | tail -40
   PIPE_STATUS=${PIPESTATUS[0]}
   set -o pipefail
