@@ -58,7 +58,11 @@
 
 ## v0.2.6 — 동작 메뉴 명령 단계 (2026-09-03)
 
-- [x] T-036: **동작(단축어)의 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리)
+> ⚠️ **2026-09-27 감사에서 [x] → [ ] 정정.** 아래 T-036은 **미구현**이다.
+> 근거: `menuCommandPicker` 소스 0건 · `MenuChoiceNode`(`ShortcutStationView.swift:377`)는 자기 자신 재귀만 참조하는 dead code · `ShortcutEditorView.swift:357`은 여전히 `target: ""`로 생성 → `performAction(in: "")` 구조적 실패.
+> 상세: `docs/plans/ACTION_AUDIT_v3_macos.md` §5 / 착수 계획: PLAN_v0.21 D-05
+
+- [ ] T-036: **동작(단축어)의 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리) — **[ ] 미구현](docs/plans/PLAN_v0.21_audit-fix_macos.md) (2026-09-27 감사에서 [x]→[ ] 정정, 코드 부재 확인)**
 
 ## 다음 백로그
 
@@ -74,7 +78,7 @@
 ## v0.2.6 — 시트 상단 정렬 + 동작 메뉴 명령 단계 (2026-09-03)
 
 - [x] 시트 내용 상단 정렬 — '새 동작' 이름 입력 시트와 단계 편집 시트가 수직 중앙 정렬 → `.frame`에 `alignment: .topLeading` 추가 (`ShortcutStationView.swift`)
-- [x] T-036: **동작(단축어) 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리)
+- [x] T-036 (원본 기록, 2026-09-03): **동작(단축어) 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — ~~기존 `buildStep`의 `.menuCommand`가 `target=""`로 만들어 실행이 구조적으로 실패. 단계 편집에서 앱 피커 → 메뉴 트리 선택~~ → **구현 안 됨. 위 v0.2.6의 [ ] 항목 참조 (2026-09-27 감사)**
 
 ## v0.3 — 동작을 iPhone 단축어(Shortcuts) 방식으로 전환 (2026-09-03, 8 Phase)
 
@@ -116,10 +120,10 @@
 
 - [x] T-130: 셸 실행 강화 — `ActionExecutor.runShellScript`가 Homebrew/Android SDK PATH 자동 포함 + 출력/종료코드 로그 + 성공 여부 반환. `.runScriptInShell` 미구현(E-MAC-ACT-3005) 해소. `ExecutionEngine`에 `.script`/`.runScriptInShell` 명시 분기(변수 토큰 치환 후 실행)
 - [x] T-131: 스크립트 전용 설정 UI — `ScriptSettingsView`(제목+여러 줄 명령+테스트 실행 버튼). `ShortcutEditorView.selectStep`이 스크립트 단계도 설정 창 열도록 연결 (기존엔 설정 창이 안 열려 target 비어있는 채로 방치됨)
-- [x] T-132: `ADB Wi-Fi 연결` 샘플 동작 자동 제공 — 첫 실행이 아닌 기존 사용자도 이름 기준 1회 생성 (`ConfigStore.ensureADBWifiSample`)
+- [ ] T-132: `ADB Wi-Fi 연결` 샘플 동작 자동 제공 — ~~첫 실행이 아닌 기존 사용자도 이름 기준 1회 생성~~ → **실제 코드는 생성이 아니라 삭제** (`ConfigStore.swift:301-304` `ensureADBWifiSample()` → `removeLegacyAndroidShortcutsIfNeeded()`). v0.8 S-05가 무효화했으나 `[x]` 잔존 → **[ ] superseded](docs/plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정)
 - [x] T-133: 스크립트 테스트 결과 표시 — `runShellScriptResult`가 출력/종료코드 반환, `ScriptSettingsView`에 성공·실패 배지 + 결과 텍스트 표시. `ApexKeyScriptTests` 7건(ADB 실기 end-to-end 포함)
 - [x] T-134: Cmd+C/V/X/A/Z 미동작 — 메인 메뉴에 앱 메뉴만 있고 편집 메뉴가 없어 first responder로 전달 불가. `AppDelegate.makeMainMenu`에 편집 메뉴(실행 취소/다시 실행/잘라내기/복사/붙여넣기/지우기/모두 선택, target nil=responder chain) 추가. `ApexKeyMenuTests` 회귀 테스트
-- [x] T-135: 동작 고정 프리셋 — 시스템 탭(SystemActionType)과 동급 취급. `BuiltInShortcutPresets`(Android Untether/Mirror 2개, 단축키 없음·삭제 가능)에 코드 고정 + `ensureBuiltInShortcuts`가 설치·업데이트 후 이름 기준 자동 보충. 구 `ADB Wi-Fi 연결`명 재생성 중단 (중복 방지). 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영
+- [ ] T-135: 동작 고정 프리셋 — ~~시스템 탭(SystemActionType)과 동급 취급. `BuiltInShortcutPresets`(Android Untether/Mirror 2개…)에 코드 고정 + `ensureBuiltInShortcuts`가 이름 기준 자동 보충~~ → **실제 코드는 빈 배열 + 삭제** (`ConfigStore.swift:428-430` `BuiltInShortcutPresets.all = []` "호환용 스텁", `ensureBuiltInShortcuts()`는 `removeLegacyAndroidShortcutsIfNeeded()` 호출). v0.8 S-05가 무효화 → **[ ] superseded](docs/plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정). 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영은 유효
 - [x] T-136: 편집기 빨간 X 저장 유실 — 단계 설정 수정 후 윈도우 닫기(빨간 X)로 닫으면 저장 없이 유실 (헤더 X만 저장). `ShortcutEditorView`에 `.onDisappear` 저장(단계/이름/설명/자동화/변수) 추가. `build_and_run.sh debug`에 기존 앱 종료+재시작(5/5) 추가
 
 ## v0.4 — 깊은 리팩터 R1 (2026-09-16, PLAN_v0.4_refactor)
@@ -152,7 +156,7 @@
 - [x] L-06: 키 "error.user.*" 추가 + ExecutionEngine/ActionExecutor/AIAvailability 사용자 에러 로컬라이즈
 - [x] L-07: ConfigStore(+Preferences/+Macro/+Bindings) + Views(ThemeSettings/SidebarNavigation/StepSettings/MenuHUD/HotKeyRecorder) + AppDelegate 창 타이틀 로컬라이즈
 - [x] L-08: ApexKeyModelTests를 키 기반 비교로 재작성 (언어 무관)
-- [x] L-09: 검증 — strings 문법(plutil OK) + 코드 참조 키 526 전수 존재 + build_and_run test smoke 통과(compile) + 현지화 가드 0건 통과
+- [ ] L-09: 검증 — ~~strings 문법(plutil OK) + 코드 참조 키 526 전수 존재~~ + build_and_run test smoke 통과(compile) + 현지화 가드 0건 통과 → **"키 526 전수 존재"는 거짓 주장**. `scripts/check-localizable.py`는 한글 리터럴 검사만 하고 **키 존재 검사 로직 0건**. 실제 키 수는 801(ko/en 동일). 2026-09-27 감사에서 분리 기록
 - [x] L-10: 서비스 출력 로컬라이즈 — WritingToolExecutor(8) / ImagePlaygroundExecutor(2) / VariableResolver(3) / MenuEnumerator 상태(4)
 - [x] L-11: LLM 프롬프트 로컬라이즈 — UseModelExecutor FollowUp 대화 헤더·역할 (3키)
 - [x] L-12: 가드 스크립트 `scripts/check-localizable.py` 추가 + `build_and_run.sh` 게이트 연결
@@ -265,22 +269,68 @@
 - [x] U-14: HUD 4열 고정 → 화면 폭 기반 preferredColumnCount 동적
 - [x] U-15: © 2026 하드코딩 → Calendar 연도 (AboutView)
 - [x] U-16: `esc` 비로컬라이즈 → palette.esc_key 키 (ko/en)
-- [x] U-17: Edit 메뉴 undo/redo 셀렉터 → AppDelegate @objc undo/redo 위임 연결
+- [x] U-17: Edit 메뉴 undo/redo → responder chain 위임. **정정**: `AppDelegate+Menus.swift:53-54`는 `Selector("undo:")` + responder chain으로 등록하고 `AppDelegate.undo/redo`(`:161-171`)는 `#selector` 연결 없이 **미사용 상태**. responder chain이 처리하므로 기능 자체는 동작하나, CHANGELOG의 "위임 연결" 기술은 과장. `E-MAC-UI-9108` 코드 부재
 
 ## v0.20 — 대형 파일 분할 + CI pipefail (2026-09-22, PLAN_v0.20_refactor-split-ci)
 
 - [x] R-01: CI `run: |` 블록 `set -euo pipefail` (ci.yml 2 + release.yml 7) — E-MAC-CI-9201
 - [x] R-02: CustomTheme.swift 1600줄 → Theme/ 8파일 분할 (Metadata/Colors/Background/Glass/StyleTokens/CustomTheme/Presets/Color+ThemeHex)
 - [x] R-03: AppDelegate.swift 950줄 → 본체 + extension 6 + Windowing (cross-file `private` 제거)
-- [x] R-04: androidMirrorScriptPath 하드코 절대경로 → Application Support 시드 폴백 (CI 테스트 2건) — E-MAC-SYS-8005
+- [ ] R-04: androidMirrorScriptPath 하드코 절대경로 → Application Support 시드 폴백 (CI 테스트 2건) — E-MAC-SYS-8005 → **절반만 구현**. 폴백은 추가됐으나 `SystemActionExecutor.swift:70-71`에 `/Users/lee/Documents/AGENTS/...`가 여전히 `preferred`(우선)로 하드코 → 세션 로그의 "절대경로 금지" 규칙 위반. 나머지는 PLAN_v0.21 C-03
+
+## v0.21 — 감사 결함 수정 (2026-09-27, PLAN_v0.21)
+
+> 근거: 5개 계층 정밀 감사(실행 엔진 / 저장소 / AX·액션 / 핫키·자동화 / 문서 정합) + 153종 카탈로그 현실 매핑.
+> 기준선: 빌드 경고 0 · 테스트 171건 0실패 · i18n ko/en 801키 일치 · `as!`/`fatalError` 0건.
+> 상세: `docs/plans/PLAN_v0.21_audit-fix_macos.md` · `docs/plans/ACTION_AUDIT_v3_macos.md`
+
+### Phase A — P0
+
+- [ ] T-141: **파이프 교착 제거 (앱 영구 정지)** — `waitUntilExit()` 후 `readDataToEndOfFile()` 4곳을 동시 드레인으로. 64KiB 초과 출력 시 메인스레드 교착 → 핫키·패널·메뉴바 전체 정지 (강제종료 외 복구 불가)
+- [ ] T-142: **`String(Int(v))` 크래시 가드** — `inf`/`NaN` fatalError (`VariableResolver.swift:30`)
+- [ ] T-143: **AI 3종 스텁 거짓 성공 제거** — `UseModel`/`WritingTool`/`ImagePlayground`가 FoundationModels 미연동 상태에서 `return true`. 실패 반환 + 카탈로그/README/웹 문구 정정
+- [ ] T-144: **`setLaunchBinding` 파괴-후-검증 제거** — 삭제 전 중복 사전 검증, `addBinding` → `Bool` 반환. 핫키 무음 소실
+- [ ] T-145: **셸 인젝션 방어** — `ShellEnvironment.quoted(_:)` 도입. AppleScript 경로만 이스케이프가 있는 비대칭
+- [ ] T-146: **Info.plist 버전 단일 출처화** — `project.yml` `MARKETING_VERSION`으로 이전. 현재 1.0 고정이라 `release.yml` 태그 대조에서 **다음 릴리스가 반드시 실패**
+- [ ] T-147: **테스트 격리** — 싱글론 오염 테스트(`HotKeyService.shared`에 ⌘H 실제 등록·미해제) 제거
+
+### Phase B — P1
+
+- [ ] T-148: **반복 내부 실패 전파** — `executeRepeatCount`/`Each`가 내부 `success:false`를 버리고 성공 반환
+- [ ] T-149: **에러 메시지 보존** — `execute(steps:)`가 `error` 문자열을 버림 → 토스트에 실제 원인 미노출
+- [ ] T-150: **스크립트 출력이 소스코드로 기록** — `runShellScript`가 stdout을 버림
+- [ ] T-151: **일반 액션 `setOutput` 누락** — `default:` 분기가 출력을 남기지 않아 `{lastResult}`가 과거 잔여값
+- [ ] T-152: **핫키 저장 실패 전달** — `onRecord` → `Bool` 반환. 현재 "적용되었습니다"가 거짓말
+- [ ] T-153: **`removeApp` 연관 바인딩 정리** — `pruneRemovedApps()`가 매 실행 호출 → **외장드라이브 뽑으면 고아 핫키가 매번 재등록**
+- [ ] T-154: **`showHiddenApps` 영속화** — 설정 토글이 매 실행 리셋
+- [ ] T-155: **테마 활성 ID 키 이중 정의 해소** — `ApexKeyActiveThemeId` vs `activeThemeId` 연결 코드 0건
+- [ ] T-156: **FSEventStream 해제 전 콜백 큐 동기화** — use-after-free 창
+- [ ] T-157: **osascript 오류 분류 정정** — 미실행 앱·없는 메뉴가 전부 `-1728`. `-1743`은 Automation TCC (현재 "손쉬운 사용 권한"으로 오표기)
+- [ ] T-158: **`menuPath` 단일 세그먼트 처리** — `count==1`이면 구조적으로 100% 실패. `ApexKeyStoreTests:99-103`이 이를 green 고정 중 → 테스트 갱신 필요
+
+### Phase C — 카탈로그 정합
+
+- [ ] T-159: **미구현 125종 카탈로그 정리 + 컴파일 타임 정합성 검사** — `ActionType` ↔ 핸들러
+- [ ] T-160: **자동화 트리거 8종 숨김 + 배지 정합** — `automationTriggerCount`가 실제 등록 수가 아님. README 광고 4종(display·wifi·bluetooth·app) 비작동
+- [ ] T-161: **하드코 절대경로 제거** — `SystemActionExecutor.swift:70-71`
+- [ ] T-162: **죽은 코드 정리** — `resolveToken`/`ControlFlow.breakLoop`·`continueLoop`/`RunShortcutAction`/`Variable.tokenString`/`runsInBackground`/`isUsableKeyCode`/`moveBinding`
+- [ ] T-163: **죽은 자산 정리** — 미사용 스크립트 6개, 죽은 i18n 키 23개
+- [ ] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일
+- [ ] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재
 
 ## 다음 백로그
 
 - [x] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 950줄) — v0.20
-- [ ] `menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)
-- [ ] blob 손상 덮어씀 가드 (P0-8 잔류 — 설계 필요)
-- [ ] 단축키 프로필/빠른 전환
+- [x] blob 손상 덮어씀 가드 (P0-8) — **v0.16 S-01 `encodeKeeping`으로 이미 구현됨**. 잔류 백로그가 아님 (2026-09-27 감사 확인)
+- [ ] ~~`menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)~~ → T-036로 이동 ([ ] 상태)
+- [ ] **blob 손상 컬럼 영구 쓰기 잠금 해제 경로** — `corruptedShortcutBlobColumns` 해제 지점이 `load()`·`removeShortcut`뿐이라, 인코딩 실패 시 4컬럼 전부 영구 잠금. T-141 이후 착수
+- [ ] **`saveContext` → `Bool` 반환** — 23개 호출부. 컴파일 오류로 누락 호출부 자동 발견
+- [ ] **저장 debounce** — 스텝 편집 1회 = 전체 blob 4컬럼 재인코딩 + save
+- [ ] **`ConfigStore()` 인스턴스 테스트 0건 보강** — 컨테이너 경로 주입 가능하게
+- [ ] **단축키 프로필/빠른 전환**
 - [ ] Run Shortcut 호출 시 ConfigStore 자동화 UI에서 조회 단계 연결 (multishortcut 재귀 공유 변수 전달)
 - [ ] Choose from Menu/Use Model 등 단계 저장값(actionParameters) UI 연동 세부 다듬기
+- [ ] **AI 3종 실제 FoundationModels 연동** — A-03은 "정직한 실패"로 전환하는 것. 실제 구현은 별도 과제(리서치 필요)
+- [ ] **P1 순수 로직 11종** (권장 확장 후보) — `text`/`combineText`/`replaceText`/`regex`/`matchText`/`splitText`/`trimWhitespace`/`count`/`formatNumber`/`getClipboard`/`setClipboard`. 의존성 0·테스트 용이·macOS 14 동작
 - [ ] 오프라인/큐(비해당 — 로컬 앱)
 - [ ] macOS 14 런타임 실기 검증 (v0.3.2로 SwiftUI 빈 윈도우 근본 제거, macOS 26에서 검증 완료) — 배포 타깃 14 컴파일만 보장

@@ -1,69 +1,176 @@
 # ApexKey — 기능 검증 체크리스트 (FUNCTIONAL CHECKLIST)
 
-> **플랫폼**: macOS · **기준 문서**: `docs/plans/PLAN_v0.1_apexkey.md` · `docs/DESIGN.md`
-> **작성일**: 2026-09-01 · **상태**: 수리 완료 → 사용자 실동작 검증 대기
+> **플랫폼**: macOS 14+ · **기준 문서**: `docs/DESIGN.md` · `docs/TODO.md` · `docs/plans/ACTION_AUDIT_v3_macos.md`
+> **작성일**: 2026-09-01 · **전면 갱신**: 2026-09-27 (v0.2.1-era 문서가 8개월간 미갱신 상태였음)
+> **자동 검증 기준선** (2026-09-27 실측): 빌드 경고 0 · 테스트 **171건 0실패**(2 skip, 18초) · i18n ko/en **801키 완전 일치** · `as!` 0 · `fatalError` 0 · 빈 `catch {}` 0
 
 ---
 
-## 1. PLAN v0.1 목표 11개 대조
+## 0. 읽는 법
 
-| # | 목표 | 상태 | 비고 |
-|---|------|------|------|
-| 1 | 메뉴바 전용 앱 (Dock 미표시) | 완료 | `LSUIElement=true`, 기본 `.accessory`, 설정에서 Dock 표시 가능 |
-| 2 | 글로벌 핫키 패널 토글 (⌃⌥⌘H) | 완료 | **버그 수정**: 기존엔 저장만 되고 `HotKeyService.register` 미등록 → `panelToggleID` 등록 + `.togglePanel` 알림 전파. 이제 설정 창에서 단축키 변경 가능 |
-| 3 | 카테고리별 앱 리스트 + 단축키 설정 여부/개수 | 완료 | Sidebar 카테고리 배지 + 행 배지 |
-| 4 | 앱 실행/포커스/토글 | 완료 | **UI 신설**: AppDetailView '앱 실행/토글' 섹션(추가/변경/삭제) — 이전엔 생성 경로 없었음 |
-| 5 | 타 앱 메뉴 명령 동적 열거 + 매핑 | ⚠️ 검증 필요 | 열거 코드 수정(캐스팅/Carbon flags/title fallback/로그) — **실제 표시는 사용자 확인 필수** |
-| 6 | 단축키 중복 감지 | 완료 | `ConfigStore.isDuplicate` + 레코더 경고 표시 |
-| 7 | 키 입력 레코더 | 완료 | `HotKeyRecorderView` 제네릭(앱메뉴/시스템/스크립트/패널 공용) |
-| 8 | 수동 앱 추가(경로) + 숨김/표시 | 완료 | NSOpenPanel + 목록 토글 |
-| 9 | SwiftData 설정 영속 | 완료 | PersistedApp/Binding/Script |
-| 10 | Accessibility 권한 체크 + 로그인 시 시작 | 완료 | PermissionHelper + SMAppService |
-| 11 | 앱 이름 현지화 (애펙스키) | 완료 | ko/en InfoPlist.strings |
+| 표기 | 의미 |
+|---|---|
+| ✅ | 코드 + 자동 테스트로 확인됨 |
+| ⚠️ | 구현은 있으나 결함 확인됨 (항목에 명시) |
+| 🔴 | 미구현 / 스텁 / 구조적 실패 |
+| ⬜ | 사용자 실동작 검증 대기 (에이전트가 대체 불가) |
 
-## 2. v0.2 추가 기능
+> **자동 테스트가 없는 영역**은 `docs/plans/ACTION_AUDIT_v3_macos.md` §8 참조. 특히 `MenuEnumerator.performAction`·`HotKeyService` 상태 전이·`AutomationManager` 실동작은 **테스트 0건**이라 ✅ 표시가 곧 "코드 리뷰 통과"를 뜻하지 않습니다.
 
-| 기능 | 상태 |
-|------|------|
-| 시스템 액션 (잠금/음소거/다크모드) | 완료 |
-| 스크립트 실행 탭 | 완료 |
-| 로그인 시 시작 | 완료 |
-| 메뉴 명령 검색 | 완료 |
+---
 
-## 3. 이번 세션 수리 내역
+## 1. 코어 기능 (PLAN v0.1 목표)
 
-| 항목 | 수정 내용 |
-|------|-----------|
-| Cmd+, 빈 설정 창 | 원인 = SwiftUI `Settings { EmptyView() }` scene이 Cmd+, 가로챔 → **제거**, AppKit mainMenu(⌘,)가 처리. macOS15 API(`defaultLaunchBehavior`) 미사용 대신 실행 시 SwiftUI 빈 윈도우를 AppDelegate가 숨김 |
-| 우클릭 메뉴 위치 이상 | 버튼 로컬 좌표 `(0, height+4)`가 위쪽을 가리켜 메뉴가 뒤집힘 → **화면 좌표로 변환**해 버튼 하단 아래에 `popUp` |
-| 패널 토글 핫키 미동작 | `panelToggleID`(예약 UUID)로 `register` + 감지 시 `.togglePanel` post → AppDelegate `togglePanel()` |
-| 글로벌 단축키 설정 UI 부재 | `launchApp` 단축키 = AppDetailView 새 '앱 실행/토글' 섹션. 패널 단축키 = 설정 창에서 변경/복원 |
-| 메뉴 단축키 미획득(추정 원인 3건) | ① `cmdModifiers as? UInt32` NSNumber 캐스팅 실패 → `(as? NSNumber)?.uint32Value` ② `MenuItem` carbon 상수 `1<<0` ≠ AX Carbon flags `1<<8` → `KeyboardUtil` 상수와 일치 ③ AX cmdChar 비노출 시 title(`⌘O`) fallback 파싱 |
-| 강제/불필요 다운캐스트 | `as! AXUIElement?` 제거, `as?`→성공 status에서 `as!`, CFTypeRef 브리징 정리 |
-| 디버그 패널 부재 | **신설**: `Logger` 링버퍼(2000줄)+`DebugLogView`(필터/자동스크롤/복사/지우기)+우클릭 메뉴 '디버그 로그' 항목 |
-| 디버그 메시지 부족 | 진입점 로그 대대적 추가: 앱 시작/종료, 메뉴바 아이템, 클릭 분기, 패널 토글, 핫키 등록/감지/실행, 메뉴 열거 시작/완료, ActionExecutor/AppSwitcher/시스템/스크립트 |
-| E-MAC 에러코드 | 기존 코드 사용, 신규: `E-MAC-MENU-3003`(잘못된 URL) |
+| # | 목표 | 상태 | 근거 / 비고 |
+|:-:|---|:-:|---|
+| 1 | 메뉴바 전용 앱 (Dock 미표시) | ✅ | `Info.plist` `LSUIElement=true`, `.accessory`. 설정에서 Dock 표시 가능 |
+| 2 | 글로벌 핫키 패널 토글 | ⚠️ | 기본 `⇧⌥A`(`ConfigStore+HotKeyDefaults.swift:8`). 등록 실패가 무음 — 저장 실패 전달은 T-152 |
+| 3 | 카테고리별 앱 리스트 + 설정 여부/개수 | ✅ | Sidebar 카테고리 배지 + 행 배지 |
+| 4 | 앱 실행/포커스/토글 | ✅ | `AppDetailView` '앱 실행/토글' 섹션. 3모드 + 인자 + URL scheme |
+| 5 | 타 앱 메뉴 명령 동적 열거 | ⚠️ | 열거는 정확(T-030/T-033/T-033-2 규칙 검증됨). **실행은 `menuPath`가 빈 구 레거시 바인딩에서 구조적 실패** — T-158 |
+| 6 | 단축키 중복 감지 | ✅ | `ConfigStore.isDuplicate` + 예약 핫키 4종 매트릭스 포함(`:79-85`) |
+| 7 | 키 입력 레코더 | ⚠️ | 제네릭(앱메뉴/패널/공용). 저장 실패 전달은 T-152 |
+| 8 | 수동 앱 추가(경로) + 숨김/표시 | ⚠️ | `showHiddenApps` 미영속 — T-154 |
+| 9 | SwiftData 설정 영속 | ⚠️ | 전용 경로(P0-1 해결)·손상 격리(P0-2)·`encodeKeeping`(P0-3) 반영됨. **단 `saveContext` 무반환 + 쓰기 잠금 해제 경로 없음** |
+| 10 | Accessibility 권한 + 로그인 시 시작 | ⚠️ | `PermissionHelper` + `SMAppService`. **릴리스가 무서명이라 버전마다 권한 재승인 필요** (아래 §6) |
+| 11 | 앱 이름 현지화 (애펙스키) | ✅ | `LSHasLocalizedDisplayName` + `ko.lproj/InfoPlist.strings` (UTF-16) |
 
-## 4. 검증 항목 (사용자 직접 확인)
+## 2. v0.2 era 기능
 
-- [ ] **Cmd+,**: SwiftUI 빈 설정 창 대신 우리 설정 창이 뜨는지
-- [ ] **우클릭 메뉴**: 버튼 바로 아래 정상 위치에 원하는 방향(아래 화살표)으로 팝업되는지
-- [ ] **메뉴 단축키 목록**: 앱 상세에서 단축키(⌘N 등)가 채워져 표시되는지 (디버그 로그 `[MENU] 열거 완료: ... → 메뉴바 N개 메뉴`)
-- [ ] **⌃⌥⌘H**: 패널 열기/닫기 (디버그 로그 `[HOTKEY] 패널 토글 핫키 감지` → `[PANEL] 열기/닫기`)
-- [ ] **앱 실행/토글**: AppDetailView에서 단축키 추가 후 전역 동작
-- [ ] **설정 창**: 패널 단축키 변경 → 즉시 반영되는지
-- [ ] **디버그 로그 창**: 우클릭 메뉴 → '디버그 로그'로 실시간 로그 확인 (필터/복사)
-- [ ] **Accessibility**: 설정에서 권한 상태 '✅ 허용됨' 확인 후 메뉴 열거
+| 기능 | 상태 | 비고 |
+|---|:-:|---|
+| 시스템 액션 (9종) | ✅ | 시스템 탭은 v0.8에서 제거, 프리셋으로 통합. `.system` 단계로 실행 |
+| 스크립트 실행 | ⚠️ | `ScriptSettingsView` 동작. **출력 64KiB 초과 시 앱 영구 정지** — T-141 |
+| 로그인 시 시작 | ✅ | `SMAppService` |
+| 메뉴 명령 검색 | ✅ | `AppDetailView` 검색 필터 |
 
-## 5. 알려진 한계/리마인더
+## 3. v0.3 era — 워크플로우(동작) 엔진
 
-- macOS 14 미만(Runtime)의 `WindowGroup` 빈 윈도우 숨김은 이전 방식대로인데 현재 실행 환경(macOS 26) 검증 범위 외. (배포 타깃 14.0 컴파일만 보장)
-- AX 메뉴 `performAction`은 실행 대상 앱이 현재 능동 접근성 권한 하에서 동작해야 함. 일부 앱(Electron 등)은 cmdChar 비노출 → 그 경우에도 title fallback으로 대체.
-- 레코더의 중복 감지는 `bindings` 배열 기준 — 패널 토글 핫키(예약 ID)와의 충돌은 미감지.
+| 기능 | 상태 | 비고 |
+|---|:-:|---|
+| 단계 편집기 (카탈로그/단계/순서 3열) | ⚠️ | 카탈로그 153종 중 **125종 미구현**을 구분 없이 노출 — T-159 |
+| If / Otherwise | ✅ | `executeIf` — 특수변수 포함 평가 |
+| 반복 (count) | ⚠️ | **내부 단계 실패가 성공으로 보고됨** — T-148 |
+| 각 항목마다 반복 | ⚠️ | 컬렉션 미지정 시 0회 + 성공 |
+| 메뉴에서 선택 | ⚠️ | `allowMultipleSelection` 미반영, 취소 시 성공 |
+| 단축어 중지 | ⚠️ | 누적 실패를 버림 — T-148 |
+| 변수 설정 / 출력-변수 | ⚠️ | `setVariable`이 `lastOutput` 미갱신, 일반 액션 `setOutput` 누락 — T-151 |
+| 단축어 실행 (재귀) | ⚠️ | 깊이 10 가드 동작. `RunShortcutAction` 미인스턴스화 → `passInput`/`outputVariable` 죽은 필드 |
+| 변수 해석 `{매법변수}` | ⚠️ | **사용자 변수 이름 `{name}` 미치환** (UUID만 지원). 미치환 토큰이 실행 문자열에 그대로 전달 |
+| `whileLoop` | 🔴 | **미구현** — 1회로 대체 후 성공 반환 |
 
-## 6. 빌드/테스트
+## 4. v0.8~ era — 자동화 / 테마 / 팔레트 / 업데이트
 
-- [x] `xcodegen generate` 통과
-- [x] `xcodebuild build` — **BUILD SUCCEEDED** (경고 2건: activateIgnoringOtherApps deprecated / let 권장 — 러닝타임 영향 없음)
-- [x] `xcodebuild test` — **TEST SUCCEEDED (8개 통과)**
-- [x] `~/Applications/ApexKey.app` 재설치 완료
+| 기능 | 상태 | 비고 |
+|---|:-:|---|
+| 자동화 트리거 | ⚠️ | **12종 중 4종만** (`timeOfDay`/`folder`/`battery`/`charger`). 나머지 8종 등록 거부. README는 8종 광고 — T-160 |
+| 사이드바 트리거 배지 | 🔴 | 미구현 트리거를 포함 (배지 N / 실제 등록 0) — T-160 |
+| 시간 반복 규칙 (weekly/monthly/custom) | ✅ | `TimeOfDayTrigger.shouldRun` + 설정 UI |
+| 폴더 감시 (FSEvents + 3초 debounce) | ⚠️ | `FSEventStreamRelease` use-after-free 창 — T-156 |
+| 테마 8종 + 커스텀 | ⚠️ | **활성 테마 ID 키 이중 정의**로 커스텀 테마 삭제 시 활성 참조 미정리 — T-155 |
+| 명령 팔레트 (`⌘⌥K`) | ✅ | 최근 실행·명령 6종·검색·초성 하이라이트. **README 미기재** |
+| 메뉴 단축키 HUD (`⇧⌥S`) | ✅ | 화면 폭 기반 2/3/4열 동적 (`preferredColumnCount`) |
+| 업데이트 확인 | ⚠️ | 3진입점 동작. **현재 버전이 `1.0`이라 이미 배포된 버전 대비 항상 "새 버전 있음"으로 표시** — T-146 |
+| 실행 결과 토스트 | ✅ | 성공 1.5초 / 실패 6초 + 사유. **사유가 엔진 내부 문맥을 잃고 "동작 실패: <이름>"으로 대체되는 결함** — T-149 |
+| 디버그 로그 창 | ⚠️ | 링버퍼 2000줄 동작. 로그 1줄마다 `body` 재평가 → 창 열려 있으면 리렌더 폭풍 (P2) |
+| 편집 메뉴 (Cmd+C/V/X/A/Z) | ✅ | responder chain. `AppDelegate.undo/redo`는 미사용 메서드 (U-17 정정) |
+
+## 5. 🔴 Apple Intelligence 3종 — 스텁 + 거짓 성공 + 공개 광고
+
+| 액션 | 카탈로그 | 실제 | 비고 |
+|---|:-:|:-:|---|
+| 모델 사용 (useModel) | ✅ | 🔴 | **입력 프롬프트를 그대로 출력 변수로 저장**하고 성공 반환 (`UseModelExecutor.swift:139-147`) |
+| 라이팅 툴 (writingTool) | ✅ | 🔴 | `proofread`/`rewrite`는 문자열 래핑, `summarize`/`keyPoints`는 앞 3~5문장 절단 (`WritingToolExecutor.swift:56-68`) |
+| 이미지 생성 (imagePlayground) | ✅ | 🔴 | 512×512 단색 사각형 + 프롬프트 글자 플레이스홀더 (`ImagePlaygroundExecutor.swift:48-76`) |
+| 가용성 판정 | ✅ | 🔴 | `AIAvailabilityManager` 무조건 `.available`. Apple Intelligence 꺼진 기기에서도 "사용 가능" |
+
+**공개 광고 중** (PLAN_v0.21 T-143에서 정정):
+- `website/ko/index.html:179` — "AI 액션 — 모델 사용, 라이팅 툴, 이미지 생성 — 모두 핫키 하나에 바인딩할 수 있습니다."
+- `README.ko.md:38` / `README.md` — "| AI 실행 | 모델 사용, 라이팅 툴, 이미지 생성 단계 |"
+
+---
+
+## 6. 배포 파이프라인 (2026-09-27 감사 신규 항목)
+
+| 항목 | 상태 | 근거 |
+|---|:-:|---|
+| **Info.plist 버전** | 🔴 | `CFBundleShortVersionString = 1.0`. 커밋 `91a9d7f`가 1.3.0으로 범프했으나 `f2f65a3`에서 plist revert하며 1.0 복귀. `release.yml:42`가 태그↔버전 대조 후 `exit 1` → **다음 릴리스가 반드시 실패** |
+| **버전 단일 출처** | 🔴 | xcodegen이 `Info.plist`를 매 빌드 재생성하면서 하드코딩 버전을 되돌린다. 근본 해결은 `project.yml` `MARKETING_VERSION` — T-146 |
+| **릴리스 서명** | 🔴 | `CODE_SIGNING_ALLOWED=NO`. 릴리스 노트 템플릿에도 "공증되지 않은 앱이라 Gatekeeper가 첫 실행을 차단합니다" 명시. **T-029의 핵심 fix(고정 TeamID → CDHash 유지 → 접근성 권한 유지)가 배포본에서 성립하지 않음** |
+| **현지화 게이트** | ⚠️ | `check-localizable.py`가 `build_and_run.sh`·`ci.yml`에 있으나 **`release.yml`에 없음** — T-165 |
+| **CI 서명 경로** | ⚠️ | CI도 `CODE_SIGNING_ALLOWED=NO` → T-029 회귀를 CI가 검출 불가 |
+| **CI 테스트 격리** | ⚠️ | `ApexKeyModelTests`가 싱글론에 ⌘H를 실제 등록·미해제 → 환경에 따라 실패 가능 — T-147 |
+| **`build_and_run.sh test` 스코프** | ⚠️ | `smoke`/`unit`/`full` **3분기가 완전 동일**. 매번 171건 전부 실행 — T-164 |
+| **GitHub Actions pipefail** | ✅ | `ci.yml` 2곳 + `release.yml` 7곳 적용 (PLAN_v0.20 R-01) |
+
+## 7. 테스트 커버리지 공백 (✅ 표시의 신뢰도)
+
+| 영역 | 커버 | 미커버 |
+|---|---|---|
+| 모델/메타데이터/로컬라이즈/i18n | ✅ 충분 | — |
+| 흐름 제어·변수 | ⚠️ 정적 함수 중심 | `ActionType`↔핸들러 정합성 |
+| **저장 계층** | 🔴 **`ConfigStore()` 인스턴스 테스트 0건** | 모든 뮤테이션 경로(추가/수정/삭제/이관) |
+| **Carbon 핫키** | 🔴 상태 전이 전무 | `register`/`unregister` 사전 균형. 단 `TEST_HOST`가 실제 앱이라 **인프로세스 테스트 가능** |
+| **메뉴 실행** | 🔴 `performAction` 0건 | 스크립트 조립·이스케이프·오류 분류. `ApexKeyStoreTests:99-103`이 실패 경로를 green 고정 |
+| **자동화** | 🔴 정적 헬퍼 3개만 | 트리거 발동·중복 억제·FSEvent 수명 |
+| **셸/파이프** | 🔴 0건 | 64KiB 파이프 교착 |
+
+## 8. ⬜ 사용자 실동작 검증 대기
+
+에이전트가 대체 불가한 항목. `[x]` 는 **사용자 확인 후에만** 표시.
+
+### 8-1. 핫키
+- [ ] ⬜ 메뉴바 아이콘으로 패널 열기 (기본 `⇧⌥A`)
+- [ ] ⬜ `⇧⌥S` HUD — 현재 앱 단축키 목록 표시
+- [ ] ⬜ `⌘⌥K` 명령 팔레트 — 빈 입력 시 고정 6종 + 최근 실행 5건
+- [ ] ⬜ 앱 상세에서 메뉴 명령 `+` → 글로벌 단축키 녹음 → 전역 동작
+- [ ] ⬜ 앱 실행/토글 3모드(토글/포커스/실행) 실동작
+- [ ] ⬜ 토스트: 우상단 표시, 성공 1.5초 소멸, 실패 6초 + 사유, 클릭 시 디버그 로그 열림
+- [ ] ⬜ 토스트 표시 중 전면 앱 포커스 유지
+
+### 8-2. 메뉴 명령 (AppleScript 경로)
+- [ ] ⬜ 메뉴 열거 — AIModelTalk / IINA 계열 3단계 AXMenu 구조에서 항목 수 확인
+- [ ] ⬜ **빈 `menuPath`(구 레거시) 바인딩 실행 시도 → T-158 수정 후 확인**
+- [ ] ⬜ 하위 메뉴(3단계) 실행
+- [ ] ⬜ 자동화 권한 거부 시 안내 문구 정확성 (T-157 수정 후)
+- [ ] ⬜ 없는 메뉴 실행 → "메뉴 항목 없음" vs "앱 미실행" 구분 (T-157 수정 후)
+
+### 8-3. 자동화
+- [ ] ⬜ 시간 트리거 발동 (정확히)
+- [ ] ⬜ 폴더 변경 트리거 (debounce 동작)
+- [ ] ⬜ 배터리/충전기 경계 트리거
+- [ ] ⬜ 사이드바 배지 수 = 실제 등록 수 (T-160 수정 후)
+
+### 8-4. 테마 / 설정
+- [ ] ⬜ 8종 내장 테마 전환 + 커스텀 테마 저장/삭제/롤백 (T-155 수정 후)
+- [ ] ⬜ 라이트/다크/시스템 + 폰트 크기
+- [ ] ⬜ 언어 전환 (시스템/한국어/영어) — 재시작 후 반영
+- [ ] ⬜ 숨김 앱 표시 토글 → **재시작 후에도 유지되는지** (T-154 수정 후)
+- [ ] ⬜ 업데이트 확인 — 현재 버전 표시 (T-146 수정 후)
+
+### 8-5. 스크립트
+- [ ] ⬜ 셸 스크립트 테스트 실행 → 결과 창에 stdout/stderr/종료코드
+- [ ] ⬜ AppleScript / JXA 정상·오류
+- [ ] ⬜ **출력 64KiB 초과 스크립트 실행 → 앱 정지 안 함** (T-141 수정 후, `yes | head -c 200000` 등)
+- [ ] ⬜ `{clipboard}` 토큰이 인용 없이 실행되지 않음 (T-145 수정 후)
+
+### 8-6. 단계 저장 / 실행
+- [ ] ⬜ 단계 설정 창을 **빨간 X**로 닫아도 저장 유지
+- [ ] ⬜ 워크플로우 저장 → 앱 재시작 → 유지
+- [ ] ⬜ 반복(5회) 안의 실패 단계 → **단축어 전체가 실패로 보고되는지** (T-148 수정 후)
+- [ ] ⬜ 스크립트 뒤 출력 변수에 **실행 결과**가 담기는지 (T-150 수정 후)
+- [ ] ⬜ `⌘⇧↩` 반복 실행
+
+## 9. 알려진 한계 (2026-09-27 갱신)
+
+| # | 한계 | 상태 |
+|:-:|---|:-:|
+| 1 | macOS 14 런타임 실기 미검증 — 배포 타깃 14.0이나 검증은 macOS 26에서만 | 미해결 (백로그) |
+| 2 | `scanQRCode`/`recognizeText`(Vision OCR) 등 시스템 권한 필요 액션 미구현 | 미해결 (백로그) |
+| 3 | 사용자 변수 이름 토큰 `{name}` 미지원 (UUID만) | 미해결 (백로그) |
+| 4 | 카탈로그에 미구현 125종 노출 | **T-159** |
+| 5 | 자동화 트리거 8종 미지원 | **T-160** |
+| 6 | AI 3종 스텁 | **T-143** |
+| 7 | 무서명 릴리스 → Gatekeeper 차단 + 접근성 권한 재승인 | **미해결 (별도 과제)** |
+| 8 | 스키마 버전 관리 부재(`VersionedSchema` 0건) — 필드 추가 시 store 개설 실패 가능 | 미해결 (백로그) |
+| 9 | `error_message_ko.json` 미도입 — 규칙상 정식 모드 필수이나, 현재 `Localizable.strings`의 `error.user.*` 5키가 en까지 포함해 기능적으로 우월 | **문서화 필요** |
