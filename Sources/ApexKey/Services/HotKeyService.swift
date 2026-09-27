@@ -139,7 +139,7 @@ final class HotKeyService {
         testID = nil
     }
 
-    /// 전부 해제
+    /// 전부 해제 — 종료 시점에 배선된다 (E-MAC-AUTO-8004)
     func unregisterAll() {
         let allIDs = Array(hotKeyRefs.keys)
         allIDs.forEach { unregister($0) }

@@ -128,10 +128,4 @@ enum KeyboardUtil {
     static func hasModifier(_ combo: HotKeyCombo) -> Bool {
         combo.modifiers != 0
     }
-
-    /// 일반 문자(등록 대상 키) 판별 — Esc 등은 제외
-    static func isUsableKeyCode(_ keyCode: UInt32) -> Bool {
-        let excluded: Set<UInt32> = [36, 48, 49, 51, 53, 115, 116, 117, 119, 121, 123, 124, 125, 126]
-        return !excluded.contains(keyCode)
-    }
 }

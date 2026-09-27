@@ -76,11 +76,6 @@ final class AutomationManager {
         stopAllWatchers()
     }
     
-    /// 감시 중단 (앱 종료)
-    func stopAll() {
-        unregisterAll()
-    }
-    
     // MARK: - 감시자 재구축
     
     private func rebuildWatchers() {

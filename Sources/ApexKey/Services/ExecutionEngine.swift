@@ -27,7 +27,6 @@ final class ExecutionEngine {
         var error: String?
         
         static let continueRunning = Result(success: true, controlFlow: .continueExecution)
-        static func stopped() -> Result { Result(success: true, controlFlow: .stop) }
     }
     
     /// 단축어 실행

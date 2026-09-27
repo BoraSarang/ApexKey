@@ -98,6 +98,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Logger.info("AppDelegate", "[APP] ApexKey 종료")
+        // FSEventStream·타이머를 명시적으로 정리한다 (E-MAC-AUTO-8004).
+        // 이전에는 로그 한 줄뿐이라 FSEventStream이 종료까지 유지되었고,
+        // `AutomationManager.stopAll()`이 어디서도 호출되지 않는 문제로 이어졌다
+        // (이제 unregisterAll이 정리 경로로 배선되었으므로 stopAll 별칭은 제거).
+        AutomationManager.shared.unregisterAll()
+        HotKeyService.shared.unregisterAll()
+        toastTimer?.invalidate()
+        toastTimer = nil
     }
 
     // Dock/파인더 등에서 재실행(open) 시 빈 창을 만들지 않도록, 존재하는 창 중 하나를

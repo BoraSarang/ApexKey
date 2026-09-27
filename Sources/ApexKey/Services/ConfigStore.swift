@@ -438,7 +438,3 @@ enum BuiltInShortcutPresets {
     static let all: [ShortcutItem] = []
 }
 
-enum MoveDirection {
-    case up
-    case down
-}

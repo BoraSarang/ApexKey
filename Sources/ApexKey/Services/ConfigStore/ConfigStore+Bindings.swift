@@ -143,16 +143,4 @@ extension ConfigStore {
         Logger.info("ConfigStore", "바인딩 복제: \(binding.title) → \(newBinding.title)")
     }
 
-    /// 바인딩 순서 이동 (위/아래)
-    func moveBinding(_ binding: HotKeyBinding, direction: MoveDirection) {
-        guard let idx = bindings.firstIndex(where: { $0.id == binding.id }) else { return }
-        let targetIdx: Int
-        switch direction {
-        case .up: targetIdx = idx - 1
-        case .down: targetIdx = idx + 1
-        }
-        guard targetIdx >= 0, targetIdx < bindings.count else { return }
-        bindings.swapAt(idx, targetIdx)
-        Logger.info("ConfigStore", "바인딩 순서 이동: \(binding.title)")
-    }
 }

@@ -81,20 +81,6 @@ extension ConfigStore {
         syncShortcut(shortcuts[idx])
     }
 
-    /// 단계 순서 이동 (위/아래)
-    func moveStep(in shortcut: ShortcutItem, from index: Int, direction: MoveDirection) {
-        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }),
-              shortcuts[idx].steps.indices.contains(index) else { return }
-        let targetIdx: Int
-        switch direction {
-        case .up: targetIdx = index - 1
-        case .down: targetIdx = index + 1
-        }
-        guard targetIdx >= 0, targetIdx < shortcuts[idx].steps.count else { return }
-        shortcuts[idx].steps.swapAt(index, targetIdx)
-        syncShortcut(shortcuts[idx])
-    }
-
     /// 단계 복제
     func duplicateStep(in shortcut: ShortcutItem, at index: Int) {
         guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }),
