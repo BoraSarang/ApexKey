@@ -97,9 +97,18 @@ final class ApexKeyStoreTests: XCTestCase {
     }
 
     func testMenuItemPathDefaultsToTitle() {
-        // menuPath를 명시하지 않으면 실행 시 title 단일 경로로 fallback (old binding 호환)
-        let fallback = MenuItem(title: "전체 화면").menuPath
-        XCTAssertTrue(fallback.isEmpty)
+        // menuPath 미지정(구 레거시 바인딩)은 비어 있는 상태로 보존된다.
+        // 실행 시 MenuEnumerator.performAction이 "최상위 메뉴 클릭"으로 폴백한다 (E-MAC-MENU-7008).
+        // 이전처럼 실행 시점에 `[title]`로 승격시키면 최상위 메뉴와 하위 항목을 구분할 수 없어
+        // `click menu item "X" of menu 1 of menu bar item "X"` 같은 구조적으로 불가능한
+        // 스크립트가 만들어져 100% 실패했다.
+        let legacy = MenuItem(title: "전체 화면")
+        XCTAssertTrue(legacy.menuPath.isEmpty, "구 바인딩의 빈 경로가 보존되어야 함")
+        XCTAssertTrue(legacy.isSubmenu == false)
+
+        // 반대로 정상 하위 항목은 경로가 보존된다
+        let nested = MenuItem(title: "열기…", menuPath: ["파일", "열기…"])
+        XCTAssertEqual(nested.menuPath, ["파일", "열기…"])
     }
 
     func testShortcutPersistsRoundTrip() throws {

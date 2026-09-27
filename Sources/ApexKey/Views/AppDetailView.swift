@@ -49,7 +49,7 @@ struct AppDetailView: View {
                 subtitle: "ui.appdetail.execute_then_menu".localizedFormat(app.name),
                 onTest: { combo in
                     var t = target
-                    if t.menuPath.isEmpty { t.menuPath = [t.title] }
+                    // E-MAC-MENU-7008: 경로를 승격시키지 않는다 (테스트도 동일한 규칙)
                     let binding = HotKeyBinding(
                         combo: combo,
                         actionType: .menuCommand,
@@ -489,7 +489,9 @@ struct AppDetailView: View {
     private func onRecord(combo: HotKeyCombo, menuItem: MenuItem) -> String? {
         guard !combo.isEmpty else { return "toast.reason.key_invalid".localized }
         var menuItem = menuItem
-        if menuItem.menuPath.isEmpty { menuItem.menuPath = [menuItem.title] }
+        // E-MAC-MENU-7008: 빈 menuPath를 `[title]`로 승격시키면 최상위 메뉴와 하위 항목을
+        // 구분할 수 없어 실행 시 구조적으로 불가능한 스크립트가 만들어진다.
+        // 경로는 열거 결과를 그대로 저장한다(구 바인딩과 동일 규칙).
         let binding = HotKeyBinding(
             combo: combo,
             actionType: .menuCommand,
