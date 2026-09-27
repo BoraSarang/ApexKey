@@ -6,8 +6,22 @@ import Combine
 /// ConfigStore 영역 분할 (R-10) — 동일 클래스 extension, public API 동결.
 extension ConfigStore {
     /// 모든 워크플로우에 등록된 자동화 트리거 수 (사이드바 배지)
+    ///
+    /// E-MAC-AUTO-8003: 이전에는 `automations.count`를 그대로 셌다. 그런데 `register`는
+    /// 미구현 트리거 8종을 거부하므로 **배지에 표시된 수와 실제 등록 수가 달랐다**
+    /// (배지 4 / 등록 0 같은 상태). 배지는 사용자가 "자동화가 몇 개 있나"를 판단하는
+    /// 기준이므로 실제 등록 기준으로 세야 한다.
     var automationTriggerCount: Int {
-        shortcuts.reduce(0) { $0 + $1.automations.count }
+        shortcuts.reduce(0) { partial, shortcut in
+            partial + shortcut.automations.filter(\.isWatcherSupported).count
+        }
+    }
+
+    /// 미구현이라 등록되지 않는 트리거 수 (UI에서 "준비 중" 안내용)
+    var unimplementedTriggerCount: Int {
+        shortcuts.reduce(0) { partial, shortcut in
+            partial + shortcut.automations.filter { !$0.isWatcherSupported }.count
+        }
     }
 
     // MARK: - 개인 자동화 연동

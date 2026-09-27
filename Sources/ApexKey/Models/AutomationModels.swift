@@ -109,12 +109,11 @@ enum AutomationTrigger: Identifiable, Codable, Hashable {
     }
     
     /// 트리거가 백그라운드에서 동작하는지 (앱 실행 없이도 작동)
-    var runsInBackground: Bool {
-        switch self {
-        case .timeOfDay, .folder, .file, .externalDrive, .display, .wifi, .bluetooth, .battery, .charger, .app, .focus, .stageManager:
-            return true  // macOS 26+ 개인 자동화는 백그라운드 동작
-        }
-    }
+    ///
+    /// E-MAC-AUTO-8003: 이전에는 12종 **전부** `true`를 반환해 판정 로직이 없었다.
+    /// 지원 여부는 `isWatcherSupported`가 단일 출처이므로 여기서는 그 값을 따른다.
+    /// (macOS 26 개인 자동화가 백그라운드 동작한다는 가정은 검증되지 않음)
+    var runsInBackground: Bool { isWatcherSupported }
 }
 
 /// 트리거 카테고리

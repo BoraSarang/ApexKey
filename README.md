@@ -34,7 +34,7 @@ ApexKey sits in your **menu bar** and lets you trigger any app's **menu command*
 | **URL scheme** | Shortcut to open `scheme://` |
 | **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action |
 | **Flow control** | If / repeat / menu choice, variables, output-to-variable |
-| **Automation** | Time, folder, display, wifi, bluetooth, battery, charger, app triggers |
+| **Automation** | Time, folder, battery and charger triggers (file, display, wifi, bluetooth, app: coming soon) |
 | **AI actions** | Use model, writing tool, image playground steps |
 | **System actions** | Lock, volume, dark mode, and more |
 | **Menu HUD** | Fullscreen / floating view of the current app's shortcuts |
