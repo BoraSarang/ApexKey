@@ -126,25 +126,18 @@ final class UseModelExecutor {
         resolvedPrompt: String,
         context: inout ExecutionContext
     ) -> Bool {
-        // TODO: FoundationModels 프레임워크 실제 연동
-        // 현재 프레임워크가 아직 완전히 공개되지 않았으므로 구조만 마련
-        // 실제 구현 시:
+        // E-MAC-AI-9013: FoundationModels 프레임워크 연동이 아직 구현되지 않았다.
+        // 이전 구현은 입력 프롬프트를 그대로 출력 변수로 저장하고 `return true`를 해
+        // "AI 결과"처럼 보이는 값을 만들면서 단축어를 성공으로 보고했다(성공 둔팝).
+        // 연동이 없는 동안에는 반드시 실패를 반환한다.
+        //
+        // TODO(PLAN_v0.21 T-143 후속):
         // 1. SystemLanguageModel.default 또는 .init(.init(overrides: [.init(name: "chatgpt")]))
         // 2. session = LanguageModelSession(model: model)
         // 3. let response = try await session.respond(to: resolvedPrompt)
-        // 4. response.content → VariableValue 변환
-        
-        Logger.info("UseModelExecutor", "FoundationModels 실행 (모델: \(useModel.modelType.displayName))")
-        
-        // 임시: 프롬프트를 그대로 출력으로 반환 (폴백)
-        let outputValue = convertToOutputType(
-            text: resolvedPrompt,
-            outputType: useModel.outputType
-        )
-        context.setOutput(outputValue, for: useModel.outputVariable)
-        
-        Logger.info("UseModelExecutor", "실행 완료: \(useModel.outputType.displayName) 출력")
-        return true
+        // 4. response.content → VariableValue 변환 후 setOutput
+        Logger.error("E-MAC-AI-9013", "FoundationModels 연동 미구현 — 단계 실패 처리 (모델: \(useModel.modelType.displayName))")
+        return false
     }
     
     // MARK: - 프롬프트 토큰 해결

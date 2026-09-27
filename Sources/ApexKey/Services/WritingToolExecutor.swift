@@ -51,25 +51,26 @@ final class WritingToolExecutor {
         inputText: String,
         context: inout UseModelExecutor.ExecutionContext
     ) -> Bool {
-        Logger.info("WritingToolExecutor", "FoundationModels 실행: \(writingTool.action.displayName)")
-        
-        // TODO: FoundationModels 프레임워크 실제 연동
-        // Apple Shortcuts에서의 Writing Tools 흐름:
+        // E-MAC-AI-9013: FoundationModels 프레임워크 연동이 아직 구현되지 않았다.
+        // 이전 구현은 processLocally()로 "교정완료: {원문}" 같은 문자열 래핑을 만들어
+        // 출력 변수를 채우고 `return true`를 해 실제 교정 없이 성공을 보고했다.
+        //
+        // TODO(PLAN_v0.21 T-143 후속):
         // 1. SystemLanguageModel.default 사용
         // 2. 각 액션별 프롬프트 구성
         // 3. session.respond(to:) 호출
         // 4. 결과를 출력 변수에 저장
-        
-        // 임시: 규칙 기반 처리 (FoundationModels 연동 전까지)
-        let result = processLocally(action: writingTool.action, inputText: inputText, tone: writingTool.tone)
-        context.setOutput(result, for: writingTool.outputVariable)
-        
-        Logger.info("WritingToolExecutor", "실행 완료: \(writingTool.action.displayName)")
-        return true
+        Logger.error("E-MAC-AI-9013", "FoundationModels 연동 미구현 — 라이팅 툴 단계 실패 처리: \(writingTool.action.displayName)")
+        return false
     }
-    
-    // MARK: - 로컬 처리 (폴백)
-    
+
+    // MARK: - 로컬 처리 (미구현 상태에서는 호출되지 않음)
+    //
+    // 아래 헬퍼는 AI 연동 없이도 "결과처럼 보이는" 문자열을 만들 수 있어 위험하다.
+    // E-MAC-AI-9013에서 execute 경로에서 제거했으며, 후속 AI 구현 시
+    // 별도 "정리/압축" 전용 로컬 처리로 재활용할 수 있도록 보존한다.
+
+    /// 로컬 규칙 기반 처리 — **AI 결과가 아니므로 AI 단계의 성공 경로에서 호출 금지**
     private func processLocally(action: WritingToolAction, inputText: String, tone: WritingTone?) -> VariableValue {
         switch action {
         case .proofread:

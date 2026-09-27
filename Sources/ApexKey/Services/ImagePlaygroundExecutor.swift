@@ -43,41 +43,26 @@ final class ImagePlaygroundExecutor {
         playground: ImagePlaygroundStep,
         context: inout UseModelExecutor.ExecutionContext
     ) -> Bool {
-        Logger.info("ImagePlaygroundExecutor", "FoundationModels 실행: \(playground.style.displayName)")
-        
-        // TODO: ImagePlayground 프레임워크 실제 연동
-        // Apple Shortcuts에서의 ImagePlayground 흐름:
+        // E-MAC-AI-9013: ImagePlayground 프레임워크 연동이 아직 구현되지 않았다.
+        // 이전 구현은 512×512 단색 사각형에 프롬프트를 그린 플레이스홀더 이미지를
+        // "이미지 생성 완료"로 로그하고 `return true`를 해 성공으로 보고했다.
+        // 임시 디렉터리에 파일을 남기는 부작용도 함께 제거한다.
+        //
+        // TODO(PLAN_v0.21 T-143 후속):
         // 1. ImagePlayground() 세션 생성
         // 2. 프롬프트 + 스타일 설정
         // 3. 이미지 생성 요청
         // 4. 생성된 이미지를 변수에 저장
-        
-        // 임시: 플레이스홀더 이미지 생성
-        let placeholderImage = createPlaceholderImage(
-            prompt: playground.prompt,
-            style: playground.style
-        )
-        
-        if let imageData = placeholderImage?.tiffRepresentation {
-            // 이미지를 파일로 저장하고 경로를 변수로
-            let tempDir = FileManager.default.temporaryDirectory
-            let imageURL = tempDir.appendingPathComponent("apexkey_img_\(UUID().uuidString.prefix(8)).png")
-            if let bitmap = NSBitmapImageRep(data: imageData),
-               let pngData = bitmap.representation(using: .png, properties: [:]) {
-                try? pngData.write(to: imageURL)
-                context.setOutput(.file(imageURL), for: playground.outputVariable)
-                Logger.info("ImagePlaygroundExecutor", "이미지 생성 완료: \(imageURL.lastPathComponent)")
-            }
-        } else {
-            context.setOutput(.null, for: playground.outputVariable)
-        }
-        
-        Logger.info("ImagePlaygroundExecutor", "실행 완료")
-        return true
+        Logger.error("E-MAC-AI-9013", "ImagePlayground 연동 미구현 — 이미지 생성 단계 실패 처리: \(playground.style.displayName)")
+        return false
     }
-    
-    // MARK: - 플레이스홀더 이미지 생성
-    
+
+    // MARK: - 플레이스홀더 이미지 생성 (미구현 상태에서는 호출되지 않음)
+    //
+    // E-MAC-AI-9013에서 실행 경로에서 제거했다. "이미지 생성"으로 오인될 수 있어
+    // 후속 AI 구현 시에는 재생성하지 않는다.
+
+    /// 단색 + 텍스트 플레이스홀더 — **실제 생성 이미지가 아니므로 AI 단계에서 사용 금지**
     private func createPlaceholderImage(prompt: String, style: ImagePlaygroundStyle) -> NSImage? {
         let size = NSSize(width: 512, height: 512)
         let image = NSImage(size: size)
