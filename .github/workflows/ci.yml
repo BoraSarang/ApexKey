@@ -25,6 +25,9 @@ jobs:
       - name: 현지화 가드
         run: python3 scripts/check-localizable.py
 
+      - name: 버전 단일 출처 가드
+        run: python3 scripts/check-version.py
+
       - name: Debug 빌드
         run: |
           set -euo pipefail

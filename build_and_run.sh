@@ -25,9 +25,12 @@ if [ "$PLATFORM" != "macos" ]; then
   error "지원되지 않는 플랫폼: $PLATFORM (현재 macOS만 지원)"
 fi
 
-# ── 0. 현지화 가드 ────────────────────────────────────
-info "0/5a: 현지화 가드 (잔여 한글 리터럴 검사)..."
+# ── 0. 게이트: 현지화 + 버전 단일 출처 ───────────────────
+info "0/6a: 현지화 가드 (잔여 한글 리터럴 검사)..."
 python3 "$PROJECT_DIR/scripts/check-localizable.py" || error "현지화 가드 실패 — 미로컬라이즈 문자열을 확인하세요"
+
+info "0/6b: 버전 단일 출처 가드 (project.yml)..."
+python3 "$PROJECT_DIR/scripts/check-version.py" || error "버전 가드 실패 — project.yml의 MARKETING_VERSION을 확인하세요"
 
 # ── 0. 테스트 서브커맨드 ─────────────────────────────
 if [ "$MODE" = "test" ]; then
