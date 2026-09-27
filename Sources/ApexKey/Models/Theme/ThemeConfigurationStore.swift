@@ -10,7 +10,19 @@ import Foundation
 /// Handles persistence of custom themes
 @MainActor
 public enum ThemeConfigurationStore {
-    private static let activeThemeKey = "activeThemeId"
+    /// 활성 테마 ID의 UserDefaults 키 — **단일 출처** (E-MAC-UX-9011)
+    ///
+    /// 이전에는 여기서 별도 키 `"activeThemeId"`를 쓰면서 `ThemeManager`는
+    /// `ConfigStore.PrefKeys.activeThemeId`(`"ApexKeyActiveThemeId"`)를 쓰고 있었다.
+    /// 두 값을 잇는 코드가 전혀 없어 `loadActiveThemeId()`는 **항상 nil**을 반환했고,
+    /// 그 결과 `loadActiveTheme()`는 언제나 nil, `deleteTheme`의 활성 참조 정리도
+    /// 실행되지 않았다. 이제 `ThemeManager`와 같은 키를 쓴다.
+    ///
+    /// 데이터 이관이 필요 없는 이유: 구 키 `"activeThemeId"`에 값을 쓰는 호출자는 이
+    /// 파일의 `saveActiveThemeId(nil)` 두 곳뿐이고, 둘 다 `removeObject`이다.
+    /// 즉 정본 값은 항상 `ApexKeyActiveThemeId`에 있었고, 구 키에는 값이 없었다.
+    private static var activeThemeKey: String { ConfigStore.PrefKeys.activeThemeId }
+
     private static let builtInThemeSchemaKey = "builtInThemeSchemaVersion"
     /// Increment whenever the built-in Dark/Light palette changes so existing
     /// installations receive updated colors on next launch.

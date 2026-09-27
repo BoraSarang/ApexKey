@@ -19,6 +19,10 @@ final class AutomationManager {
     
     private var registrations: [Registration] = []
     private var folderStreams: [FSEventStreamRef] = []
+    /// 각 폴더 스트림의 콜백 큐 — 해제 전에 동기화하기 위해 보관한다 (E-MAC-AUTO-8002)
+    private var folderStreamQueues: [DispatchQueue] = []
+    /// 폴더 이벤트 콜백 전용 큐 — stopAllWatchers에서 barrier로 비울 수 있도록 전역 관리한다
+    private static let folderEventQueue = DispatchQueue(label: "com.borasarang.ApexKey.folderEvents", qos: .utility)
     private var timers: [Timer] = []
     private var lastBatteryLevel: Double = -1
     private var lastChargerConnected: Bool?
@@ -90,12 +94,23 @@ final class AutomationManager {
     private func stopAllWatchers() {
         timers.forEach { $0.invalidate() }
         timers.removeAll()
+        // E-MAC-AUTO-8002: 해제 전에 콜백 큐에 barrier를 넣어 in-flight 콜백이 반드시
+        // 반환한 뒤 Release한다. 큐를 먼저 비우면 어느 스트림이 어떤 큐인지 잃으므로
+        // 스트림과 큐를 인덱스째 함께 순회한다.
+        let queues = folderStreamQueues
         for stream in folderStreams {
             FSEventStreamStop(stream)
+            FSEventStreamSetDispatchQueue(stream, nil)
+        }
+        for queue in queues {
+            queue.sync {}
+        }
+        for stream in folderStreams {
             FSEventStreamInvalidate(stream)
             FSEventStreamRelease(stream)
         }
         folderStreams.removeAll()
+        folderStreamQueues.removeAll()
     }
     
     // MARK: - 시간 트리거
@@ -209,7 +224,10 @@ final class AutomationManager {
             
             if let stream = stream {
                 folderStreams.append(stream)
-                FSEventStreamSetDispatchQueue(stream, DispatchQueue.global(qos: .utility))
+                // 콜백이 도는 큐를 보관한다 — stopAllWatchers에서 해제 전에 barrier를 걸어
+                // in-flight 콜백이 반드시 반환하도록 한다 (E-MAC-AUTO-8002)
+                folderStreamQueues.append(Self.folderEventQueue)
+                FSEventStreamSetDispatchQueue(stream, Self.folderEventQueue)
                 FSEventStreamStart(stream)
             }
         }
