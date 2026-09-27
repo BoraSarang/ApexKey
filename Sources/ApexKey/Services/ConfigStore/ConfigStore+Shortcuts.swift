@@ -107,21 +107,26 @@ extension ConfigStore {
     }
 
     /// 동작 실행 단축키 지정/변경 (중복 시 무시)
-    func setShortcutCombo(_ shortcut: ShortcutItem, combo: HotKeyCombo) {
-        if combo.isEmpty { return }
+    @discardableResult
+    func setShortcutCombo(_ shortcut: ShortcutItem, combo: HotKeyCombo) -> HotKeyApplyResult {
+        if combo.isEmpty { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: shortcut.id) {
-            Logger.info("ConfigStore", "[SHORTCUT] 중복 단축키 무시: \(combo.displayString)")
-            return
+            Logger.error("E-MAC-HTKEY-1003", "[SHORTCUT] 중복 단축키 — 변경 거부: \(combo.displayString) (기존 조합 유지)")
+            return .duplicateCombo
         }
-        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return .appNotFound }
         // 이전 조합 해제
         if !shortcuts[idx].combo.isEmpty, shortcuts[idx].combo != combo {
             hotKeyService.unregister(shortcut.id)
         }
         shortcuts[idx].combo = combo
-        _ = hotKeyService.register(shortcut.id, combo: combo)
+        guard hotKeyService.register(shortcut.id, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         syncShortcut(shortcuts[idx])
         Logger.info("ConfigStore", "[SHORTCUT] 실행 단축키 지정: \(shortcut.name) → \(combo.displayString)")
+        return .applied
     }
 
     /// 동작 단축키 해제

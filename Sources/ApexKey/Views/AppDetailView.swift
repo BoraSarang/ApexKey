@@ -73,7 +73,7 @@ struct AppDetailView: View {
                 excludedCombo: store.launchBindings(for: app.id).first?.combo,
                 onTest: { _ in AppSwitcher.toggle(bundleID: app.bundleID) }
             ) { combo in
-                store.setLaunchBinding(for: app.id, combo: combo)
+                store.setLaunchBinding(for: app.id, combo: combo).errorMessage
             }
             .environmentObject(store)
         }
@@ -94,7 +94,8 @@ struct AppDetailView: View {
                     return true
                 }
             ) { combo in
-                if let s = recordingScheme { onRecord(combo: combo, scheme: s) }
+                guard let s = recordingScheme else { return "toast.reason.key_invalid".localized }
+                return onRecord(combo: combo, scheme: s)
             }
             .environmentObject(store)
         }
@@ -474,19 +475,19 @@ struct AppDetailView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.cardBorder.opacity(0.3), lineWidth: 1))
     }
 
-    private func onRecord(combo: HotKeyCombo, scheme: String) {
-        guard !combo.isEmpty else { return }
-        store.addBinding(HotKeyBinding(
+    private func onRecord(combo: HotKeyCombo, scheme: String) -> String? {
+        guard !combo.isEmpty else { return "toast.reason.key_invalid".localized }
+        return store.addBinding(HotKeyBinding(
             combo: combo,
             actionType: .url,
             target: "\(scheme)://",
             title: "\(app.name) (\(scheme))",
             onlyWhenAppActive: false
-        ))
+        )).errorMessage
     }
 
-    private func onRecord(combo: HotKeyCombo, menuItem: MenuItem) {
-        guard !combo.isEmpty else { return }
+    private func onRecord(combo: HotKeyCombo, menuItem: MenuItem) -> String? {
+        guard !combo.isEmpty else { return "toast.reason.key_invalid".localized }
         var menuItem = menuItem
         if menuItem.menuPath.isEmpty { menuItem.menuPath = [menuItem.title] }
         let binding = HotKeyBinding(
@@ -497,7 +498,7 @@ struct AppDetailView: View {
             menuPath: menuItem.menuPath,
             onlyWhenAppActive: false
         )
-        store.addBinding(binding)
+        return store.addBinding(binding).errorMessage
     }
 }
 

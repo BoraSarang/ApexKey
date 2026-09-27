@@ -5,46 +5,90 @@ import Combine
 
 /// ConfigStore 영역 분할 (R-10) — 동일 클래스 extension, public API 동결.
 extension ConfigStore {
+    /// 핫키 적용 결과 (E-MAC-HTKEY-1003)
+    ///
+    /// 핫키 저장은 여러 경로에서 **조용히 거부**될 수 있었다. 중복 조합, 빈 조합,
+    /// 저장소 사용 불가, Carbon OS 등록 실패. 사용자에게 전달하려면 반환값이 필요하므로
+    /// 모든 적용 경로가 이 결과를 돌려준다.
+    enum HotKeyApplyResult {
+        case applied
+        case duplicateCombo
+        case invalidCombo
+        case appNotFound
+        case storeUnavailable
+        /// Carbon 핫키 등록 실패 (OS가 이미 다른 앱에 배정했을 수 있음)
+        case hotKeyRegistrationFailed
+
+        var succeeded: Bool { self == .applied }
+
+        /// 사용자에게 보여줄 메시지 (nil이면 성공)
+        var errorMessage: String? {
+            switch self {
+            case .applied: return nil
+            case .duplicateCombo: return "toast.reason.hotkey_duplicate".localized
+            case .invalidCombo: return "toast.reason.key_invalid".localized
+            case .appNotFound: return "toast.reason.app_missing".localized
+            case .storeUnavailable: return "toast.reason.hotkey_save_failed".localized
+            case .hotKeyRegistrationFailed: return "toast.reason.hotkey_register_failed".localized
+            }
+        }
+    }
+
     /// ⇧⌥A 패널 토글 핫키 변경 (재등록)
-    func setPanelToggleHotkey(_ combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
+    @discardableResult
+    func setPanelToggleHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: panelToggleID) {
             Logger.error("E-MAC-HTKEY-1002", "패널 토글 핫키 중복으로 변경 거부: \(combo.displayString)")
-            return
+            return .duplicateCombo
         }
         hotKeyService.unregister(panelToggleID)
         toggleHotkey = combo
         Self.saveHotkey(combo, forKey: PrefKeys.panelToggleHotkey)
-        _ = hotKeyService.register(panelToggleID, combo: combo)
+        guard hotKeyService.register(panelToggleID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         Logger.info("ConfigStore", "[HOTKEY] 패널 토글 핫키 변경: \(combo.displayString)")
+        return .applied
     }
 
     /// ⌘⌥K 명령 팔레트 핫키 변경 (재등록)
-    func setPaletteHotkey(_ combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
+    @discardableResult
+    func setPaletteHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: paletteID) {
             Logger.error("E-MAC-HTKEY-1002", "팔레트 핫키 중복으로 변경 거부: \(combo.displayString)")
-            return
+            return .duplicateCombo
         }
         hotKeyService.unregister(paletteID)
         paletteHotkey = combo
         Self.saveHotkey(combo, forKey: PrefKeys.paletteHotkey)
-        _ = hotKeyService.register(paletteID, combo: combo)
+        guard hotKeyService.register(paletteID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 핫키 변경: \(combo.displayString)")
+        return .applied
     }
 
     /// ⇧⌥S Menu HUD 핫키 변경 (재등록)
-    func setMenuHUDHotkey(_ combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
+    @discardableResult
+    func setMenuHUDHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: menuHUDID) {
             Logger.error("E-MAC-HTKEY-1002", "Menu HUD 핫키 중복으로 변경 거부: \(combo.displayString)")
-            return
+            return .duplicateCombo
         }
         hotKeyService.unregister(menuHUDID)
         menuHUDHotkey = combo
         Self.saveHotkey(combo, forKey: PrefKeys.menuHUDHotkey)
-        _ = hotKeyService.register(menuHUDID, combo: combo)
+        guard hotKeyService.register(menuHUDID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 변경: \(combo.displayString)")
+        return .applied
     }
 
     func registerAllBindings() {
