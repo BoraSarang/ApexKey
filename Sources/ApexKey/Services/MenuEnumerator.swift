@@ -198,24 +198,23 @@ final class MenuEnumerator {
 
     /// osascript를 실행하고 성공/실패(표준오류 메시지)를 반환
     private func runOSAScript(_ script: String) -> OSAScriptResult {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            return .error("osascript 실행 실패: \(error.localizedDescription)")
+        // 동시 드레인 + 타임아웃 — 64KiB 초과 출력 교착(E-MAC-SCRIPT-6004)과
+        // 대상 앱이 멈췄을 때의 무기한 Apple Event 대기 방지
+        let run = ProcessRunner.run(
+            executable: "/usr/bin/osascript",
+            arguments: ["-e", script],
+            timeout: 5.0
+        )
+        if let launchError = run.launchError {
+            return .error("osascript 실행 실패: \(launchError)")
         }
-        if process.terminationStatus == 0 {
+        if run.timedOut {
+            return .error("menu.action.status_timeout".localized)
+        }
+        if run.succeeded {
             return .success
         }
-        let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-        let message = String(data: errData, encoding: .utf8) ?? "status=\(process.terminationStatus)"
+        let message = run.standardError.isEmpty ? "status=\(run.exitCode)" : run.standardError
         return .error(message.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 

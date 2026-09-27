@@ -40,27 +40,23 @@ enum ScriptExecutor {
             Logger.error("E-MAC-SCRIPT-6002", "빈 JXA — 실행 건너뜀")
             return Result(success: false, output: "", errorOutput: "error.user.empty_script".localized)
         }
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-l", "JavaScript", "-e", trimmed]
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        task.standardOutput = outPipe
-        task.standardError = errPipe
-        do {
-            try task.run()
-        } catch {
-            Logger.error("E-MAC-SCRIPT-6001", "JXA 실행 실패: \(error.localizedDescription)")
-            return Result(success: false, output: "", errorOutput: error.localizedDescription)
+        // 동시 드레인 — 64KiB 초과 출력 시 교착 방지 (E-MAC-SCRIPT-6004)
+        let run = ProcessRunner.run(
+            executable: "/usr/bin/osascript",
+            arguments: ["-l", "JavaScript", "-e", trimmed]
+        )
+        if let launchError = run.launchError {
+            Logger.error("E-MAC-SCRIPT-6001", "JXA 실행 실패: \(launchError)")
+            return Result(success: false, output: "", errorOutput: launchError)
         }
-        task.waitUntilExit()
-        let out = (String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let err = (String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if task.terminationStatus == 0 {
+        let out = run.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let err = run.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
+        if run.succeeded {
             Logger.info("ScriptExecutor", "JXA 성공 (\(out.count)자)")
             return Result(success: true, output: out, errorOutput: err)
         } else {
-            Logger.error("E-MAC-SCRIPT-6001", "JXA 실패 (exit \(task.terminationStatus)): \(err.prefix(500))")
+            let suffix = run.timedOut ? " (timeout)" : ""
+            Logger.error("E-MAC-SCRIPT-6001", "JXA 실패 (exit \(run.exitCode))\(suffix): \(err.prefix(500))")
             return Result(success: false, output: out, errorOutput: err)
         }
     }

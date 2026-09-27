@@ -162,31 +162,20 @@ final class ActionExecutor {
             return ShellResult(success: false, output: "", errorOutput: "error.user.script_file_missing".localized, exitCode: -1)
         }
         Logger.info("FEATURE", "스크립트 파일 실행 시작: \(path)")
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [path]
         // GUI 앱 최소 PATH 보완 (자식 프로세스 환경) — ShellEnvironment 단일 출처
         var env = ProcessInfo.processInfo.environment
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let extra = ShellEnvironment.extraPaths(home: home)
         env["PATH"] = "\(extra):\(env["PATH"] ?? ShellEnvironment.fallbackSystemPaths)"
-        task.environment = env
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        task.standardOutput = outPipe
-        task.standardError = errPipe
-        do {
-            try task.run()
-        } catch {
-            Logger.error("E-MAC-SCRIPT-6001", "스크립트 실행 실패: \(error.localizedDescription)")
-            return ShellResult(success: false, output: "", errorOutput: error.localizedDescription, exitCode: -1)
+        // 동시 드레인 — 64KiB 초과 출력 시 waitUntilExit 순서 대기 교착 방지 (E-MAC-SCRIPT-6004)
+        let run = ProcessRunner.run(executable: "/bin/bash", arguments: [path], environment: env)
+        if let launchError = run.launchError {
+            Logger.error("E-MAC-SCRIPT-6001", "스크립트 실행 실패: \(launchError)")
+            return ShellResult(success: false, output: "", errorOutput: launchError, exitCode: -1)
         }
-        task.waitUntilExit()
-        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-        let output = (String(data: outData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let errorOutput = (String(data: errData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let code = task.terminationStatus
+        let output = run.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let errorOutput = run.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = run.exitCode
         if !output.isEmpty {
             Logger.info("ActionExecutor", "스크립트 출력:\n\(output.prefix(2000))")
         }
@@ -209,25 +198,16 @@ final class ActionExecutor {
         }
         Logger.info("FEATURE", "셸 스크립트 실행 시작: \(trimmed.prefix(120))")
         let fullCommand = ShellEnvironment.script(trimmed)
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        task.arguments = ["-c", fullCommand]
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        task.standardOutput = outPipe
-        task.standardError = errPipe
-        do {
-            try task.run()
-        } catch {
-            Logger.error("E-MAC-SCRIPT-6001", "스크립트 실행 실패: \(error.localizedDescription)")
-            return ShellResult(success: false, output: "", errorOutput: error.localizedDescription, exitCode: -1)
+        // 동시 드레인 — 64KiB 초과 출력 시 waitUntilExit 순서 대기 교착 방지 (E-MAC-SCRIPT-6004)
+        // 타임아웃 없음: 사용자 스크립트의 실행 시간을 앱이 임의로 제한하지 않는다.
+        let run = ProcessRunner.run(executable: "/bin/zsh", arguments: ["-c", fullCommand])
+        if let launchError = run.launchError {
+            Logger.error("E-MAC-SCRIPT-6001", "스크립트 실행 실패: \(launchError)")
+            return ShellResult(success: false, output: "", errorOutput: launchError, exitCode: -1)
         }
-        task.waitUntilExit()
-        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-        let output = (String(data: outData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let errorOutput = (String(data: errData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let code = task.terminationStatus
+        let output = run.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let errorOutput = run.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = run.exitCode
         if !output.isEmpty {
             Logger.info("ActionExecutor", "스크립트 출력:\n\(output.prefix(2000))")
         }
