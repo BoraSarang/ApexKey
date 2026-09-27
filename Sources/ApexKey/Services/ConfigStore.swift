@@ -10,7 +10,14 @@ final class ConfigStore: ObservableObject {
     @Published var bindings: [HotKeyBinding] = []
     @Published var scripts: [ScriptItem] = []
     @Published var shortcuts: [ShortcutItem] = []
-    @Published var showHiddenApps = false
+    /// 숨김 앱 표시 여부 — 설정 토글이 매 실행 리셋되지 않도록 영속화한다 (E-MAC-STORE-5008)
+    /// 다른 모든 표시 설정과 동일한 `didSet` + `PrefKeys` + `init()` 복원 패턴을 따른다.
+    @Published var showHiddenApps: Bool {
+        didSet {
+            guard showHiddenApps != oldValue else { return }
+            UserDefaults.standard.set(showHiddenApps, forKey: Self.PrefKeys.showHiddenApps)
+        }
+    }
     @Published var showPalette = false
     /// 매크로 녹화 상태
     @Published var isMacroRecording = false
@@ -129,6 +136,7 @@ final class ConfigStore: ObservableObject {
         self.showNoShortcutItems = defaults.object(forKey: PrefKeys.showNoShortcutItems) == nil ? true : defaults.bool(forKey: PrefKeys.showNoShortcutItems)
         self.showSuccessToast = defaults.object(forKey: PrefKeys.showSuccessToast) == nil ? true : defaults.bool(forKey: PrefKeys.showSuccessToast)
         self.showSystemApps = defaults.object(forKey: PrefKeys.showSystemApps) == nil ? true : defaults.bool(forKey: PrefKeys.showSystemApps)
+        self.showHiddenApps = defaults.bool(forKey: PrefKeys.showHiddenApps)
         // 업데이트 확인 주기·마지막 확인 시각 로드 (기본 weekly)
         if let raw = defaults.string(forKey: PrefKeys.updateFrequency),
            let frequency = UpdateCheckFrequency(rawValue: raw) {

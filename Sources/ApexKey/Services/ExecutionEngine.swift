@@ -50,33 +50,42 @@ final class ExecutionEngine {
     /// 단계 배열 실행
     func execute(steps: [ShortcutStep], context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         var ok = true
+        // E-MAC-FLOW-7009: 실패 사유를 최초 1건만 보존한다.
+        // 이전에는 `error`를 버려서 스크립트 문법 오류 같은 구체적 원인이
+        // 상위에서 "동작 실패: <이름>"으로 뭉개졌다.
+        var firstError: String?
         for (index, step) in steps.enumerated() {
             // 스킵된 단계는 건너뜀
             if step.isSkipped {
                 Logger.info("ExecutionEngine", "스킵: \(step.type.displayName) — \(step.title)")
                 continue
             }
-            
+
             Logger.info("ExecutionEngine", "단계 \(index + 1)/\(steps.count): \(step.type.displayName)")
-            
+
             let result = executeStep(step, context: &context, depth: depth)
-            if !result.success { ok = false }
+            if !result.success {
+                ok = false
+                if firstError == nil { firstError = result.error }
+            }
 
             // 흐름 제어 처리
             switch result.controlFlow {
             case .breakLoop:
                 // 반복 탈출은 상위로 전파 (반복 핸들러가 변환 담당).
-                // 그때까지 실패가 있으면 전체 실패로 전파 (성공 둔갑 방지)
-                return Result(success: ok && result.success, controlFlow: .breakLoop)
+                // 그때까지 실패가 있으면 전체 실패로 전파 (성공 둔팝 방지)
+                return Result(success: ok && result.success, controlFlow: .breakLoop, error: firstError)
             case .continueLoop:
                 continue
             case .stop, .ended:
-                return result
+                // E-MAC-FLOW-7009: stop/ended는 `result`만 반환해 그 이전에 쌓인 실패를 버렸다.
+                // Stop Shortcut 이전에 실패한 단계가 있어도 success:true가 보고됐다.
+                return Result(success: ok && result.success, controlFlow: result.controlFlow, error: firstError ?? result.error)
             case .continueExecution:
                 break  // 계속
             }
         }
-        return Result(success: ok, controlFlow: .continueExecution)
+        return Result(success: ok, controlFlow: .continueExecution, error: firstError)
     }
     
     // MARK: - 단계 실행
@@ -156,12 +165,21 @@ final class ExecutionEngine {
             return executeOutputToVariable(step, context: &context)
             
         default:
-            // 일반 액션은 변수 토큰 치환 후 실행, 실패는 성공으로 둔갑시키지 않고 전파 (R-01)
+            // 일반 액션은 변수 토큰 치환 후 실행, 실패는 성공으로 둔팝시키지 않고 전파 (R-01)
             var binding = step.toBinding()
             binding.target = VariableResolver.resolveText(step.target, context: makeResolveContext(context))
-            let ok = ActionExecutor.shared.execute(binding)
-            if !ok {
-                return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName))
+            // E-MAC-FLOW-7009: `setOutput`이 아예 없어서 `{lastResult}`·출력-변수 단계가
+            // 이 단계의 결과가 아니라 **이전 블록의 잔여값**을 읽었다.
+            // 실행 결과를 이 단계의 출력으로 기록해 흐름을 이어간다.
+            let detail = ActionExecutor.shared.executeWithDetail(binding)
+            context.setOutput(.text(detail.message ?? ""), for: step.id)
+            context.lastOutput = .text(detail.message ?? "")
+            if !detail.success {
+                return Result(
+                    success: false,
+                    controlFlow: .continueExecution,
+                    error: detail.message ?? "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+                )
             }
             return .continueRunning
         }
@@ -201,7 +219,14 @@ final class ExecutionEngine {
         
         let previousRepeatIndex = context.repeatIndex
         let previousRepeatItem = context.repeatItem
-        
+
+        // E-MAC-FLOW-7009: 반복 내부의 실패를 흡수하지 않고 상위로 전파한다.
+        // 이전에는 controlFlow만 보고 `.continueExecution`을 무시한 뒤 무조건
+        // `.continueRunning`(success: true)을 반환해, 반복 안의 AppleScript/셸이
+        // 매 회 실패해도 단축어가 성공으로 보고되고 runCount가 증가했다.
+        var anyFailed = false
+        var firstError: String?
+
         for iteration in 1...count {
             context.repeatIndex = iteration
             context.repeatItem = .number(Double(iteration))
@@ -209,28 +234,38 @@ final class ExecutionEngine {
             if let indexVarID = loop.repeatIndexVariable {
                 context.setOutput(.number(Double(iteration)), for: indexVarID)
             }
-            
+
             let result = execute(steps: loop.steps, context: &context, depth: depth)
+            if !result.success {
+                anyFailed = true
+                if firstError == nil { firstError = result.error }
+            }
             switch result.controlFlow {
             case .breakLoop:
                 Logger.info("ExecutionEngine", "반복 중단됨 (iteration \(iteration))")
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
-                return result.success ? .continueRunning : result
+                if anyFailed {
+                    return Result(success: false, controlFlow: .continueExecution, error: firstError)
+                }
+                return .continueRunning
             case .stop, .ended:
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
-                return result
+                return Result(success: !anyFailed && result.success, controlFlow: result.controlFlow, error: firstError ?? result.error)
             case .continueLoop:
                 continue
             case .continueExecution:
-                break
+                continue
             }
         }
-        
+
         context.repeatIndex = previousRepeatIndex
         context.repeatItem = previousRepeatItem
-        Logger.info("ExecutionEngine", "반복 완료: \(count)회")
+        Logger.info("ExecutionEngine", "반복 완료: \(count)회 (실패=\(anyFailed))")
+        if anyFailed {
+            return Result(success: false, controlFlow: .continueExecution, error: firstError)
+        }
         return .continueRunning
     }
     
@@ -254,7 +289,11 @@ final class ExecutionEngine {
         
         let previousRepeatIndex = context.repeatIndex
         let previousRepeatItem = context.repeatItem
-        
+
+        // E-MAC-FLOW-7009 — executeRepeatCount와 동일하게 내부 실패를 전파한다.
+        var anyFailed = false
+        var firstError: String?
+
         for (index, item) in collection.enumerated() {
             let iteration = index + 1
             context.repeatIndex = iteration
@@ -265,18 +304,25 @@ final class ExecutionEngine {
             if let itemVarID = loop.repeatItemVariable {
                 context.setOutput(item, for: itemVarID)
             }
-            
+
             let result = execute(steps: loop.steps, context: &context, depth: depth)
+            if !result.success {
+                anyFailed = true
+                if firstError == nil { firstError = result.error }
+            }
             switch result.controlFlow {
             case .breakLoop:
                 Logger.info("ExecutionEngine", "반복 중단됨 (item \(iteration))")
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
-                return result.success ? .continueRunning : result
+                if anyFailed {
+                    return Result(success: false, controlFlow: .continueExecution, error: firstError)
+                }
+                return .continueRunning
             case .stop, .ended:
                 context.repeatIndex = previousRepeatIndex
                 context.repeatItem = previousRepeatItem
-                return result
+                return Result(success: !anyFailed && result.success, controlFlow: result.controlFlow, error: firstError ?? result.error)
             case .continueLoop:
                 continue
             case .continueExecution:
@@ -286,7 +332,10 @@ final class ExecutionEngine {
         
         context.repeatIndex = previousRepeatIndex
         context.repeatItem = previousRepeatItem
-        Logger.info("ExecutionEngine", "항목 반복 완료: \(collection.count)개")
+        Logger.info("ExecutionEngine", "항목 반복 완료: \(collection.count)개 (실패=\(anyFailed))")
+        if anyFailed {
+            return Result(success: false, controlFlow: .continueExecution, error: firstError)
+        }
         return .continueRunning
     }
     
@@ -427,11 +476,22 @@ final class ExecutionEngine {
             context: makeResolveContext(context),
             escaping: ShellEnvironment.literal
         )
-        let ok = ActionExecutor.shared.runShellScript(resolved)
-        context.setOutput(.text(resolved), for: step.id)
-        context.lastOutput = .text(resolved)
-        if !ok {
-            return Result(success: false, controlFlow: .continueExecution, error: "error.user.script_failed".localized)
+        let ok = ActionExecutor.shared.runShellScriptResult(resolved)
+        // E-MAC-FLOW-7009: 이전에는 `runShellScript`(성공 여부만 반환)가 stdout을 버려서
+        // 출력 변수에 **스크립트 소스코드**가 기록됐다. `{lastResult}`나 출력-변수 단계가
+        // 실행 결과가 아니라 명령 문자열을 받는 문제가 있었다.
+        // AppleScript 경로처럼 실제 r.output을 기록한다.
+        context.setOutput(.text(ok.output), for: step.id)
+        context.lastOutput = .text(ok.output)
+        if !ok.success {
+            let detail = ok.errorOutput.isEmpty ? ok.output : ok.errorOutput
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: detail.isEmpty
+                    ? "error.user.script_failed".localized
+                    : String(detail.prefix(160))
+            )
         }
         return .continueRunning
     }

@@ -29,6 +29,8 @@ extension ConfigStore {
         static let menuHUDStyle = "pref.menuHUDStyle"
         static let showNoShortcutItems = "pref.showNoShortcutItems"
         static let showSystemApps = "pref.showSystemApps"
+        /// 숨김 앱 표시 (E-MAC-STORE-5008 — 이전엔 didSet/PrefKeys/복원이 모두 없어 리셋됨)
+        static let showHiddenApps = "pref.showHiddenApps"
         static let appLanguage = "pref.appLanguage"
         static let showSuccessToast = "pref.showSuccessToast"
         static let didSeedSamples = "pref.didSeedSamples"
