@@ -4,9 +4,28 @@ import Combine
 
 /// JSON blob 인코딩/디코딩 + 실패 로그 (R-05: 조용한 데이터 소실 방지)
 enum StoreCoding {
+    /// **키 순서를 고정한다.** (E-MAC-STORE-5012)
+    ///
+    /// 왜 필수인가 — 실제로 버그를 찾았다:
+    /// `JSONEncoder`는 기본(`outputFormatting` 미지정)으로 **키 순서가 비결정적**이다.
+    /// 내부적으로 딕셔너리를 거치는데 Swift의 `Hasher` 시드가 **프로세스마다 무작위**라
+    /// 같은 값을 인코딩해도 프로세스를 넘기면 바이트가 달라진다.
+    ///
+    /// 이 프로젝트에서 바이트를 **비교**하는 곳이 생겼다(손상 컬럼 복구 판정).
+    /// 비교가 아니라면 무해하지만, 비교가 되면 "값이 안 바뀌었는지"를 **잘못 판단해
+    /// 잠금이 열리고 손상 원본이 덮어써진다.** 실제로 테스트가 이 불변식을 잡았다.
+    ///
+    /// 부수 이득: blob이 결정적이면 디버깅·diff·해시 비교가 가능해진다.
+    /// 이전에 읽은 데이터는 키로 디코딩하므로 **전부 그대로 읽힌다** — 형식이 깨지지 않는다.
+    private static func makeEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }
+
     static func encode<T: Encodable>(_ value: T, label: String) -> Data {
         do {
-            return try JSONEncoder().encode(value)
+            return try makeEncoder().encode(value)
         } catch {
             Logger.error("E-MAC-STORE-5002", "\(label) 인코딩 실패: \(error.localizedDescription)")
             return Data()
@@ -16,7 +35,7 @@ enum StoreCoding {
     /// 인코딩 실패 시 기존 Data 유지 — 빈 blob으로 원본을 덮어쓰지 않는다 (P0-3)
     static func encodeKeeping<T: Encodable>(_ value: T, previous: Data, label: String) -> Data {
         do {
-            return try JSONEncoder().encode(value)
+            return try makeEncoder().encode(value)
         } catch {
             Logger.error("E-MAC-STORE-5002", "\(label) 인코딩 실패 — 기존 데이터 유지: \(error.localizedDescription)")
             return previous

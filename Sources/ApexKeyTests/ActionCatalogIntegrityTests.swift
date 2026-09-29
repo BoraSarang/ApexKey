@@ -116,7 +116,7 @@ final class ActionCatalogIntegrityTests: XCTestCase {
     /// "카탈로그에는 노출되는데 실행은 안 되는" 상태(T-159)가 되돌아온다.
     func testKnownUnimplementedRemainPlanned() {
         let known: [ActionType] = [
-            .translate, .scanQRCode, .recognizeText, .htmlToMarkdown,
+            .translate, .scanQRCode, .recognizeText,
         ]
         for type in known {
             XCTAssertEqual(
@@ -126,7 +126,7 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
-    /// E-MAC-TEXT-6001/6002로 구현한 23종이 implemented로 유지되는지
+    /// E-MAC-TEXT-6001/6002/6003로 구현한 26종이 implemented로 유지되는지
     ///
     /// 역방향 가드: 구현을 되돌렸는데 정의를 그대로 두면 카탈로그가 "준비 중"으로
     /// 숨기지만 실제로는 동작하는, 설명과 반대의 상태가 된다.
@@ -138,6 +138,8 @@ final class ActionCatalogIntegrityTests: XCTestCase {
             // 6002 — 수치·날짜·목록 12종
             .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter,
+            // 6003 — 텍스트·숫자 입력 3종
+            .typeText, .typeNumber, .htmlToMarkdown,
         ]
         for type in implemented {
             XCTAssertEqual(
@@ -249,6 +251,45 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         let uuidResult = ExecutionEngine.shared.execute(steps: [uuidStep], context: &uuidContext)
         XCTAssertTrue(uuidResult.success, "uuid 실행 실패")
         XCTAssertNotNil(UUID(uuidString: uuidContext.lastOutput.asText ?? ""), "UUID 형식이 아니다")
+    }
+
+    /// 텍스트 입력·HTML→Markdown 3종의 **엔진 배선** (E-MAC-TEXT-6003)
+    ///
+    /// `typeText`·`typeNumber`는 게시 계층이 권한을 요구하므로 결과를 검증하지 않는다
+    /// (권한 없이는 "보냈지만 아무 일도 안 일어난" 성공처럼 보인다). 대신
+    /// **배선 존재**를 확인한다.
+    ///
+    /// 미배선 시 `executeStep`의 `default`가 `ActionExecutor`로 넘어가고, 거기는
+    /// 미구현 타입에 대해 **"준비 중"** 토스트를 돌려준다. 그러니
+    /// **그 메시지가 나오면 배선이 없다** — "무엇이 실패했는지"로 구분하는 정확한 신호다.
+    /// (로컬라이즈된 문구끼리 비교하면 키 추가·번역 변경에 취약해진다)
+    func testTypingAndHTMLActionsAreWired() {
+        let unimplemented = "toast.reason.unimplemented".localized
+        for type: ActionType in [.typeText, .typeNumber, .htmlToMarkdown] {
+            let step = ShortcutStep(type: type, target: "1", title: "")
+            var context = UseModelExecutor.ExecutionContext()
+            let result = ExecutionEngine.shared.execute(steps: [step], context: &context)
+            XCTAssertNotEqual(
+                result.error, unimplemented,
+                "\(type.rawValue) 가 엔진에 배선되지 않았다 — 카탈로그는 '구현됨'이라 말하지만 실행은 planned와 같다"
+            )
+        }
+    }
+
+    /// htmlToMarkdown은 결과까지 검증한다 (순수 로직이므로 가능)
+    func testHTMLToMarkdownThroughEngine() {
+        let step = ShortcutStep(
+            type: .htmlToMarkdown,
+            target: "<p>안녕 <b>하세요</b></p>",
+            title: ""
+        )
+        var context = UseModelExecutor.ExecutionContext()
+        let result = ExecutionEngine.shared.execute(steps: [step], context: &context)
+        XCTAssertTrue(result.success, "실행 실패: \(result.error ?? "-")")
+        XCTAssertTrue(
+            context.lastOutput.asText?.contains("**하세요**") == true,
+            "Markdown으로 변환되지 않았다: \(context.lastOutput.asText ?? "nil")"
+        )
     }
 
     /// 클립보드 2종도 엔진 경유로 확인한다

@@ -39,7 +39,11 @@ extension ActionType {
              .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard,
              // 수치·날짜·목록 보조 12종 — E-MAC-TEXT-6002 (ExecutionEngine.executeDataAction)
              .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
-             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:
+             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter,
+             // 텍스트·숫자 입력 2종 — E-MAC-TEXT-6003 (ExecutionEngine.executeTypingAction)
+             .typeText, .typeNumber,
+             // HTML→Markdown 1종 — E-MAC-TEXT-6003 (ExecutionEngine.executeStep)
+             .htmlToMarkdown:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -59,9 +63,9 @@ extension ActionType {
              .getFiles, .moveFiles, .renameFiles, .extractArchive,
              .externalStorage, .fileActions, .getConfirmation,
              .getAttachment, .getDictionary, .listActions,
-             .adjustDate, .typeNumber, .typeText,
+             .adjustDate,
              .typeDateTime,
-             .htmlToMarkdown, .measurement, .scanQRCode,
+             .measurement, .scanQRCode,
              .recognizeText, .recognizeAnimal, .detectLanguage, .map,
              .transportation, .message, .email, .calendar, .reminders,
              .webContent, .presentation, .webIntegration, .documentsAndFiles,

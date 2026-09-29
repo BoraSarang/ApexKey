@@ -243,14 +243,66 @@ final class ExecutionEngine {
         }
     }
 
+    /// 텍스트·숫자 입력 2종 실행 (E-MAC-TEXT-6003)
+    ///
+    /// 키 입력은 `AXIsProcessTrusted()`가 없으면 **조용히 무응답**이 된다.
+    /// 그래서 권한이 없으면 false를 돌려 "실패"로 보고한다 — 사용자가
+    /// "입력했는데 반영 안 됨"을 헤맬 이유를 없앤다.
+    private func executeTypingAction(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let config = TextActionConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let rawInput = config.text?.isEmpty == false ? config.text! : step.target
+        let input = VariableResolver.resolveText(rawInput, context: ctx)
+
+        switch step.type {
+        case .typeText:
+            guard !TypingActions.typeText(input) else { break }
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.text_no_permission".localized
+            )
+        case .typeNumber:
+            if case .failure(let reason) = TypingActions.typeNumber(input, decimals: config.decimals ?? 0) {
+                Logger.error("E-MAC-TEXT-6004", "숫자 입력 실패: \(step.type.rawValue) — \(reason)")
+                return Result(success: false, controlFlow: .continueExecution, error: reason.messageKey.localized)
+            }
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+        return .continueRunning
+    }
+
     // MARK: - 단계 실행
-    
+
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         switch step.type {
         // === 텍스트 액션 11종 (E-MAC-TEXT-6001) ===
         case .text, .combineText, .splitText, .trimWhitespace, .replaceText,
              .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard:
             return executeTextAction(step, context: &context)
+        // === 텍스트·숫자 입력 3종 (E-MAC-TEXT-6003) ===
+        case .typeText, .typeNumber:
+            return executeTypingAction(step, context: &context)
+        case .htmlToMarkdown:
+            let config = TextActionConfig.decode(from: step.actionParameters)
+            let htmlCtx = makeResolveContext(context)
+            let rawHTML = config.text?.isEmpty == false ? config.text! : step.target
+            let html = VariableResolver.resolveText(rawHTML, context: htmlCtx)
+            switch HTMLToMarkdown.convert(html) {
+            case .success(let markdown):
+                context.setOutput(.text(markdown), for: step.id)
+                context.lastOutput = .text(markdown)
+                Logger.info("ExecutionEngine", "HTML→Markdown 변환 완료: \(markdown.count)자")
+                return .continueRunning
+            case .failure(let reason):
+                Logger.error("E-MAC-TEXT-6005", "HTML→Markdown 실패 — \(reason)")
+                return Result(success: false, controlFlow: .continueExecution, error: reason.messageKey.localized)
+            }
         // === 수치·날짜·목록 보조 12종 (E-MAC-TEXT-6002) ===
         case .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
              .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:

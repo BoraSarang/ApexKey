@@ -107,7 +107,8 @@ struct StepSettingsView: View {
              .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard,
              // 수치·날짜·목록 보조 12종 (E-MAC-TEXT-6002)
              .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
-             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:
+             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter,
+             .htmlToMarkdown:
             TextActionSettingsView(step: $step)
         case .comment:
             CommentSettingsView(step: $step)

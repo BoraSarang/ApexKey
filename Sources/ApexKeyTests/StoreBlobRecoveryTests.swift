@@ -243,6 +243,71 @@ final class StoreBlobRecoveryTests: XCTestCase {
         )
     }
 
+    // MARK: - 진단: 복구 판정의 전제가 성립하는가
+
+    /// `fallbackBlobBytes`와 실제 저장이 만드는 바이트가 **항상 같아야** 한다
+    ///
+    /// 복구 가드 3번은 이 두 바이트를 비교한다. 둘이 어긋나면 잠금 판정이 열리고
+    /// 손상 원본이 덮어써진다.
+    ///
+    /// **이 테스트가 실제 버그를 잡았다**: `JSONEncoder`는 기본 설정에서 키 순서가
+    /// 비결정적이고, Swift의 `Hasher` 시드는 프로세스마다 무작위라 **프로세스를 넘기면**
+    /// 같은 값의 바이트가 달라진다. 그 상태에서 바이트를 비교하는 복구 가드는
+    /// 간헐적으로 열렸다. `StoreCoding`이 `.sortedKeys`로 고정한 뒤 통과한다.
+    func testFallbackSnapshotMatchesActualEncode() {
+        let p = PersistedShortcut(name: "진단", steps: [])
+        for column in StoreBlobColumn.allCases {
+            let snapshot = p.fallbackBlobBytes(column)
+            XCTAssertFalse(snapshot.isEmpty, "\(column.rawValue): 스냅샷이 비었다")
+            let again = PersistedShortcut(name: "진단", steps: []).fallbackBlobBytes(column)
+            XCTAssertEqual(snapshot, again, "\(column.rawValue): 인코딩이 결정적이지 않다")
+        }
+        // permissions: 실제로 저장되는 기본값과도 같아야 한다
+        let a = String(data: p.fallbackBlobBytes(.permissions), encoding: .utf8) ?? "?"
+        let b = String(data: StoreCoding.encode(ShortcutPermissions(), label: "진단 직접"), encoding: .utf8) ?? "?"
+        XCTAssertEqual(
+            a, b,
+            """
+            permissions 기본값의 인코딩이 fallback 스냅샷과 다르다.
+            A: \(a)
+            B: \(b)
+            """
+        )
+    }
+
+    /// 인코딩이 **키 정렬**돼야 한다 — 바이트 비교를 믿을 수 있는 전제
+    func testEncodingIsKeySorted() {
+        let perms = StoreCoding.encode(
+            ShortcutPermissions(
+                allowExporting: true, allowRunningOnMac: true, allowRunningOnWatch: false,
+                allowRunningFromLockScreen: false, showOnLockScreen: false, requiresConfirmation: false
+            ),
+            label: "정렬 확인"
+        )
+        let json = String(data: perms, encoding: .utf8) ?? ""
+        let keys = ["allowExporting", "allowRunningFromLockScreen", "allowRunningOnMac",
+                    "allowRunningOnWatch", "requiresConfirmation", "showOnLockScreen"]
+        let positions = keys.compactMap { json.range(of: "\"\($0)\"")?.lowerBound }
+        XCTAssertEqual(positions.count, keys.count, "일부 키를 찾지 못했다: \(json)")
+        XCTAssertEqual(positions, positions.sorted(), "키가 정렬되지 않았다: \(json)")
+    }
+
+    /// 손상 시점에 스냅샷이 **실제로 기록되는지** — 없으면 가드가 조용히 무력화된다
+    func testFallbackSnapshotIsRecordedOnLoad() {
+        for column in StoreBlobColumn.allCases {
+            let (store, id) = seedCorrupt(column)
+            XCTAssertNotNil(
+                store.corruptedBlobFallbackBytes[id]?[column],
+                "\(column.rawValue): load()가 fallback 스냅샷을 남기지 않았다 — 복구 가드가 무력화된다"
+            )
+            XCTAssertEqual(
+                store.corruptedBlobFallbackBytes[id]?[column],
+                PersistedShortcut(name: "x", steps: []).fallbackBlobBytes(column),
+                "\(column.rawValue): 기록된 스냅샷이 기본 fallback과 다르다"
+            )
+        }
+    }
+
     // MARK: - 왕복 검증 자체
 
     func testRoundTripGuardRejectsUnencodableValue() {
