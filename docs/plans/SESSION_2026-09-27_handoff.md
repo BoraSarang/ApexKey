@@ -9,15 +9,16 @@
 
 | 항목 | 값 |
 |---|---|
-| 브랜치 | `fix/macos-audit-p0` (main보다 **37커밋 앞**) |
-| 마지막 커밋 | `863cbbc docs(macos): v0.21 마무리` |
+| 브랜치 | `fix/macos-audit-p0` (main보다 **38커밋 앞**) — ✅ **2026-09-29 push 완료**, `origin/fix/macos-audit-p0` 추적 설정됨 |
+| 마지막 커밋 | `db38c96 docs(macos): 세션 인계 문서 추가 (SESSION_2026-09-27_handoff)` |
 | 미커밋 | **없음** (작업 트리 clean) |
-| 테스트 | `unit` **247건 0실패** (2 skip, 2.4초) / `smoke` 69건 0실패 (6초) |
+| 테스트 | `unit` **247건 0실패** (2 skip, 2.4초) / `smoke` 69건 0실패 (6초) — 2026-09-29 재확인 |
 | 빌드 | 경고 0 (`appintentsmetadataprocessor` metadata 1건 제외) |
 | 게이트 | `check-localizable.py` 통과 · `check-version.py` 통과 (1.3.0) |
 | i18n | ko 802키 / en 802키 **완전 일치** |
 | 버전 | 1.3.0 (`project.yml` `MARKETING_VERSION`) |
 | 이번 세션 | 감사 5개 계층 → **25건 수정** → 커밋 17개 |
+| 후속 세션(2026-09-29) | T-166 무서명 릴리스 고지 정직화 완료 (PLAN_v0.22) |
 
 **PR 없음.** `git push -u origin fix/macos-audit-p0` 후 PR 생성이 필요하면 base는 `feat/macos-p0-critical-fixes`(기존 PR #6)가 자연스럽고, `main`에 바로 여는 경우 v0.4~v0.20이 한 번에 들어간다.
 
@@ -38,7 +39,13 @@ PLAN_v0.21의 T-141~T-165가 **전부 `[x]`**다. 요약:
 
 ## 3. 다음에 할 것 (우선순위 순)
 
-### 🥇 1순위 — 무서명 릴리스 (사용자 결정 필요)
+### 🥇 1순위 — 무서명 릴리스 (~~사용자 결정 필요~~ → 2026-09-29 처리)
+
+> **2026-09-29 결과**: 사용자가 **(b) 문구 정직화**를 선택 → T-166 완료 (PLAN_v0.22).
+> 상세: `docs/plans/PLAN_v0.22_signing-honesty_macos.md`.
+> (a) Developer ID 서명·공증은 **보류** — Apple Developer Program 가입이 선행이라 코드만으로 불가.
+> `docs/TODO.md` v0.22의 "T-166 후속"에 착수 조건·절차를 적어 뒀다.
+> 아래는 원문 기록이다.
 
 **지금 상태**: `release.yml`이 `CODE_SIGNING_ALLOWED=NO`로 빌드한다. 릴리스 노트 템플릿에도
 "공증되지 않은 앱이라 Gatekeeper가 첫 실행을 차단합니다"라고 적혀 있다.

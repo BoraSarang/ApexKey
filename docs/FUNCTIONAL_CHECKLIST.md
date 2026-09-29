@@ -94,13 +94,13 @@
 
 | 항목 | 상태 | 근거 |
 |---|:-:|---|
-| **Info.plist 버전** | 🔴 | `CFBundleShortVersionString = 1.0`. 커밋 `91a9d7f`가 1.3.0으로 범프했으나 `f2f65a3`에서 plist revert하며 1.0 복귀. `release.yml:42`가 태그↔버전 대조 후 `exit 1` → **다음 릴리스가 반드시 실패** |
-| **버전 단일 출처** | 🔴 | xcodegen이 `Info.plist`를 매 빌드 재생성하면서 하드코딩 버전을 되돌린다. 근본 해결은 `project.yml` `MARKETING_VERSION` — T-146 |
-| **릴리스 서명** | 🔴 | `CODE_SIGNING_ALLOWED=NO`. 릴리스 노트 템플릿에도 "공증되지 않은 앱이라 Gatekeeper가 첫 실행을 차단합니다" 명시. **T-029의 핵심 fix(고정 TeamID → CDHash 유지 → 접근성 권한 유지)가 배포본에서 성립하지 않음** |
-| **현지화 게이트** | ⚠️ | `check-localizable.py`가 `build_and_run.sh`·`ci.yml`에 있으나 **`release.yml`에 없음** — T-165 |
-| **CI 서명 경로** | ⚠️ | CI도 `CODE_SIGNING_ALLOWED=NO` → T-029 회귀를 CI가 검출 불가 |
-| **CI 테스트 격리** | ⚠️ | `ApexKeyModelTests`가 싱글론에 ⌘H를 실제 등록·미해제 → 환경에 따라 실패 가능 — T-147 |
-| **`build_and_run.sh test` 스코프** | ⚠️ | `smoke`/`unit`/`full` **3분기가 완전 동일**. 매번 171건 전부 실행 — T-164 |
+| **Info.plist 버전** | ✅ | `CFBundleShortVersionString = 1.0`으로 복귀했던 결함 해소 — T-146 `07c83b6`. `check-version.py`가 하드코딩을 게이트로 잡음 |
+| **버전 단일 출처** | ✅ | `project.yml` `MARKETING_VERSION`이 유일한 출처 — T-146 `07c83b6` |
+| **릴리스 서명** | 🔴 | `CODE_SIGNING_ALLOWED=NO`. **T-029의 핵심 fix(고정 TeamID → CDHash 유지 → 접근성 권한 유지)가 배포본에서 성립하지 않음** → 2026-09-29 (b) 결정: **Developer ID 서명 도입은 별도 과제로 보류**, 대신 README·릴리스 노트 템플릿·랜딩에 사실 고지. T-166 |
+| **현지화 게이트** | ✅ | `release.yml`에 현지화·버전 가드 추가 — T-165 `863cbbc` |
+| **CI 서명 경로** | ⚠️ | CI도 `CODE_SIGNING_ALLOWED=NO` → T-029 회귀를 CI가 검출 불가. T-166 착수 시 함께 해결 |
+| **CI 테스트 격리** | ✅ | 핫키 테스트를 F12 계열로 격리 + `defer` 해제 — T-147 `8ffe630` |
+| **`build_and_run.sh test` 스코프** | ✅ | smoke/unit/full 실제 분리 + 실패 exit code 전파 — T-164 `02ad2a2` |
 | **GitHub Actions pipefail** | ✅ | `ci.yml` 2곳 + `release.yml` 7곳 적용 (PLAN_v0.20 R-01) |
 
 ## 7. 테스트 커버리지 공백 (✅ 표시의 신뢰도)
@@ -171,6 +171,6 @@
 | 4 | 카탈로그에 미구현 125종 노출 | **T-159** |
 | 5 | 자동화 트리거 8종 미지원 | **T-160** |
 | 6 | AI 3종 스텁 | **T-143** |
-| 7 | 무서명 릴리스 → Gatekeeper 차단 + 접근성 권한 재승인 | **미해결 (별도 과제)** |
+| 7 | 무서명 릴리스 → Gatekeeper 차단 + 접근성 권한 재승인 | **미해결 (T-166, 2026-09-29 (b) 결정으로 문서화 완료)** — 사용자 고지 4곳 반영. 근본 해결(Developer ID 서명+공증)은 Apple Developer Program 가입이 선행이라 별도 과제 |
 | 8 | 스키마 버전 관리 부재(`VersionedSchema` 0건) — 필드 추가 시 store 개설 실패 가능 | 미해결 (백로그) |
 | 9 | `error_message_ko.json` 미도입 — 규칙상 정식 모드 필수이나, 현재 `Localizable.strings`의 `error.user.*` 5키가 en까지 포함해 기능적으로 우월 | **문서화 필요** |

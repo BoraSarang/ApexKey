@@ -318,6 +318,24 @@
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
+## v0.22 — 무서명 릴리스 고지 정직화 (2026-09-29)
+
+> 인계 문서 `SESSION_2026-09-27_handoff.md` §3의 1순위. 2026-09-29 사용자 결정 **(b) 문구 정직화** —
+> Developer ID 서명·공증(a)은 Apple Developer Program 가입이 선행이라 **보류**, 남는 것은
+> "무서명이라는 사실을 사용자에게 정직하게 알린다"였다.
+
+- [x] T-166: **무서명 릴리스 사실 고지** — 릴리스 노트 템플릿에 Gatekeeper 안내만 있고
+  **"업데이트마다 접근성 권한 재승인"이 빠져 있었다.** 사용자가 버전업 후 메뉴가 동작하지 않는
+  원인을 알 수 없는 상태였다. README(ko/en)·릴리스 노트 템플릿·랜딩(ko/en) 4곳에
+  증상·대응·기술적 원인(CDHash)을 명시.
+  — `README.md` / `README.ko.md` 설치 절 · `release-notes/_template.md` "알려진 제약" 신규 절
+  (릴리스마다 복사하도록 명시) · `website/index.html`·`website/ko/index.html` 다운로드 절
+- [ ] **T-166 후속 — Developer ID 서명 + notarization** — (b) 결정으로 **보류**.
+  Apple Developer Program(연 $99) 가입이 선행 조건. T-029의 "고정 TeamID → CDHash 유지 →
+  접근성 권한 유지" 수정이 **배포본에서 무효인 이유가 이것**이므로, 가입 시 착수하면
+  `release.yml`의 `CODE_SIGNING_ALLOWED=NO` 해제 → `CODE_SIGN_IDENTITY=Developer ID Application` +
+  `notarytool` + T-166의 고지 4곳 정리. `FUNCTIONAL_CHECKLIST.md` §6 "CI 서명 경로"도 함께 해결.
+
 ## 다음 백로그
 
 - [x] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 950줄) — v0.20
