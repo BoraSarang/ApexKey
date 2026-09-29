@@ -151,14 +151,22 @@ struct MenuHUDOverlayView: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    /// groups를 항상 4개의 세로 열로 분할 (메뉴를 4개 열에 위→아래로 순찰 배치)
-    /// 어떤 메뉴 개수든 높이를 4열로 맞춰 각 열이 25% 폭을 차지한다.
+    /// 화면 폭 기반 열 수 — 좁은 화면에서 4열 고정 시 열이 잘리지 않도록 2~4열 동적
+    private var preferredColumnCount: Int {
+        let width = NSScreen.screens.map { $0.visibleFrame.width }.min() ?? 1440
+        if width < 1100 { return 2 }
+        if width < 1400 { return 3 }
+        return 4
+    }
+
+    /// groups를 화면 폭에 맞는 세로 열로 분할 (메뉴를 N개 열에 위→아래로 순찰 배치)
     private var menuColumns: [[(menu: String, items: [MenuItem])]] {
         let n = visibleGroups.count
         guard n > 0 else { return [] }
-        var columns = Array(repeating: [(menu: String, items: [MenuItem])](), count: 4)
+        let columnCount = max(1, min(preferredColumnCount, n))
+        var columns = Array(repeating: [(menu: String, items: [MenuItem])](), count: columnCount)
         for (index, menu) in visibleGroups.enumerated() {
-            columns[index % 4].append(menu)
+            columns[index % columnCount].append(menu)
         }
         return columns
     }

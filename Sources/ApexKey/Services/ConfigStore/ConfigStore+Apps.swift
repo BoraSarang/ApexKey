@@ -56,7 +56,22 @@ extension ConfigStore {
         syncApp(updated)
     }
 
+    /// 앱 제거 — 연관 바인딩·핫키까지 정리한다.
+    ///
+    /// E-MAC-STORE-5007: 이전에는 앱 항목만 지우고 `target == app.bundleID`인 바인딩과
+    /// 등록된 Carbon 핫키를 남겼다. `pruneRemovedApps()`가 **매 실행** 호출되므로
+    /// 경로가 사라진 앱(외장드라이브 뽑기, 앱 경로 변경 등)이면 앱은 목록에서 사라지는데
+    /// 고아 핫키는 `registerAllBindings()`로 매번 재등록되어 죽은 bundleID로 실행을 시도했다.
     func removeApp(_ app: AppItem) {
+        // 1) 대상 앱의 바인딩 + 핫키 정리
+        let orphans = bindings.filter { $0.target == app.bundleID }
+        for orphan in orphans {
+            Logger.info("ConfigStore", "[APPS] 앱 제거로 바인딩 정리: \(orphan.title) (\(orphan.combo.displayString))")
+            removeBinding(orphan)
+        }
+        // 2) 워크플로우 단계가 이 앱을 참조하는 경우는 건드리지 않는다 —
+        //    사용자 입력이 조용히 사라지면 안 되므로 별도 과제로 남긴다.
+        // 3) 앱 항목 제거
         apps.removeAll { $0.id == app.id }
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedApp>(predicate: #Predicate { $0.id == app.id })

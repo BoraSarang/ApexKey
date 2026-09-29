@@ -20,11 +20,17 @@ extension ConfigStore {
 
     enum PrefKeys {
         static let alwaysOnTop = "pref.alwaysOnTop"
+        // ThemeManager 등 기존 하드코드 키 rawValue 유지 (E-MAC-UX-9009)
+        static let fontScale = "ApexKeyFontScale"
+        static let activeThemeId = "ApexKeyActiveThemeId"
+        static let appearanceMode = "ApexKeyAppearanceMode"
         static let showInMenuBar = "pref.showInMenuBar"
         static let showInDock = "pref.showInDock"
         static let menuHUDStyle = "pref.menuHUDStyle"
         static let showNoShortcutItems = "pref.showNoShortcutItems"
         static let showSystemApps = "pref.showSystemApps"
+        /// 숨김 앱 표시 (E-MAC-STORE-5008 — 이전엔 didSet/PrefKeys/복원이 모두 없어 리셋됨)
+        static let showHiddenApps = "pref.showHiddenApps"
         static let appLanguage = "pref.appLanguage"
         static let showSuccessToast = "pref.showSuccessToast"
         static let didSeedSamples = "pref.didSeedSamples"
@@ -34,11 +40,13 @@ extension ConfigStore {
         static let menuHUDHotkey = "pref.menuHUDHotkey"
         static let updateFrequency = "pref.updateFrequency"
         static let updateLastChecked = "pref.updateLastChecked"
+        static let didMigrateLegacyStore = "pref.didMigrateLegacyStore"
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")
-    static func loadHotkey(forKey key: String, fallback: HotKeyCombo) -> HotKeyCombo {
-        guard let raw = UserDefaults.standard.string(forKey: key) else { return fallback }
+    /// - Parameter defaults: 테스트에서 전용 suite를 주입한다 (E-MAC-STORE-5009)
+    static func loadHotkey(forKey key: String, fallback: HotKeyCombo, defaults: UserDefaults = .standard) -> HotKeyCombo {
+        guard let raw = defaults.string(forKey: key) else { return fallback }
         let parts = raw.components(separatedBy: ":")
         guard parts.count >= 2, let kc = UInt32(parts[0]), let mod = UInt32(parts[1]) else { return fallback }
         let display = parts.count >= 3 ? parts[2...].joined(separator: ":") : ""
@@ -46,8 +54,8 @@ extension ConfigStore {
         return combo.isEmpty ? fallback : combo
     }
 
-    static func saveHotkey(_ combo: HotKeyCombo, forKey key: String) {
-        UserDefaults.standard.set("\(combo.keyCode):\(combo.modifiers):\(combo.displayString)", forKey: key)
+    static func saveHotkey(_ combo: HotKeyCombo, forKey key: String, defaults: UserDefaults = .standard) {
+        defaults.set("\(combo.keyCode):\(combo.modifiers):\(combo.displayString)", forKey: key)
     }
 
     /// Menu HUD 표시 방식 전환

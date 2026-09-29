@@ -22,6 +22,7 @@ public enum ReleaseCheckError: Error, Equatable, Sendable {
     case fetchFailed
     case invalidResponse
     case decodeFailed
+    case rateLimited // 403/429
 }
 
 public enum ReleaseChecker {
@@ -55,6 +56,10 @@ public enum ReleaseChecker {
         if http.statusCode == 404 {
             throw ReleaseCheckError.noPublishedRelease
         }
+        if http.statusCode == 403 || http.statusCode == 429 {
+            Logger.error("E-MAC-UPDATE-8002", "릴리스 조회 속도 제한: \(http.statusCode)")
+            throw ReleaseCheckError.rateLimited
+        }
         guard (200...299).contains(http.statusCode) else {
             Logger.error("E-MAC-UPDATE-8002", "릴리스 조회 HTTP 실패: \(http.statusCode)")
             throw ReleaseCheckError.fetchFailed
@@ -71,6 +76,37 @@ public enum ReleaseChecker {
     /// 네트워크 없이 단위테스트 가능하다.
     public static func isNewer(latest: String, current: String) -> Bool {
         compareVersions(normalize(latest), normalize(current)) == .orderedDescending
+    }
+
+    /// SemVer 정확 비교 — 프리릴리스·빌드 메타 포함 (E-MAC-UX-9007).
+    /// `isNewer`와 달리 프리릴리스 존재 여부를 반영한다 (1.0.0-beta < 1.0.0).
+    public static func isNewerStrict(latest: String, current: String) -> Bool {
+        let l = parseSemVer(latest)
+        let r = parseSemVer(current)
+        if l.core != r.core {
+            return compareVersions(l.core, r.core) == .orderedDescending
+        }
+        return comparePrerelease(l.pre, r.pre) == .orderedDescending
+    }
+
+    static func parseSemVer(_ version: String) -> (core: [Int], pre: String?) {
+        var v = version.trimmingCharacters(in: .whitespacesAndNewlines)
+        if v.hasPrefix("v") || v.hasPrefix("V") { v = String(v.dropFirst()) }
+        let coreAndMeta = v.split(separator: "+", maxSplits: 1)
+        let coreAndPre = String(coreAndMeta[0]).split(separator: "-", maxSplits: 1)
+        let core = coreAndPre[0].split(separator: ".").map { Int($0) ?? 0 }
+        let pre = coreAndPre.count > 1 ? String(coreAndPre[1]) : nil
+        return (core, pre)
+    }
+
+    /// 프리릴리스 비교 — 있음 < 없음, 동일이면 사전식 (SemVer §11.4)
+    static func comparePrerelease(_ lhs: String?, _ rhs: String?) -> ComparisonResult {
+        switch (lhs, rhs) {
+        case (nil, nil): return .orderedSame
+        case (nil, _): return .orderedDescending
+        case (_, nil): return .orderedAscending
+        case let (l?, r?): return l.compare(r)
+        }
     }
 
     /// 현재 버전보다 최신 릴리스가 있으면 해당 릴리스 반환, 아니면 nil.

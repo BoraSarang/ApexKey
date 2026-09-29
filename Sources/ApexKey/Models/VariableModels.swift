@@ -171,6 +171,23 @@ struct Variable: Identifiable, Codable, Hashable {
         self.defaultValue = defaultValue
         self.isHidden = isHidden
     }
+
+    /// 관대 디코딩 — **키가 없어도 디코딩이 성공해야 한다** (E-MAC-STORE-5008)
+    ///
+    /// 합성 `Decodable`은 `isHidden: Bool = false` 같은 프로퍼티 기본값을 무시한다.
+    /// 필드 하나 추가로 `variablesData` blob이 레코드 전체에서 디코딩 불가 →
+    /// `.variables` 컬럼이 영구 쓰기 잠금이 된다.
+    /// 새 필드를 추가할 때 여기도 반드시 추가할 것 (컴파일 에러로 자동 감지된다).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        self.name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        self.type = try c.decodeIfPresent(VariableType.self, forKey: .type) ?? .manual
+        self.specialType = try c.decodeIfPresent(SpecialVariable.self, forKey: .specialType)
+        self.valueType = try c.decodeIfPresent(VariableValueType.self, forKey: .valueType) ?? .any
+        self.defaultValue = try c.decodeIfPresent(VariableValue.self, forKey: .defaultValue)
+        self.isHidden = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
+    }
     
     /// Magic Variable 생성 (단계 출력에서 자동 생성)
     static func magic(from step: ShortcutStep, outputType: VariableValueType) -> Variable {

@@ -48,8 +48,8 @@ struct AppDetailView: View {
                 title: target.title.trimmingCharacters(in: .whitespacesAndNewlines),
                 subtitle: "ui.appdetail.execute_then_menu".localizedFormat(app.name),
                 onTest: { combo in
-                    var t = target
-                    if t.menuPath.isEmpty { t.menuPath = [t.title] }
+                    let t = target
+                    // E-MAC-MENU-7008: 경로를 승격시키지 않는다 (테스트도 동일한 규칙)
                     let binding = HotKeyBinding(
                         combo: combo,
                         actionType: .menuCommand,
@@ -73,7 +73,7 @@ struct AppDetailView: View {
                 excludedCombo: store.launchBindings(for: app.id).first?.combo,
                 onTest: { _ in AppSwitcher.toggle(bundleID: app.bundleID) }
             ) { combo in
-                store.setLaunchBinding(for: app.id, combo: combo)
+                store.setLaunchBinding(for: app.id, combo: combo).errorMessage
             }
             .environmentObject(store)
         }
@@ -84,9 +84,18 @@ struct AppDetailView: View {
             HotKeyRecorderView(
                 title: "\(app.name) (\(recordingScheme ?? "")://)",
                 subtitle: "ui.appdetail.open_url".localized,
-                onTest: { _ in if let s = recordingScheme { NSWorkspace.shared.open(URL(string: "\(s)://")!) }; return true }
+                onTest: { _ in
+                    guard let s = recordingScheme,
+                          let url = URL(string: "\(s)://") else {
+                        Logger.error("E-MAC-APP-4003", "잘못된 URL 스킴 — 테스트 생략")
+                        return false
+                    }
+                    NSWorkspace.shared.open(url)
+                    return true
+                }
             ) { combo in
-                if let s = recordingScheme { onRecord(combo: combo, scheme: s) }
+                guard let s = recordingScheme else { return "toast.reason.key_invalid".localized }
+                return onRecord(combo: combo, scheme: s)
             }
             .environmentObject(store)
         }
@@ -424,7 +433,11 @@ struct AppDetailView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 4))
                                 Spacer()
                                 Button {
-                                    NSWorkspace.shared.open(URL(string: "\(scheme)://")!)
+                                    guard let url = URL(string: "\(scheme)://") else {
+                                        Logger.error("E-MAC-APP-4003", "잘못된 URL 스킴 — 열기 생략: \(scheme)")
+                                        return
+                                    }
+                                    NSWorkspace.shared.open(url)
                                 } label: {
                                     Label("ui.run".localized, systemImage: "play.fill")
                                 }
@@ -462,21 +475,23 @@ struct AppDetailView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.cardBorder.opacity(0.3), lineWidth: 1))
     }
 
-    private func onRecord(combo: HotKeyCombo, scheme: String) {
-        guard !combo.isEmpty else { return }
-        store.addBinding(HotKeyBinding(
+    private func onRecord(combo: HotKeyCombo, scheme: String) -> String? {
+        guard !combo.isEmpty else { return "toast.reason.key_invalid".localized }
+        return store.addBinding(HotKeyBinding(
             combo: combo,
             actionType: .url,
             target: "\(scheme)://",
             title: "\(app.name) (\(scheme))",
             onlyWhenAppActive: false
-        ))
+        )).errorMessage
     }
 
-    private func onRecord(combo: HotKeyCombo, menuItem: MenuItem) {
-        guard !combo.isEmpty else { return }
-        var menuItem = menuItem
-        if menuItem.menuPath.isEmpty { menuItem.menuPath = [menuItem.title] }
+    private func onRecord(combo: HotKeyCombo, menuItem: MenuItem) -> String? {
+        guard !combo.isEmpty else { return "toast.reason.key_invalid".localized }
+        let menuItem = menuItem
+        // E-MAC-MENU-7008: 빈 menuPath를 `[title]`로 승격시키면 최상위 메뉴와 하위 항목을
+        // 구분할 수 없어 실행 시 구조적으로 불가능한 스크립트가 만들어진다.
+        // 경로는 열거 결과를 그대로 저장한다(구 바인딩과 동일 규칙).
         let binding = HotKeyBinding(
             combo: combo,
             actionType: .menuCommand,
@@ -485,7 +500,7 @@ struct AppDetailView: View {
             menuPath: menuItem.menuPath,
             onlyWhenAppActive: false
         )
-        store.addBinding(binding)
+        return store.addBinding(binding).errorMessage
     }
 }
 

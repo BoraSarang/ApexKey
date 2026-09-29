@@ -11,6 +11,7 @@
 - 앱스토어 카테고리 키워드 매칭 (AppFinder.swift)
 - 시드 데이터·레거시 마이그레이션 (ConfigStore.swift, ConfigStore+Shortcuts.swift)
 - 시스템 액션 내장 셸 스크립트 출력 메시지 (SystemActionExecutor.swift, 터미널 출력)
+- 개발자 진단 메시지 (preconditionFailure / assertionFailure — 사용자 화면에 도달 불가)
 
 사용법: python3 scripts/check-localizable.py
 """
@@ -48,6 +49,9 @@ ALLOWED_LINE = (
     r"StoreCoding\.(encode|decode)",
     r'\b(참|거짓|예|아니오)\b.*(===|==|!=)',
     r"osascript 실행 실패",  # 로그 전용 (MenuEnumerator → Logger.error)
+    # 개발자 진단 메시지 — 정상 실행에서는 절대 도달하지 않는 프로그래밍 오류 경로.
+    # Logger.와 같은 범주다(사용자 화면에 나올 수 없다).
+    r"\b(preconditionFailure|assertionFailure)\b",
 )
 
 ALLOWED_RE = [re.compile(p) for p in ALLOWED_LINE]

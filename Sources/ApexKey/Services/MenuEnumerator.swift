@@ -6,6 +6,9 @@ import AppKit
 final class MenuEnumerator {
     static let shared = MenuEnumerator()
 
+    /// 시스템 전역 메뉴(모든 앱 공통) — 열거 제외 (E-MAC-UX-9005)
+    static let excludedMenuBarTitles: Set<String> = ["Apple", "서비스", "Services"]
+
     /// 실행 중인 앱의 번들ID로 메뉴를 열거
     /// - Returns: 루트 메뉴 항목 배열 (대략적인 메뉴바 항목)
     func enumerateMenuItems(bundleID: String) -> [MenuItem] {
@@ -31,7 +34,8 @@ final class MenuEnumerator {
         var menubarValue: CFTypeRef?
         let status = AXUIElementCopyAttributeValue(axApp, kAXMenuBarAttribute as CFString, &menubarValue)
         guard status == .success, let menubar = menubarValue else {
-            Logger.info("MenuEnumerator", "메뉴바 없음 (pid=\(pid), status=\(status.rawValue))")
+            // 메뉴바 조회 실패 — 0건 성공과 구분하여 warn 승격 (E-MAC-MENU-7006)
+            Logger.error("E-MAC-MENU-7006", "메뉴바 없음 (pid=\(pid), status=\(status.rawValue))")
             return []
         }
         // CFTypeRef → AXUIElement 확인은 타입ID 비교가 정석 (R-04)
@@ -129,9 +133,22 @@ final class MenuEnumerator {
             Logger.info("MenuEnumerator", "서브메뉴 부모 — 실행 생략: \(item.title)")
             return .menuNotFound
         }
+        // E-MAC-MENU-7008: 단일 세그먼트는 단독 실행 대상이 아니라 **최상위 메뉴**이다.
+        // 이전 코드는 이 경우에도 `click menu item "X" of menu 1 of menu bar item "X"`
+        // 를 생성해 100% 실패했다(같은 이름이 부모·자식으로 동시에 등장, 실측 -1728).
+        // 최상위 메뉴 자체를 클릭하도록 분기한다. 구 레거시 바인딩(menuPath 비어 있음)도
+        // 여기에 해당하며, menuPath가 없는 상태로는 정확한 하위 항목을 특정할 수 없다.
+        let isTopLevelOnly = path.count == 1
+        if isTopLevelOnly {
+            Logger.info("MenuEnumerator", "최상위 메뉴 클릭: \(path[0]) (하위 경로 미저장 — 구 바인딩)")
+        }
         Logger.info("MenuEnumerator", "메뉴 실행 경로: \(path.joined(separator: " > "))")
 
         // 대상 앱을 전면으로 활성화 후 메뉴바가 준비될 시간 대기 (System Events도 전면 앱 접근이 안정적)
+        // 호출 스레드에서 동기 대기 — 핫키 경로가 메인이라 경고 남김 (runWait E-MAC-ACT-3006과 동일 패턴)
+        if Thread.isMainThread {
+            Logger.error("E-MAC-MENU-3002", "메인 스레드 동기 메뉴 실행 — UI가 0.15초 멈춤 (호출부 백그라운드화는 후속 과제)")
+        }
         AppSwitcher.activate(bundleID: bundleID)
         Thread.sleep(forTimeInterval: 0.15)
 
@@ -142,13 +159,17 @@ final class MenuEnumerator {
         // (path.count >= 2일 때 path[1 ..< (count-1)]가 유효한 범위)
         var script = "tell application \"System Events\"\n"
         script += "  tell process \(appleScriptQuoted(processName))\n"
-        script += "    click menu item \(appleScriptQuoted(path[path.count - 1]))"
-        if path.count > 1 {
+        if isTopLevelOnly {
+            // E-MAC-MENU-7008: 최상위 메뉴 자체를 연다. 하위 항목은 열거 결과에 없으므로
+            // 클릭할 대상을 특정할 수 없다 — 사용자가 메뉴를 직접 고르게 한다.
+            script += "    click menu bar item \(appleScriptQuoted(path[0])) of menu bar 1\n"
+        } else {
+            script += "    click menu item \(appleScriptQuoted(path[path.count - 1]))"
             for seg in path[1..<(path.count - 1)].reversed() {
                 script += " of menu 1 of menu item \(appleScriptQuoted(seg))"
             }
+            script += " of menu 1 of menu bar item \(appleScriptQuoted(path[0])) of menu bar 1\n"
         }
-        script += " of menu 1 of menu bar item \(appleScriptQuoted(path[0])) of menu bar 1\n"
         script += "  end tell\n"
         script += "end tell"
 
@@ -158,9 +179,42 @@ final class MenuEnumerator {
             Logger.info("MenuEnumerator", "메뉴 실행: \(path.joined(separator: " > "))")
             return .success
         case .error(let message):
-            Logger.error("E-MAC-MENU-3002", "메뉴 명령 실패(AppleScript): \(item.title) — \(message)")
+            return classifyOSAScriptError(message, item: item)
+        }
+    }
+
+    /// osascript stderr를 원인별로 분류 (E-MAC-MENU-7007, 기존 E-MAC-UX-9004 후속 정정)
+    ///
+    /// **실측 근거** (2026-09-27, 이 머신에서 osascript로 확인):
+    /// | 시나리오                              | 실제 코드 |
+    /// |---------------------------------------|----------|
+    /// | 없는 메뉴바 항목                        | `-1728`  |
+    /// | 없는 메뉴 항목                          | `-1728`  |
+    /// | 빈 세그먼트 / `count==1` 구조 오류      | `-1728`  |
+    /// | Automation(Apple Events) 권한 거부      | `-1743`  |
+    ///
+    /// 이전 구현의 문제 2가지:
+    /// 1. `appNotRunning`을 `-600`에 연결했지만 **-600은 실측으로 나타나지 않았다.**
+    ///    게다가 `performAction`이 이미 앱 미실행을 선검사로 처리하므로 그 분기는
+    ///    도달 불가였다. 결과적으로 앱이 종료된 뒤의 오류도 "메뉴 항목을 찾지 못함"으로
+    ///    잘못 안내했다. → `-600` 분기 제거(선검사 담당), -1728은 경로 문제로 정정.
+    /// 2. `-1743`은 Accessibility(손쉬운 사용) 거부가 아니라 **Automation TCC 거부**다.
+    ///    그런데 `.noPermission`의 문구가 "손쉬운 사용 권한 없음"이라 안내가 잘못됐다.
+    ///    AX 권한은 있어도 Automation만 차단된 상태가 흔하다. → `.automationDenied` 분리.
+    private func classifyOSAScriptError(_ message: String, item: MenuItem) -> MenuActionResult {
+        // Automation 권한 거부 — AX(손쉬운 사용) 권한과는 다른 TCC
+        if message.contains("-1743") {
+            Logger.error("E-MAC-MENU-7007", "메뉴 실행 Automation 권한 거부(-1743): \(item.title)")
+            return .automationDenied
+        }
+        // -1728 = System Events의 대상 specifier를 해석/찾지 못함.
+        // 앱 미실행은 performAction 선검사가 처리하므로 여기서는 경로 문제로 판단한다.
+        if message.contains("-1728") {
+            Logger.error("E-MAC-MENU-7007", "메뉴 항목 경로 오류(-1728): \(item.title) — \(message)")
             return .menuNotFound
         }
+        Logger.error("E-MAC-MENU-7007", "메뉴 명령 실패(AppleScript): \(item.title) — \(message)")
+        return .menuNotFound
     }
 
     /// AppleScript 문자열 리터럴로 안전하게 감싼다 (따옴표·백슬래시 이스케이프)
@@ -175,26 +229,33 @@ final class MenuEnumerator {
         case error(String)
     }
 
+    /// osascript 실행 데드라인 (초)
+    ///
+    /// **왜 10초인가 (실측)**: 없는 메뉴 항목 → 0.3초, 없는 **프로세스** → 5.5초.
+    /// Apple Event가 "프로세스를 가져올 수 없다"를 판단하는 데 내장 지연이 있으며,
+    /// 5초로 잡으면 그 시나리오가 -1728 진단 대신 "시간 초과"로 잘못 보고된다.
+    /// 10초는 그 상한을 넘기면서도 무한 대기는 막는다.
+    static let osaScriptTimeout: TimeInterval = 10.0
+
     /// osascript를 실행하고 성공/실패(표준오류 메시지)를 반환
     private func runOSAScript(_ script: String) -> OSAScriptResult {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            return .error("osascript 실행 실패: \(error.localizedDescription)")
+        // 동시 드레인 + 타임아웃 — 64KiB 초과 출력 교착(E-MAC-SCRIPT-6004)과
+        // 대상 앱이 멈췄을 때의 무기한 Apple Event 대기 방지
+        let run = ProcessRunner.run(
+            executable: "/usr/bin/osascript",
+            arguments: ["-e", script],
+            timeout: Self.osaScriptTimeout
+        )
+        if let launchError = run.launchError {
+            return .error("osascript 실행 실패: \(launchError)")
         }
-        if process.terminationStatus == 0 {
+        if run.timedOut {
+            return .error("menu.action.status_timeout".localized)
+        }
+        if run.succeeded {
             return .success
         }
-        let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-        let message = String(data: errData, encoding: .utf8) ?? "status=\(process.terminationStatus)"
+        let message = run.standardError.isEmpty ? "status=\(run.exitCode)" : run.standardError
         return .error(message.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
@@ -204,8 +265,8 @@ final class MenuEnumerator {
     private func menus(in menubar: AXUIElement) -> [MenuItem] {
         var result: [MenuItem] = []
         for menu in children(of: menubar) {
-            // 시스템 전역 Apple( ) 메뉴(이 Mac/시스템 설정/재시동/로그아웃 등)는 모든 앱 동일하므로 제외
-            if elementTitle(of: menu) == "Apple" { continue }
+            // 시스템 전역 메뉴 제외 (Apple/서비스/Services — E-MAC-UX-9005)
+            if Self.excludedMenuBarTitles.contains(elementTitle(of: menu)) { continue }
             result.append(contentsOf: menuItems(from: menu, parentPath: []))
         }
         return result
@@ -228,10 +289,9 @@ final class MenuEnumerator {
         // 자식 재귀 — 빈 AXMenu 컨테이너도 그 안의 실질 항목까지 내려가 flatten
         var childItems: [MenuItem] = []
         for sub in children(of: element) {
-            // 시스템 주입 Services 메뉴(제목 "서비스"/"Services")는 모든 앱 공통이고
-            // 단축키 실행에 무의미하므로 통째로 제외한다.
+            // 시스템 주입 Services 메뉴 제외 (E-MAC-UX-9005)
             let childTitle = elementTitle(of: sub)
-            if childTitle == "서비스" || childTitle == "Services" { continue }
+            if Self.excludedMenuBarTitles.contains(childTitle) { continue }
             childItems.append(contentsOf: menuItems(from: sub, parentPath: ownPath, depth: depth + 1))
         }
 
@@ -342,7 +402,10 @@ final class MenuEnumerator {
 enum MenuActionResult: Equatable {
     case success
     case appNotRunning
+    /// Accessibility(손쉬운 사용) 권한 없음 — 열거/AX API 자체가 막힘
     case noPermission
+    /// Automation(Apple Events) 권한 거부 — AX는 통하지만 osascript가 막힘 (E-MAC-MENU-7007)
+    case automationDenied
     case menuNotFound
 
     var isSuccess: Bool {
@@ -355,6 +418,7 @@ enum MenuActionResult: Equatable {
         case .success: return "menu.action.status_success".localized
         case .appNotRunning: return "menu.action.status_app_not_running".localized
         case .noPermission: return "menu.action.status_no_permission".localized
+        case .automationDenied: return "menu.action.status_automation_denied".localized
         case .menuNotFound: return "menu.action.status_menu_not_found".localized
         }
     }

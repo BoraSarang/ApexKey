@@ -47,6 +47,8 @@ extension ConfigStore {
         }
         AutomationManager.shared.unregister(shortcutID: shortcut.id)
         shortcuts.removeAll { $0.id == shortcut.id }
+        corruptedShortcutBlobColumns.removeValue(forKey: shortcut.id)
+        corruptedBlobFallbackBytes.removeValue(forKey: shortcut.id)
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == shortcut.id })
         if let found = fetchContext(context, fetch).first {
@@ -80,20 +82,6 @@ extension ConfigStore {
         syncShortcut(shortcuts[idx])
     }
 
-    /// 단계 순서 이동 (위/아래)
-    func moveStep(in shortcut: ShortcutItem, from index: Int, direction: MoveDirection) {
-        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }),
-              shortcuts[idx].steps.indices.contains(index) else { return }
-        let targetIdx: Int
-        switch direction {
-        case .up: targetIdx = index - 1
-        case .down: targetIdx = index + 1
-        }
-        guard targetIdx >= 0, targetIdx < shortcuts[idx].steps.count else { return }
-        shortcuts[idx].steps.swapAt(index, targetIdx)
-        syncShortcut(shortcuts[idx])
-    }
-
     /// 단계 복제
     func duplicateStep(in shortcut: ShortcutItem, at index: Int) {
         guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }),
@@ -106,21 +94,26 @@ extension ConfigStore {
     }
 
     /// 동작 실행 단축키 지정/변경 (중복 시 무시)
-    func setShortcutCombo(_ shortcut: ShortcutItem, combo: HotKeyCombo) {
-        if combo.isEmpty { return }
+    @discardableResult
+    func setShortcutCombo(_ shortcut: ShortcutItem, combo: HotKeyCombo) -> HotKeyApplyResult {
+        if combo.isEmpty { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: shortcut.id) {
-            Logger.info("ConfigStore", "[SHORTCUT] 중복 단축키 무시: \(combo.displayString)")
-            return
+            Logger.error("E-MAC-HTKEY-1003", "[SHORTCUT] 중복 단축키 — 변경 거부: \(combo.displayString) (기존 조합 유지)")
+            return .duplicateCombo
         }
-        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        guard let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return .appNotFound }
         // 이전 조합 해제
         if !shortcuts[idx].combo.isEmpty, shortcuts[idx].combo != combo {
             hotKeyService.unregister(shortcut.id)
         }
         shortcuts[idx].combo = combo
-        _ = hotKeyService.register(shortcut.id, combo: combo)
+        guard hotKeyService.register(shortcut.id, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         syncShortcut(shortcuts[idx])
         Logger.info("ConfigStore", "[SHORTCUT] 실행 단축키 지정: \(shortcut.name) → \(combo.displayString)")
+        return .applied
     }
 
     /// 동작 단축키 해제
@@ -139,7 +132,17 @@ extension ConfigStore {
             found.comboKeyCode = shortcut.combo.keyCode
             found.comboModifiers = shortcut.combo.modifiers
             found.comboDisplayString = shortcut.combo.displayString
-            found.stepsData = StoreCoding.encode(shortcut.steps, label: "단축어 단계")
+            // 디코딩 실패한 blob 컬럼은 원본 Data 유지 — 메모리 fallback([])으로 영구 삭제 방지 (P0-3)
+            let corrupt = corruptedShortcutBlobColumns[shortcut.id] ?? []
+            if !corrupt.isEmpty {
+                Logger.error("E-MAC-STORE-5003", "손상 blob 컬럼 쓰기 건너뜀: \(shortcut.name) (\(corrupt.map(\.rawValue).sorted().joined(separator: ",")))")
+            }
+            if corrupt.contains(.steps) {
+                // 잠긴 컬럼이라도 지금 값이 왕복하면 잠금을 푼다 (E-MAC-STORE-5010)
+                tryRecoverBlob(shortcut.steps, column: .steps, id: shortcut.id) { found.stepsData = $0 }
+            } else {
+                found.stepsData = StoreCoding.encodeKeeping(shortcut.steps, previous: found.stepsData, label: "단축어 단계")
+            }
             found.iconRaw = shortcut.icon.displayName
             found.colorRaw = shortcut.color.rawValue
             found.aiModelRaw = shortcut.aiModel.rawValue
@@ -150,20 +153,96 @@ extension ConfigStore {
             found.modifiedAt = shortcut.modifiedAt
             found.lastRunAt = shortcut.lastRunAt
             found.runCount = shortcut.runCount
-            found.triggersData = StoreCoding.encode(shortcut.automations, label: "자동화 트리거")
-            found.variablesData = StoreCoding.encode(shortcut.variables, label: "사용자 변수")
-            found.permissionsData = StoreCoding.encode(shortcut.permissions, label: "단축어 권한")
+            if corrupt.contains(.triggers) {
+                tryRecoverBlob(shortcut.automations, column: .triggers, id: shortcut.id) { found.triggersData = $0 }
+            } else {
+                found.triggersData = StoreCoding.encodeKeeping(shortcut.automations, previous: found.triggersData, label: "자동화 트리거")
+            }
+            if corrupt.contains(.variables) {
+                tryRecoverBlob(shortcut.variables, column: .variables, id: shortcut.id) { found.variablesData = $0 }
+            } else {
+                found.variablesData = StoreCoding.encodeKeeping(shortcut.variables, previous: found.variablesData, label: "사용자 변수")
+            }
+            if corrupt.contains(.permissions) {
+                tryRecoverBlob(shortcut.permissions, column: .permissions, id: shortcut.id) { found.permissionsData = $0 }
+            } else {
+                found.permissionsData = StoreCoding.encodeKeeping(shortcut.permissions, previous: found.permissionsData, label: "단축어 권한")
+            }
         }
         saveContext(context)
     }
 
+    /// 잠긴 blob 컬럼의 복구를 시도한다 (E-MAC-STORE-5010)
+    ///
+    /// **왜 필요한가**: `corruptedShortcutBlobColumns`의 해제 지점이 `load()`와
+    /// `removeShortcut`뿐이었다. 그래서 한 번 손상되면 그 컬럼은 **영구 쓰기 잠금**이 되고,
+    /// 복구 경로는 동작 삭제뿐이다. 사용자가 아무리 편집해도 저장은 계속 건너뛰어진다.
+    /// 데이터는 소실되지 않지만 **편집이 반영되지 않는다** — 사용자는 버그로 느낀다.
+    ///
+    /// **해제 조건 3가지 (모두 만족해야 한다)**:
+    /// 1. 인코딩이 성공했다
+    /// 2. 디코딩이 성공하고 원래 값과 같다 (왕복)
+    /// 3. **손상 시점의 fallback 값과 다르다**
+    ///
+    /// 3번이 핵심이다. 처음엔 1·2번(왕복)만으로 충분하다고 생각했는데 **틀렸다** —
+    /// fallback인 `[]`도 왕복에 성공하므로, 이 조건만으로는 "손상 원본을 조용히
+    /// 덮어쓴다"(P0-3이 막으려던 것)를 막지 못한다. 테스트가 실제로 이 결함을 잡았다.
+    /// 값의 **출처**를 추적해야 구별할 수 있다. (`corruptedBlobFallbackBytes`)
+    ///
+    /// 알려진 한계: 사용자가 의도적으로 그 값을 fallback과 같은 값(빈 배열 등)으로
+    /// 만들면 잠금이 유지된다. 안전 쪽으로 실패하는 선택이며, 빈 값 저장이 필요한
+    /// 경우는 드물다. 잠금을 강제로 푸는 경로는 **두지 않는다** — 원본을 지우는
+    /// 유일한 방법이 되어 버리면 P0-3이 무의미해진다.
+    ///
+    /// - Parameter apply: 조건을 모두 만족했을 때만 호출해 blob을 덮어쓴다
+    private func tryRecoverBlob<T: Codable & Equatable>(
+        _ value: T,
+        column: StoreBlobColumn,
+        id: UUID,
+        apply: (Data) -> Void
+    ) {
+        let data = StoreCoding.encode(value, label: "blob 복구 시도 (\(column.rawValue))")
+        guard !data.isEmpty else { return }
+        guard let roundTrip = try? JSONDecoder().decode(T.self, from: data), roundTrip == value else {
+            Logger.info("ConfigStore", "[SHORTCUT] blob 잠금 유지: \(column.rawValue) (왕복 불일치)")
+            return
+        }
+        // 조건 3 — 아직 손상 직후의 fallback 값이면 "바뀐 게 없다"
+        if let fallback = corruptedBlobFallbackBytes[id]?[column], fallback == data {
+            Logger.info("ConfigStore", "[SHORTCUT] blob 잠금 유지: \(column.rawValue) (손상 시점 fallback과 동일 — 사용자 변경 없음)")
+            return
+        }
+        apply(data)
+        corruptedShortcutBlobColumns[id]?.remove(column)
+        corruptedBlobFallbackBytes[id]?[column] = nil
+        if corruptedShortcutBlobColumns[id]?.isEmpty == true {
+            corruptedShortcutBlobColumns.removeValue(forKey: id)
+            corruptedBlobFallbackBytes.removeValue(forKey: id)
+        }
+        Logger.info("ConfigStore", "[SHORTCUT] blob 잠금 해제: \(column.rawValue) — 사용자 변경분으로 복구됨")
+    }
+
     // MARK: - 편집기 저장 (기존 ShortcutEditorView 확장 이관)
 
+    /// 단계 순서·내용 편집 — **저장을 합친다** (E-MAC-STORE-5011)
+    ///
+    /// 왜 debounce 경로를 따로 두나:
+    /// 스텝 편집은 `onChange(of: steps)`로 들어온다. 드래그 재배열이나 텍스트 한 글자
+    /// 편집마다 `syncShortcut`이 곧바로 돌아가면 **blob 4컬럼 전체를 재인코딩하고
+    /// SQLite에 저장**한다. 중간 상태(5단계 중 3단계만 옮긴 상태)가 디스크에 남는다.
+    ///
+    /// 다른 뮤테이션(추가·삭제·복제·이름)은 `syncShortcut`을 직접 부른다. 이건 사용자가
+    /// 한 번의 명시적 동작을 한 것이므로 합칠 필요가 없다 — 합치면 "추제한 게 안 보인다"
+    /// 는 불안을 키운다. **빈도가 다른 두 경로를 구분한 것**이 이 설계의 요점이다.
     func updateShortcutSteps(_ shortcut: ShortcutItem, steps: [ShortcutStep]) {
-        if let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[index].steps = steps
-            shortcuts[index].modifiedAt = Date()
-            syncShortcut(shortcuts[index])
+        guard let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        shortcuts[index].steps = steps
+        shortcuts[index].modifiedAt = Date()
+        // 예약된 이전 저장은 최신 steps 클로저로 대체된다
+        shortcutSaveScheduler.schedule(shortcut.id) { [weak self] in
+            guard let self, let i = self.shortcuts.firstIndex(where: { $0.id == shortcut.id })
+            else { return }
+            self.syncShortcut(self.shortcuts[i])
         }
     }
     

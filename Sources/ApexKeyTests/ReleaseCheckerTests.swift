@@ -42,6 +42,27 @@ final class ReleaseCheckerTests: XCTestCase {
         XCTAssertTrue(ReleaseChecker.isNewer(latest: "v1.0.1-beta", current: "1.0.0"))
     }
 
+    // MARK: - v0.18 SemVer 프리릴리스 정확 비교 (E-MAC-UX-9007)
+
+    func testStrictSemVer() {
+        // isNewer는 프리릴리스를 무시(1.0.0-beta == 1.0.0), isNewerStrict는 반영
+        XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.0-beta", current: "1.0.0"))
+        XCTAssertTrue(ReleaseChecker.isNewerStrict(latest: "v1.0.0", current: "1.0.0-beta"))
+        XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.0-alpha", current: "1.0.0-beta"))
+        XCTAssertTrue(ReleaseChecker.isNewerStrict(latest: "v1.0.1", current: "1.0.0"))
+        XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.0", current: "1.0.0"))
+        // 빌드메타는 우선순위 비교에 영향 없음 (SemVer §10)
+        XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.1+build.2", current: "1.0.1+build.1"))
+        XCTAssertFalse(ReleaseChecker.isNewerStrict(latest: "v1.0.1", current: "1.0.1"))
+    }
+
+    func testRateLimitedEnumExists() {
+        // 403/429 → rateLimited 케이스 존재 (dispatch는 ConfigStore+Update에서)
+        let errors: [ReleaseCheckError] = [.rateLimited, .fetchFailed, .invalidResponse, .decodeFailed, .noPublishedRelease]
+        XCTAssertEqual(errors.count, 5)
+        XCTAssertEqual(ReleaseCheckError.rateLimited, .rateLimited)
+    }
+
     func testEmptyCurrentTreatsLatestAsNewer() {
         XCTAssertTrue(ReleaseChecker.isNewer(latest: "v1.0.0", current: ""))
     }

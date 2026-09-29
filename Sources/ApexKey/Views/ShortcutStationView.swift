@@ -105,7 +105,7 @@ struct ShortcutStationView: View {
                     return true
                 }
             ) { combo in
-                store.setShortcutCombo(shortcut, combo: combo)
+                store.setShortcutCombo(shortcut, combo: combo).errorMessage
             }
             .environmentObject(store)
         }

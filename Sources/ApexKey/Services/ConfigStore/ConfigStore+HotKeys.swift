@@ -5,54 +5,106 @@ import Combine
 
 /// ConfigStore 영역 분할 (R-10) — 동일 클래스 extension, public API 동결.
 extension ConfigStore {
+    /// 핫키 적용 결과 (E-MAC-HTKEY-1003)
+    ///
+    /// 핫키 저장은 여러 경로에서 **조용히 거부**될 수 있었다. 중복 조합, 빈 조합,
+    /// 저장소 사용 불가, Carbon OS 등록 실패. 사용자에게 전달하려면 반환값이 필요하므로
+    /// 모든 적용 경로가 이 결과를 돌려준다.
+    enum HotKeyApplyResult {
+        case applied
+        case duplicateCombo
+        case invalidCombo
+        case appNotFound
+        case storeUnavailable
+        /// Carbon 핫키 등록 실패 (OS가 이미 다른 앱에 배정했을 수 있음)
+        case hotKeyRegistrationFailed
+
+        var succeeded: Bool { self == .applied }
+
+        /// 사용자에게 보여줄 메시지 (nil이면 성공)
+        var errorMessage: String? {
+            switch self {
+            case .applied: return nil
+            case .duplicateCombo: return "toast.reason.hotkey_duplicate".localized
+            case .invalidCombo: return "toast.reason.key_invalid".localized
+            case .appNotFound: return "toast.reason.app_missing".localized
+            case .storeUnavailable: return "toast.reason.hotkey_save_failed".localized
+            case .hotKeyRegistrationFailed: return "toast.reason.hotkey_register_failed".localized
+            }
+        }
+    }
+
     /// ⇧⌥A 패널 토글 핫키 변경 (재등록)
-    func setPanelToggleHotkey(_ combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
+    @discardableResult
+    func setPanelToggleHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: panelToggleID) {
             Logger.error("E-MAC-HTKEY-1002", "패널 토글 핫키 중복으로 변경 거부: \(combo.displayString)")
-            return
+            return .duplicateCombo
         }
         hotKeyService.unregister(panelToggleID)
         toggleHotkey = combo
         Self.saveHotkey(combo, forKey: PrefKeys.panelToggleHotkey)
-        _ = hotKeyService.register(panelToggleID, combo: combo)
+        guard hotKeyService.register(panelToggleID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         Logger.info("ConfigStore", "[HOTKEY] 패널 토글 핫키 변경: \(combo.displayString)")
+        return .applied
     }
 
     /// ⌘⌥K 명령 팔레트 핫키 변경 (재등록)
-    func setPaletteHotkey(_ combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
+    @discardableResult
+    func setPaletteHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: paletteID) {
             Logger.error("E-MAC-HTKEY-1002", "팔레트 핫키 중복으로 변경 거부: \(combo.displayString)")
-            return
+            return .duplicateCombo
         }
         hotKeyService.unregister(paletteID)
         paletteHotkey = combo
         Self.saveHotkey(combo, forKey: PrefKeys.paletteHotkey)
-        _ = hotKeyService.register(paletteID, combo: combo)
+        guard hotKeyService.register(paletteID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 핫키 변경: \(combo.displayString)")
+        return .applied
     }
 
     /// ⇧⌥S Menu HUD 핫키 변경 (재등록)
-    func setMenuHUDHotkey(_ combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
+    @discardableResult
+    func setMenuHUDHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
         if isDuplicate(combo: combo, excluding: menuHUDID) {
             Logger.error("E-MAC-HTKEY-1002", "Menu HUD 핫키 중복으로 변경 거부: \(combo.displayString)")
-            return
+            return .duplicateCombo
         }
         hotKeyService.unregister(menuHUDID)
         menuHUDHotkey = combo
         Self.saveHotkey(combo, forKey: PrefKeys.menuHUDHotkey)
-        _ = hotKeyService.register(menuHUDID, combo: combo)
+        guard hotKeyService.register(menuHUDID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
         Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 변경: \(combo.displayString)")
+        return .applied
     }
 
     func registerAllBindings() {
-        bindings.forEach { _ = hotKeyService.register($0.id, combo: $0.combo) }
+        // 등록 실패는 조용히 넘어가지 않고 집계 로그 (재부팅 후 타 앱 선점 등)
+        var failed = 0
+        bindings.forEach {
+            if !hotKeyService.register($0.id, combo: $0.combo) { failed += 1 }
+        }
         shortcuts.forEach { shortcut in
-            if !shortcut.combo.isEmpty {
-                _ = hotKeyService.register(shortcut.id, combo: shortcut.combo)
+            if !shortcut.combo.isEmpty,
+               !hotKeyService.register(shortcut.id, combo: shortcut.combo) {
+                failed += 1
             }
+        }
+        if failed > 0 {
+            Logger.error("E-MAC-HTKEY-1001", "핫키 \(failed)건 미등록 (타 앱 선점 가능) — 해당 단축키 재설정 필요")
         }
     }
 
@@ -72,23 +124,61 @@ extension ConfigStore {
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         Logger.info("ConfigStore", "[HOTKEY] 핫키 감지: \(binding.combo.displayString) (\(binding.actionType.displayName))")
         if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
-            let result = actionExecutor.executeWithDetail(binding)
-            notifyToast(title: toastTitle(for: binding), result: result)
+            // E-MAC-ACT-3006: 실행은 백그라운드. 스크립트·셸 단축키가 수십 초 걸려도
+            // 메뉴바·패널이 멈추지 않는다. 제목은 여기서 확정해 캡처한다 —
+            // 바인딩은 값 타입이라 실행 중 배열이 바뀌어도 안전하다.
+            let title = toastTitle(for: binding)
+            runOffMainThread(
+                { [actionExecutor] in actionExecutor.executeWithDetail(binding) },
+                onFinish: { [weak self] result in
+                    self?.notifyToast(title: title, result: result)
+                }
+            )
         } else {
             Logger.info("ConfigStore", "[HOTKEY] 실행 조건 미충족: activeApp=\(frontBundle ?? "nil")")
         }
     }
 
-    /// 단축어 실행 + 실행 통계 갱신 (성공 시에만) + 결과 토스트
-    /// () -> Void 형태로 호출 시점을 지정
-    func executeShortcutStats(_ shortcut: ShortcutItem) {
-        let result = actionExecutor.executeWithDetail(shortcut)
-        if result.success, let idx = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[idx].lastRunAt = Date()
-            shortcuts[idx].runCount += 1
-            syncShortcut(shortcuts[idx])
+    /// 실행을 백그라운드로 넘기고 결과로 후속 처리를 메인에서 돌린다 (E-MAC-ACT-3006)
+    ///
+    /// 이전에는 핫키 콜백(메인 스레드)에서 동기 실행해 `wait 60초` 같은 단계 하나면
+    /// UI가 60초 정지했다. `Process.waitUntilExit`·`pauseUntilInput`도 같았다.
+    ///
+    /// 큐는 `ExecutionEngine.executionQueue`(직렬)다. 전역 공유이므로 단계 테스트도
+    /// 같은 큐를 쓴다 — `.global`로 돌리면 실행이 겹쳐 사이보그 모드 상태가 뒤섞인다.
+    ///
+    /// - Parameters:
+    ///   - work: **메인 밖에서** 실행할 작업. `ShortcutItem`·`HotKeyBinding`은 값 타입이라
+    ///     캡처 시점에 스냅샷이 결정된다 — 실행 중 사용자가 편집해도 이번 실행엔 영향 없다.
+    ///   - onFinish: **메인에서** 실행할 후속 처리(통계 갱신·토스트·저장).
+    ///     MainActor 상태(`shortcuts`·`bindings`)를 만지므로 반드시 메인이어야 한다.
+    func runOffMainThread<T: Sendable>(
+        _ work: @escaping @Sendable () -> T,
+        onFinish: @escaping @MainActor (T) -> Void
+    ) {
+        ExecutionEngine.executionQueue.async {
+            let result = work()
+            DispatchQueue.main.async { onFinish(result) }
         }
-        notifyToast(title: shortcut.name, result: result)
+    }
+
+    /// 단축어 실행 + 실행 통계 갱신 (성공 시에만) + 결과 토스트
+    ///
+    /// E-MAC-ACT-3006: 실행은 백그라운드, 통계·토스트는 메인.
+    /// 호출부(핫키·팔레트·반복)는 MainActor이라 반환 시점이 사라져 콜백으로 넘어간다.
+    func executeShortcutStats(_ shortcut: ShortcutItem) {
+        runOffMainThread(
+            { [actionExecutor] in actionExecutor.executeWithDetail(shortcut) },
+            onFinish: { [weak self] result in
+                guard let self else { return }
+                if result.success, let idx = self.shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
+                    self.shortcuts[idx].lastRunAt = Date()
+                    self.shortcuts[idx].runCount += 1
+                    self.syncShortcut(self.shortcuts[idx])
+                }
+                self.notifyToast(title: shortcut.name, result: result)
+            }
+        )
     }
 
     /// 실행 결과 토스트 (메인 스레드에서 AppDelegate로 전달)
@@ -130,8 +220,14 @@ extension ConfigStore {
         }
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
-            let result = actionExecutor.executeWithDetail(binding)
-            notifyToast(title: toastTitle(for: binding), result: result)
+            // E-MAC-ACT-3006: 반복 실행도 백그라운드로
+            let title = toastTitle(for: binding)
+            runOffMainThread(
+                { [actionExecutor] in actionExecutor.executeWithDetail(binding) },
+                onFinish: { [weak self] result in
+                    self?.notifyToast(title: title, result: result)
+                }
+            )
             Logger.info("ConfigStore", "[REPEAT] 반복 실행: \(binding.combo.displayString)")
         } else {
             Logger.info("ConfigStore", "[REPEAT] 반복 실행 조건 미충합")
@@ -143,9 +239,16 @@ extension ConfigStore {
         lastExecutedBindingID = binding.id
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
-            let result = actionExecutor.executeWithDetail(binding)
-            notifyToast(title: toastTitle(for: binding), result: result)
-            Logger.info("ConfigStore", "[Palette] 실행: \(binding.title) (success=\(result.success))")
+            // E-MAC-ACT-3006: 팔레트 실행도 백그라운드로.
+            // 팔레트는 닫히는 즉시이므로 결과와 무관하게 UI 상태는 바로 갱신된다.
+            let title = toastTitle(for: binding)
+            runOffMainThread(
+                { [actionExecutor] in actionExecutor.executeWithDetail(binding) },
+                onFinish: { [weak self] result in
+                    self?.notifyToast(title: title, result: result)
+                }
+            )
+            Logger.info("ConfigStore", "[Palette] 실행: \(binding.title)")
         } else {
             Logger.info("ConfigStore", "[Palette] 실행 조건 미충족: activeApp=\(frontBundle ?? "nil")")
         }

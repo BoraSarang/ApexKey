@@ -97,9 +97,18 @@ final class ApexKeyStoreTests: XCTestCase {
     }
 
     func testMenuItemPathDefaultsToTitle() {
-        // menuPath를 명시하지 않으면 실행 시 title 단일 경로로 fallback (old binding 호환)
-        let fallback = MenuItem(title: "전체 화면").menuPath
-        XCTAssertTrue(fallback.isEmpty)
+        // menuPath 미지정(구 레거시 바인딩)은 비어 있는 상태로 보존된다.
+        // 실행 시 MenuEnumerator.performAction이 "최상위 메뉴 클릭"으로 폴백한다 (E-MAC-MENU-7008).
+        // 이전처럼 실행 시점에 `[title]`로 승격시키면 최상위 메뉴와 하위 항목을 구분할 수 없어
+        // `click menu item "X" of menu 1 of menu bar item "X"` 같은 구조적으로 불가능한
+        // 스크립트가 만들어져 100% 실패했다.
+        let legacy = MenuItem(title: "전체 화면")
+        XCTAssertTrue(legacy.menuPath.isEmpty, "구 바인딩의 빈 경로가 보존되어야 함")
+        XCTAssertTrue(legacy.isSubmenu == false)
+
+        // 반대로 정상 하위 항목은 경로가 보존된다
+        let nested = MenuItem(title: "열기…", menuPath: ["파일", "열기…"])
+        XCTAssertEqual(nested.menuPath, ["파일", "열기…"])
     }
 
     func testShortcutPersistsRoundTrip() throws {
@@ -134,5 +143,107 @@ final class ApexKeyStoreTests: XCTestCase {
         XCTAssertEqual(restored?.steps[0].type, .launchApp)
         XCTAssertEqual(restored?.steps[0].target, "com.apple.Safari")
         XCTAssertEqual(restored?.combo.displayString, "⌘H")
+    }
+
+    // MARK: - v0.16 P0 데이터 소실 방어
+
+    private struct UnencodableValue: Encodable {
+        func encode(to encoder: Encoder) throws {
+            throw EncodingError.invalidValue(self, EncodingError.Context(codingPath: [], debugDescription: "test"))
+        }
+    }
+
+    func testEncodeKeepingReturnsPreviousOnFailure() {
+        // P0-3: 인코딩 실패 시 빈 Data 대신 기존 blob 유지
+        let previous = Data([0x5B, 0x5D]) // "[]"
+        let result = StoreCoding.encodeKeeping(UnencodableValue(), previous: previous, label: "테스트")
+        XCTAssertEqual(result, previous)
+        XCTAssertFalse(result.isEmpty)
+    }
+
+    func testEncodeKeepingReturnsEncodedOnSuccess() {
+        let previous = Data([0x00])
+        let result = StoreCoding.encodeKeeping([1, 2], previous: previous, label: "테스트")
+        XCTAssertNotEqual(result, previous)
+        XCTAssertEqual(try? JSONDecoder().decode([Int].self, from: result), [1, 2])
+    }
+
+    func testUndecodableBlobColumnsDetectsCorruptSteps() {
+        // P0-3: 손상된 stepsData는 컬럼 가드 대상, 나머지 컬럼은 정상
+        let p = PersistedShortcut(name: "손상", steps: [])
+        p.stepsData = Data([0xFF, 0xFE, 0x00])
+        let cols = p.undecodableBlobColumns()
+        XCTAssertTrue(cols.contains(.steps))
+        XCTAssertFalse(cols.contains(.triggers))
+        XCTAssertFalse(cols.contains(.variables))
+        XCTAssertFalse(cols.contains(.permissions))
+    }
+
+    func testUndecodableBlobColumnsEmptyForValidShortcut() {
+        let p = PersistedShortcut(
+            name: "정상",
+            steps: [ShortcutStep(type: .launchApp, target: "com.apple.Safari", title: "Safari")]
+        )
+        XCTAssertTrue(p.undecodableBlobColumns().isEmpty)
+    }
+
+    func testLegacyStoreMigrationMovesFileAndSidecars() throws {
+        // P0-1: 구 경로 store + sidecar를 전용 디렉터리로 1회 이관
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ApexKeyMigrate-\(UUID().uuidString)", isDirectory: true)
+        let appSupport = root.appendingPathComponent("Application Support", isDirectory: true)
+        let storeDirectory = appSupport.appendingPathComponent("com.borasarang.ApexKey", isDirectory: true)
+        try FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let legacyURL = appSupport.appendingPathComponent("default.store")
+        let storeURL = storeDirectory.appendingPathComponent("default.store")
+        try Data([0x01]).write(to: legacyURL)
+        try Data([0x02]).write(to: URL(fileURLWithPath: legacyURL.path + "-wal"))
+
+        let suiteName = "ApexKeyMigrateTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        ConfigStore.migrateLegacyStoreIfNeeded(
+            appSupport: appSupport,
+            storeDirectory: storeDirectory,
+            storeURL: storeURL,
+            defaults: defaults
+        )
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path + "-wal"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacyURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacyURL.path + "-wal"))
+
+        // 2회 호출 시 이관 플래그로 무시 (파일 복원하지 않음)
+        try Data([0x03]).write(to: legacyURL)
+        ConfigStore.migrateLegacyStoreIfNeeded(
+            appSupport: appSupport,
+            storeDirectory: storeDirectory,
+            storeURL: storeURL,
+            defaults: defaults
+        )
+        XCTAssertEqual(try Data(contentsOf: storeURL), Data([0x01]))
+    }
+
+    func testQuarantineStoreMovesCorruptFile() throws {
+        // P0-2: 손상 store를 .corrupt-{stamp}로 이동하고 백업 경로 반환
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ApexKeyQuarantine-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let storeURL = dir.appendingPathComponent("default.store")
+        try Data([0x0A]).write(to: storeURL)
+        try Data([0x0B]).write(to: URL(fileURLWithPath: storeURL.path + "-wal"))
+
+        let backupPath = ConfigStore.quarantineStore(at: storeURL)
+        XCTAssertNotNil(backupPath)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: storeURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: storeURL.path + "-wal"))
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: backupPath!)), Data([0x0A]))
+        XCTAssertTrue(backupPath!.contains(".corrupt-"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backupPath! + "-wal"))
     }
 }

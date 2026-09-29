@@ -83,7 +83,7 @@ struct AboutView: View {
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
 
-            Text("© 2026 BoRaSaRang")
+            Text("© \(Calendar.current.component(.year, from: Date())) BoRaSaRang")
                 .font(.caption2)
                 .foregroundStyle(theme.tertiaryText)
         }

@@ -33,7 +33,9 @@ final class HotKeyService {
         let proc: EventHandlerUPP = { _, event, _ -> OSStatus in
             // 전역 뽑기 — HotKeyService.shared 직접 참조
             let service = HotKeyService.shared
-            var hotKeyID = EventHotKeyID()
+            // `GetEventParameter`가 **inout으로 채워주므로** 여기서는 `var`가 맞다.
+        // (나머지 2곳의 `RegisterEventHotKey` 호출부는 값으로 받으므로 `let` 이다)
+        var hotKeyID = EventHotKeyID()
             let size = MemoryLayout.size(ofValue: hotKeyID)
             let status = GetEventParameter(event, EventParamName(kEventParamDirectObject),
                                            EventParamType(typeEventHotKeyID), nil,
@@ -60,7 +62,9 @@ final class HotKeyService {
         guard !combo.isEmpty else { return false }
         unregister(bindingID)
 
-        var hotKeyID = EventHotKeyID(signature: nextSignature, id: UInt32(bindingID.hashValue & 0xFFFF))
+        // `RegisterEventHotKey`는 EventHotKeyID를 **값으로** 받는다(inout 아님) —
+        // 그래서 let 으로 충분하며, var 였던 것은 무의미한 힌트였다.
+        let hotKeyID = EventHotKeyID(signature: nextSignature, id: UInt32(bindingID.hashValue & 0xFFFF))
         nextSignature &+= 1
 
         var ref: EventHotKeyRef?
@@ -101,7 +105,11 @@ final class HotKeyService {
     /// - Returns: 등록 가능하면 true (ApexKey 내부 중복 포함 여부는 호출부의 registeredCombos로 판단)
     func isComboAvailable(_ combo: HotKeyCombo) -> Bool {
         guard !combo.isEmpty else { return false }
-        var hotKeyID = EventHotKeyID(signature: 0x5EED5EED, id: 0x4170)
+        // 일회성 고유 signature — 프로브/실등록 시그니처 충돌·선점 경합 완화 (P1)
+        // `RegisterEventHotKey`는 EventHotKeyID를 **값으로** 받는다(inout 아님) —
+        // 그래서 let 으로 충분하며, var 였던 것은 무의미한 힌트였다.
+        let hotKeyID = EventHotKeyID(signature: nextSignature, id: 0x4170)
+        nextSignature &+= 1
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(combo.keyCode,
                                          OptionBits(combo.modifiers),
@@ -122,6 +130,7 @@ final class HotKeyService {
 
     /// 테스트용 임시 등록 시작. 성공 시 등록된 testID 반환, 실패 시 nil.
     func beginTest(_ combo: HotKeyCombo) -> UUID? {
+        endTest() // 이전 테스트 등록 누수 방지 (P1)
         guard !combo.isEmpty else { return nil }
         let id = UUID()
         guard register(id, combo: combo) else { return nil }
@@ -136,10 +145,8 @@ final class HotKeyService {
         testID = nil
     }
 
-    /// 전부 해제
+    /// 전부 해제 — 종료 시점에 배선된다 (E-MAC-AUTO-8004)
     func unregisterAll() {
-        hotKeyRefs.keys.forEach { _ in }
-        // 안전하게 순회 후 해제
         let allIDs = Array(hotKeyRefs.keys)
         allIDs.forEach { unregister($0) }
     }

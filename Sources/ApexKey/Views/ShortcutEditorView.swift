@@ -51,14 +51,20 @@ struct ShortcutEditorView: View {
             .background(theme.primaryBackground)
         }
         .frame(minWidth: 900, minHeight: 600)
-        .onChange(of: selectedActionType) { newType in
+        .onChange(of: selectedActionType) { _, newType in
             if let type = newType {
                 addStepOfType(type)
                 selectedActionType = nil
             }
         }
-        .onChange(of: steps) { _ in
+        .onChange(of: steps) { _, _ in
             // 독립 단계 설정 창에서 Binding으로 수정된 내용 자동 저장
+            saveSteps()
+        }
+        .onDisappear {
+            // 빨간X·Cmd+W로 닫아도 이름/설명/단계 저장 (saveAndClose를 거치지 않는 경로)
+            saveName()
+            saveDescription()
             saveSteps()
         }
         .sheet(isPresented: $showingActionDetail) {
@@ -304,7 +310,11 @@ struct ShortcutEditorView: View {
 
     /// 단계 상세 설정을 독립 창으로 표시 — steps 배열 요소를 가리키는 Binding 전달
     private func openStepSettings(for step: ShortcutStep) {
-        (NSApp.delegate as? AppDelegate)?.showStepSettings(for: stepBinding(for: step))
+        // 현재 동작 ID를 넘긴다 — Run Shortcut 피커가 자기 자신을 제외하려면 필요하다
+        (NSApp.delegate as? AppDelegate)?.showStepSettings(
+            for: stepBinding(for: step),
+            currentShortcutID: shortcut.id
+        )
     }
     
     // MARK: - 액션 추가
@@ -398,6 +408,13 @@ struct ShortcutEditorView: View {
         case .comment:
             var step = ShortcutStep(type: .comment, target: "", title: "ui.editor.step_comment".localized)
             step.note = ""
+            return step
+        case .stopShortcut:
+            var step = ShortcutStep(type: .stopShortcut, target: "", title: "action.stopShortcut".localized)
+            // 출력 변수 선택 가능하도록 actionParameters에 인코딩 (E-MAC-UX-9003)
+            let action = StopShortcutAction(outputVariable: nil)
+            step.actionParameters = try? JSONEncoder().encode(action)
+            step.outputVariables = nil
             return step
         default:
             return ShortcutStep(type: type, target: "", title: type.displayName)

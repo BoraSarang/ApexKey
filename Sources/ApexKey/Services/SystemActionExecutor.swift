@@ -66,8 +66,56 @@ enum SystemActionExecutor {
 
     /// Android Remote Mirror (scrcpy) — 외부 스크립트 파일이 단일 소스.
     /// 파일 수정이 앱에 즉시 반영된다 (재빌드 불필요).
-    static let androidMirrorScriptPath =
-        "/Users/lee/Documents/AGENTS/development/scripts/scrcpy_run.sh"
+    ///
+    /// E-MAC-SYS-8006: 이전에는 개발 머신 절대경로(`/Users/lee/...`)를 `preferred`로
+    /// 하드코딩해 첫 번째 후보로 검사했다. 그래서 앱이 **앱 밖의 임의 파일을 실행**했고,
+    /// 사용자가 스크립트를 편집해 저장하면 그 파일을 덮어썼다. 세션 로그의
+    /// "절대경로 금지" 규칙도 위반이었다.
+    /// → Application Support 경로만 사용한다. 번들/소스 리소스에서 시드하고,
+    ///   없으면 최소 대체 스크립트를 쓴다.
+
+    static var androidMirrorScriptPath: String {
+        ensurePortableMirrorScriptPath()
+    }
+
+    /// 번들/소스 리소스에서 Application Support로 스크립트를 시드하고 경로를 반환한다.
+    private static func ensurePortableMirrorScriptPath() -> String {
+        let fm = FileManager.default
+        let dir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ApexKey", isDirectory: true)
+            .appendingPathComponent("Scripts", isDirectory: true)
+        let path = dir.appendingPathComponent("scrcpy_run.sh").path
+        if !fm.fileExists(atPath: path) {
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            let source = seedMirrorScriptSource()
+            try? source.write(toFile: path, atomically: true, encoding: .utf8)
+            try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
+            Logger.info("SystemActionExecutor", "미러 스크립트 시드 → \(path)")
+        }
+        return path
+    }
+
+    /// 번들 리소스 → 소스트리 Resources/ → 최소 대체 스크립트 순으로 찾는다.
+    private static func seedMirrorScriptSource() -> String {
+        if let url = Bundle.main.url(forResource: "scrcpy_run", withExtension: "sh"),
+           let s = try? String(contentsOf: url, encoding: .utf8) {
+            return s
+        }
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent() // Services
+            .deletingLastPathComponent() // ApexKey
+            .deletingLastPathComponent() // Sources
+            .deletingLastPathComponent() // project root
+            .appendingPathComponent("Resources/scrcpy_run.sh")
+        if let s = try? String(contentsOf: sourceURL, encoding: .utf8) {
+            return s
+        }
+        return """
+        #!/bin/bash
+        echo "scrcpy_run.sh missing" >&2
+        exit 1
+        """
+    }
 
     // MARK: - 스크립트 조회/저장 (시스템 탭 편집 UI용)
 

@@ -34,7 +34,7 @@ ApexKey sits in your **menu bar** and lets you trigger any app's **menu command*
 | **URL scheme** | Shortcut to open `scheme://` |
 | **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action |
 | **Flow control** | If / repeat / menu choice, variables, output-to-variable |
-| **Automation** | Time, folder, display, wifi, bluetooth, battery, charger, app triggers |
+| **Automation** | Time, folder, battery and charger triggers (file, display, wifi, bluetooth, app: coming soon) |
 | **AI actions** | Use model, writing tool, image playground steps |
 | **System actions** | Lock, volume, dark mode, and more |
 | **Menu HUD** | Fullscreen / floating view of the current app's shortcuts |
@@ -46,9 +46,27 @@ ApexKey sits in your **menu bar** and lets you trigger any app's **menu command*
 
 1. Download the latest `.dmg` or `.zip` from [Releases](https://github.com/BoraSarang/ApexKey/releases)
 2. Move `ApexKey` to your `Applications` folder
-3. Grant **System Settings → Privacy & Security → Accessibility** (required to read & execute menus)
+3. **On first launch, right-click → Open** (see "Code signing status" below)
+4. Grant **System Settings → Privacy & Security → Accessibility** (required to read & execute menus)
 
 > **Requirements**: macOS 14 (Sonoma) or later · Apple Silicon or Intel
+
+### ⚠️ Code signing status — release builds are unsigned
+
+ApexKey is **not enrolled in the Apple Developer Program yet, so release builds are neither
+code-signed nor notarized.** This causes two annoyances:
+
+| Symptom | What to do |
+|---|---|
+| Gatekeeper blocks the app on first launch | Launch it via **right-click → Open**. This is expected behaviour, not a defect |
+| **You must re-grant Accessibility permission on every version update** | Toggle ApexKey back on in System Settings → Privacy & Security → Accessibility |
+
+The second one is the annoying one, and the reason is technical: macOS ties Accessibility
+permission to an app's **code signature (CDHash)**. For an unsigned app that value changes with
+every build, so the permission is revoked on each update. Signing and notarizing with a
+Developer ID certificate removes it.
+
+> Building from source applies automatic signing, so **permissions survive rebuilds**.
 
 ## Usage
 

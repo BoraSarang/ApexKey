@@ -25,9 +25,12 @@ if [ "$PLATFORM" != "macos" ]; then
   error "지원되지 않는 플랫폼: $PLATFORM (현재 macOS만 지원)"
 fi
 
-# ── 0. 현지화 가드 ────────────────────────────────────
-info "0/5a: 현지화 가드 (잔여 한글 리터럴 검사)..."
+# ── 0. 게이트: 현지화 + 버전 단일 출처 ───────────────────
+info "0/6a: 현지화 가드 (잔여 한글 리터럴 검사)..."
 python3 "$PROJECT_DIR/scripts/check-localizable.py" || error "현지화 가드 실패 — 미로컬라이즈 문자열을 확인하세요"
+
+info "0/6b: 버전 단일 출처 가드 (project.yml)..."
+python3 "$PROJECT_DIR/scripts/check-version.py" || error "버전 가드 실패 — project.yml의 MARKETING_VERSION을 확인하세요"
 
 # ── 0. 테스트 서브커맨드 ─────────────────────────────
 if [ "$MODE" = "test" ]; then
@@ -35,20 +38,60 @@ if [ "$MODE" = "test" ]; then
   info "xcodegen으로 프로젝트 생성 중..."
   cd "$PROJECT_DIR"
   xcodegen generate --spec project.yml
-  info "xcodebuild test (${TEST_SCOPE}) 실행 중... (예산: unit ≤60s / full ≤5분)"
+  info "xcodebuild test (${TEST_SCOPE}) 실행 중..."
   START_SECS=$SECONDS
-  if [ "$TEST_SCOPE" = "full" ]; then
-    xcodebuild test -project "${APP_NAME}.xcodeproj" -scheme "${APP_NAME}" \
-      -destination 'platform=macOS' -derivedDataPath "${BUILD_DIR}" \
-      CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=6GPJQ7BQC9 2>&1 | tail -30
-  else
-    # smoke/unit: ApexKeyTests 앱 타깃 전체 (macOS 단일 타깃)
-    xcodebuild test -project "${APP_NAME}.xcodeproj" -scheme "${APP_NAME}" \
-      -destination 'platform=macOS' -derivedDataPath "${BUILD_DIR}" \
-      CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=6GPJQ7BQC9 2>&1 | tail -30
-  fi
+  # 스코프별 필터. 이전에는 3개 분기가 완전히 동일해서 매번 전체를 돌렸다 (T-164).
+  # 이제 실제 구분이 있다. 예산: smoke <=10s / unit <=60s / full <=5분
+  case "$TEST_SCOPE" in
+    smoke)
+      # 컴파일 + 가장 빠른 실패 표면. 이번 감사에서 추가한 회귀 계열 중심
+      TEST_FILTER=(
+        -only-testing:ApexKeyTests/ProcessRunnerTests
+        -only-testing:ApexKeyTests/AIStubHonestyTests
+        -only-testing:ApexKeyTests/ExecutionResultPropagationTests
+        -only-testing:ApexKeyTests/ActionCatalogIntegrityTests
+        -only-testing:ApexKeyTests/VariableResolverNumberTests
+        -only-testing:ApexKeyTests/ShellInjectionGuardTests
+        -only-testing:ApexKeyTests/MenuActionPathTests
+      )
+      BUDGET=30
+      ;;
+    unit)
+      # 기본 피드백 루프 — 전체 스위트
+      TEST_FILTER=()
+      BUDGET=60
+      ;;
+    full)
+      # 전체 (실기 연동 계열 포함)
+      TEST_FILTER=()
+      BUDGET=300
+      ;;
+    *)
+      error "알 수 없는 test 스코프: ${TEST_SCOPE} (smoke|unit|full)"
+      ;;
+  esac
+  info "예산 ${BUDGET}초 (초과 시 경고)"
+
+  # `set -u` 하에서 빈 배열을 "${ARR[@]}"로 펼치면 macOS 기본 bash 3.2에서
+  # "unbound variable"로 죽는다. unit/full은 필터가 비어 있으므로 안전 idiom을 쓴다.
+  # (PIPESTATUS는 pipefail을 잠시 끄는 동안 캡처해야 한다)
+  set +o pipefail
+  xcodebuild test -project "${APP_NAME}.xcodeproj" -scheme "${APP_NAME}" \
+    -destination 'platform=macOS' -derivedDataPath "${BUILD_DIR}" \
+    ${TEST_FILTER[@]+"${TEST_FILTER[@]}"} \
+    CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=6GPJQ7BQC9 2>&1 | tail -40
+  PIPE_STATUS=${PIPESTATUS[0]}
+  set -o pipefail
+
   ELAPSED=$((SECONDS - START_SECS))
-  info "테스트 완료 (${ELAPSED}초)"
+  info "테스트 완료 (${ELAPSED}초 / 예산 ${BUDGET}초)"
+  if [ "$ELAPSED" -gt "$BUDGET" ]; then
+    warn "예산 초과: ${ELAPSED}초 > ${BUDGET}초"
+  fi
+  # T-164: xcodebuild 실패가 `| tail`에 삼켜져 exit 0으로 끝나던 문제
+  if [ "$PIPE_STATUS" -ne 0 ]; then
+    error "테스트 실패 (xcodebuild 종료코드 ${PIPE_STATUS})"
+  fi
   exit 0
 fi
 

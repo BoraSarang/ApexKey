@@ -130,6 +130,10 @@ struct SystemScriptEditorView: View {
             }
         }
         .onAppear(perform: load)
+        .onDisappear {
+            // 미저장 스크립트가 있으면 자동 저장 (닫힘 시 침묵 유실 방지)
+            if isDirty { save() }
+        }
     }
 
     // MARK: - 로드/저장

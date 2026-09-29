@@ -209,7 +209,7 @@ struct SettingsView: View {
                     return true
                 }
             ) { combo in
-                store.setPanelToggleHotkey(combo)
+                store.setPanelToggleHotkey(combo).errorMessage
             }
             .environmentObject(store)
         }
@@ -223,7 +223,7 @@ struct SettingsView: View {
                     return true
                 }
             ) { combo in
-                store.setMenuHUDHotkey(combo)
+                store.setMenuHUDHotkey(combo).errorMessage
             }
             .environmentObject(store)
         }
@@ -237,7 +237,7 @@ struct SettingsView: View {
                     return true
                 }
             ) { combo in
-                store.setPaletteHotkey(combo)
+                store.setPaletteHotkey(combo).errorMessage
             }
             .environmentObject(store)
         }

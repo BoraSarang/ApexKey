@@ -4,12 +4,41 @@ import Combine
 
 /// JSON blob 인코딩/디코딩 + 실패 로그 (R-05: 조용한 데이터 소실 방지)
 enum StoreCoding {
+    /// **키 순서를 고정한다.** (E-MAC-STORE-5012)
+    ///
+    /// 왜 필수인가 — 실제로 버그를 찾았다:
+    /// `JSONEncoder`는 기본(`outputFormatting` 미지정)으로 **키 순서가 비결정적**이다.
+    /// 내부적으로 딕셔너리를 거치는데 Swift의 `Hasher` 시드가 **프로세스마다 무작위**라
+    /// 같은 값을 인코딩해도 프로세스를 넘기면 바이트가 달라진다.
+    ///
+    /// 이 프로젝트에서 바이트를 **비교**하는 곳이 생겼다(손상 컬럼 복구 판정).
+    /// 비교가 아니라면 무해하지만, 비교가 되면 "값이 안 바뀌었는지"를 **잘못 판단해
+    /// 잠금이 열리고 손상 원본이 덮어써진다.** 실제로 테스트가 이 불변식을 잡았다.
+    ///
+    /// 부수 이득: blob이 결정적이면 디버깅·diff·해시 비교가 가능해진다.
+    /// 이전에 읽은 데이터는 키로 디코딩하므로 **전부 그대로 읽힌다** — 형식이 깨지지 않는다.
+    private static func makeEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }
+
     static func encode<T: Encodable>(_ value: T, label: String) -> Data {
         do {
-            return try JSONEncoder().encode(value)
+            return try makeEncoder().encode(value)
         } catch {
             Logger.error("E-MAC-STORE-5002", "\(label) 인코딩 실패: \(error.localizedDescription)")
             return Data()
+        }
+    }
+
+    /// 인코딩 실패 시 기존 Data 유지 — 빈 blob으로 원본을 덮어쓰지 않는다 (P0-3)
+    static func encodeKeeping<T: Encodable>(_ value: T, previous: Data, label: String) -> Data {
+        do {
+            return try makeEncoder().encode(value)
+        } catch {
+            Logger.error("E-MAC-STORE-5002", "\(label) 인코딩 실패 — 기존 데이터 유지: \(error.localizedDescription)")
+            return previous
         }
     }
 
@@ -21,6 +50,14 @@ enum StoreCoding {
             return fallback
         }
     }
+}
+
+/// PersistedShortcut JSON blob 컬럼 — 디코딩 실패 시 컬럼 단위 쓰기 가드용 (P0-3)
+enum StoreBlobColumn: String, CaseIterable {
+    case steps
+    case triggers
+    case variables
+    case permissions
 }
 
 /// SwiftData 영속 모델 — 등록된 앱
@@ -195,6 +232,40 @@ final class PersistedShortcut {
         self.triggersData = StoreCoding.encode(automations, label: "자동화 트리거")
         self.variablesData = StoreCoding.encode(variables, label: "사용자 변수")
         self.permissionsData = StoreCoding.encode(permissions, label: "단축어 권한")
+    }
+
+    /// 원본 blob 중 디코딩 불가한 컬럼 — 해당 컬럼은 sync 시 원본 Data 유지 (P0-3)
+    func undecodableBlobColumns() -> Set<StoreBlobColumn> {
+        var cols: Set<StoreBlobColumn> = []
+        if (try? JSONDecoder().decode([ShortcutStep].self, from: stepsData)) == nil { cols.insert(.steps) }
+        if (try? JSONDecoder().decode([AutomationTrigger].self, from: triggersData)) == nil { cols.insert(.triggers) }
+        if (try? JSONDecoder().decode([Variable].self, from: variablesData)) == nil { cols.insert(.variables) }
+        if (try? JSONDecoder().decode(ShortcutPermissions.self, from: permissionsData)) == nil { cols.insert(.permissions) }
+        return cols
+    }
+
+    /// 손상 컬럼의 **fallback 메모리 값**을 인코딩한 바이트 (E-MAC-STORE-5010)
+    ///
+    /// 왜 이것이 필요한가:
+    /// 복구 판정의 유일한 안전한 신호는 "값이 손상 시점의 fallback에서 **바뀌었는지**"다.
+    /// **왕복 검증만으로는 불가능하다** — fallback인 `[]`도 인코딩 후 디코딩하면
+    /// 그대로 `[]`이 돌아온다. 즉 `[]`는 왕복에 성공하므로, 왕복만 보는 가드는
+    /// "손상 원본을 조용히 덮어쓴다"를 막지 못한다. (테스트가 이걸 실제로 잡았다)
+    ///
+    /// 그래서 손상 시점에 fallback을 **기록**해 두고, 저장 시점에 현재 값과 비교한다.
+    /// 값이 같으면 "아직 손상 직후 그대로" → 잠금 유지. 다르면 "누군가 바꿨다" → 복구.
+    func fallbackBlobBytes(_ column: StoreBlobColumn) -> Data {
+        // `toShortcut()`와 **동일한 fallback**을 써야 비교가 성립한다.
+        switch column {
+        case .steps:
+            return StoreCoding.encode([ShortcutStep](), label: "fallback 단계")
+        case .triggers:
+            return StoreCoding.encode([AutomationTrigger](), label: "fallback 트리거")
+        case .variables:
+            return StoreCoding.encode([Variable](), label: "fallback 변수")
+        case .permissions:
+            return StoreCoding.encode(ShortcutPermissions(), label: "fallback 권한")
+        }
     }
 
     func toShortcut() -> ShortcutItem {

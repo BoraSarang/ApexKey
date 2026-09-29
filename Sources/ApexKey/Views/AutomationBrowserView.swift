@@ -148,7 +148,11 @@ struct AutomationBrowserView: View {
                                     .font(.body)
                                     .foregroundColor(theme.primaryText)
                                 Spacer()
-                                Text("ui.automation.trigger_count".localizedFormat(shortcut.automations.count))
+                                // E-MAC-AUTO-8003: 미구현 트리거는 등록되지 않으므로
+                                // 개수에 포함하면 "자동화 N개"가 실제보다 커 보인다
+                                Text("ui.automation.trigger_count".localizedFormat(
+                                    shortcut.automations.filter(\.isWatcherSupported).count
+                                ))
                                     .font(.caption2)
                                     .foregroundColor(theme.secondaryText)
                                 Image(systemName: "chevron.right")

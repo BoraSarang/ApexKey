@@ -17,13 +17,17 @@ struct HotKeyRecorderView: View {
     var subtitle: String?
     /// 교체 대상 기능이 현재 사용 중인 조합 (같은 조합 재지정 시 중복 판정 제외)
     var excludedCombo: HotKeyCombo?
-    var onRecord: (HotKeyCombo) -> Void
+    /// 저장 처리 — **성공 여부를 반환해야 한다** (E-MAC-HTKEY-1003).
+    /// 이전 시그니처는 `Void`라 스토어의 거부(중복/저장 실패/OS 등록 실패)를 표현할 수 없었고,
+    /// 그럼에도 "적용되었습니다"를 표시해 사용자를 오도했다.
+    /// 실패 시 사용자에게 보여줄 사유 문자열을 반환한다.
+    var onRecord: (HotKeyCombo) -> String?
     /// 테스트 버튼이 키를 감지했을 때 실제 액션을 실행하는 프리뷰 (실행 여부 반환)
     var onTest: ((HotKeyCombo) -> Bool)?
 
     init(title: String, subtitle: String? = nil, excludedCombo: HotKeyCombo? = nil,
          onTest: ((HotKeyCombo) -> Bool)? = nil,
-         onRecord: @escaping (HotKeyCombo) -> Void) {
+         onRecord: @escaping (HotKeyCombo) -> String?) {
         self.title = title
         self.subtitle = subtitle
         self.excludedCombo = excludedCombo
@@ -39,6 +43,8 @@ struct HotKeyRecorderView: View {
         case testing      // 테스트 대기
         case testPassed   // 테스트 성공
         case testFailed   // 테스트 감지됨, 액션 실행 실패
+        /// 저장 자체가 거부됨 (중복/저장 실패/OS 등록 실패) — 사유 문구 표시 후 입력 유지
+        case saveRejected(reason: String)
     }
 
     private enum Availability {
@@ -64,7 +70,9 @@ struct HotKeyRecorderView: View {
             // 키 표시 영역
             Text(currentCombo.displayString.isEmpty ? "ui.recorder.press_keys".localized : currentCombo.displayString)
                 .font(.system(size: 40, weight: .bold, design: .monospaced))
-                .frame(width: 300, height: 80)
+                // 긴 단축키 조합도 잘리지 않게 최소 300 유지, 길면 확장
+                .frame(minWidth: 300, minHeight: 80)
+                .frame(idealWidth: 300, idealHeight: 80)
                 .background(keyBackground)
                 .cornerRadius(10)
                 .foregroundColor(keyForeground)
@@ -110,7 +118,7 @@ struct HotKeyRecorderView: View {
 
     private var keyForeground: Color {
         switch message {
-        case .duplicate, .unavailable, .testFailed: return theme.errorColor
+        case .duplicate, .unavailable, .testFailed, .saveRejected: return theme.errorColor
         case .testPassed: return theme.successColor
         case .applying: return theme.successColor
         default: return theme.primaryText
@@ -119,7 +127,7 @@ struct HotKeyRecorderView: View {
 
     private var keyBackground: Color {
         switch message {
-        case .duplicate, .unavailable, .testFailed: return theme.errorColor.opacity(0.15)
+        case .duplicate, .unavailable, .testFailed, .saveRejected: return theme.errorColor.opacity(0.15)
         case .testPassed, .applying: return theme.successColor.opacity(0.12)
         default: return theme.tertiaryBackground.opacity(0.5)
         }
@@ -157,6 +165,12 @@ struct HotKeyRecorderView: View {
             Label("ui.recorder.test_failed".localized, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
                 .foregroundColor(theme.warningColor)
+                .transition(.opacity)
+        case .saveRejected(let reason):
+            Label(reason, systemImage: "xmark.octagon.fill")
+                .font(.caption)
+                .foregroundColor(theme.errorColor)
+                .fixedSize(horizontal: false, vertical: true)
                 .transition(.opacity)
         case nil:
             Text(subtitle ?? "ui.appdetail.run_globally".localized)
@@ -206,7 +220,14 @@ struct HotKeyRecorderView: View {
         switch availability(of: currentCombo) {
         case .ok:
             hotKeyService.endTest()
-            onRecord(currentCombo)
+            // E-MAC-HTKEY-1003: 저장 거부 사유를 그대로 사용자에게 보여준다.
+            // 이전에는 반환값이 없어 무조건 "적용되었습니다"를 표시했다.
+            if let reason = onRecord(currentCombo) {
+                message = .saveRejected(reason: reason)
+                // 거부되었으므로 자동 닫지 않는다 — 다른 조합을 고를 수 있게 유지
+                removeMonitor()
+                return
+            }
             message = .applying
             removeMonitor()
             // 3초 후 자동 닫힘

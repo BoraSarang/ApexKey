@@ -37,7 +37,9 @@ struct ToastView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .frame(width: 340, height: payload.success ? 60 : 110, alignment: .leading)
+        // 한글 장문 메시지 넘침 방지 — 최소 340, 최대 440까지 확장, 높이는 내용 기준
+        .frame(minWidth: 340, maxWidth: 440, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
         .background(theme.primaryBackground.opacity(0.96))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(

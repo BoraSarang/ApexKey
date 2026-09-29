@@ -20,10 +20,21 @@ extension ConfigStore {
     }
 
     /// 앱 실행/토글 단축키 추가/교체 (이미 있으면 첫 항목만 갱신)
-    func setLaunchBinding(for appID: UUID, combo: HotKeyCombo) {
-        guard !combo.isEmpty else { return }
-        guard let app = apps.first(where: { $0.id == appID }) else { return }
-        if let first = launchBindings(for: appID).first {
+    ///
+    /// E-MAC-HTKEY-1003: 기존 구현은 `removeBinding(first)` **후** `addBinding`을 호출했다.
+    /// `addBinding`이 중복 조합이면 조용히 `return`하므로, 교체 시도가 실패하면
+    /// **작동하던 핫키만 사라진 상태**가 남았다(무음). 이제 삭제 **전**에 중복을 확인한다.
+    @discardableResult
+    func setLaunchBinding(for appID: UUID, combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
+        guard let app = apps.first(where: { $0.id == appID }) else { return .appNotFound }
+        let existing = launchBindings(for: appID).first
+        // 기존 항목은 자기 자신이므로 중복 검사에서 제외하고, 교체 전에 미리 검증한다.
+        if isDuplicate(combo: combo, excluding: existing?.id ?? UUID()) {
+            Logger.error("E-MAC-HTKEY-1003", "앱 실행 단축키 교체 실패 — 중복 조합: \(combo.displayString) (기존 핫키 유지)")
+            return .duplicateCombo
+        }
+        if let first = existing {
             let updated = HotKeyBinding(
                 id: first.id,
                 combo: combo,
@@ -33,29 +44,41 @@ extension ConfigStore {
                 onlyWhenAppActive: false
             )
             removeBinding(first)
-            addBinding(updated)
-        } else {
-            addBinding(HotKeyBinding(
-                combo: combo,
-                actionType: .launchApp,
-                target: app.bundleID,
-                title: app.name,
-                onlyWhenAppActive: false
-            ))
+            return addBinding(updated)
         }
+        return addBinding(HotKeyBinding(
+            combo: combo,
+            actionType: .launchApp,
+            target: app.bundleID,
+            title: app.name,
+            onlyWhenAppActive: false
+        ))
     }
 
-    func addBinding(_ binding: HotKeyBinding) {
-        // 중복 조합 체크
+    @discardableResult
+    func addBinding(_ binding: HotKeyBinding) -> HotKeyApplyResult {
+        // 중복 조합 체크 — 조용히 무시하지 않고 호출부에 통지한다
         if isDuplicate(combo: binding.combo, excluding: binding.id) {
-            Logger.info("ConfigStore", "중복 단축키 무시: \(binding.combo.displayString)")
-            return
+            Logger.error("E-MAC-HTKEY-1003", "중복 단축키 — 추가 거부: \(binding.combo.displayString)")
+            return .duplicateCombo
         }
-        guard let context = container?.mainContext else { return }
+        guard !binding.combo.isEmpty else {
+            Logger.error("E-MAC-HTKEY-1003", "빈 단축키 — 추가 거부")
+            return .invalidCombo
+        }
+        guard let context = container?.mainContext else {
+            Logger.error("E-MAC-STORE-5001", "저소 사용 불가 — 바인딩 추가 실패")
+            return .storeUnavailable
+        }
         context.insert(PersistedBinding.from(binding))
         saveContext(context)
         bindings.append(binding)
-        _ = hotKeyService.register(binding.id, combo: binding.combo)
+        guard hotKeyService.register(binding.id, combo: binding.combo) else {
+            // 저장은 됐지만 OS 등록이 실패한 상태 — 사용자에게 알려야 한다
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(binding.combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
+        return .applied
     }
 
     func removeBinding(_ binding: HotKeyBinding) {
@@ -120,16 +143,4 @@ extension ConfigStore {
         Logger.info("ConfigStore", "바인딩 복제: \(binding.title) → \(newBinding.title)")
     }
 
-    /// 바인딩 순서 이동 (위/아래)
-    func moveBinding(_ binding: HotKeyBinding, direction: MoveDirection) {
-        guard let idx = bindings.firstIndex(where: { $0.id == binding.id }) else { return }
-        let targetIdx: Int
-        switch direction {
-        case .up: targetIdx = idx - 1
-        case .down: targetIdx = idx + 1
-        }
-        guard targetIdx >= 0, targetIdx < bindings.count else { return }
-        bindings.swapAt(idx, targetIdx)
-        Logger.info("ConfigStore", "바인딩 순서 이동: \(binding.title)")
-    }
 }

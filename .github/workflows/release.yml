@@ -33,18 +33,33 @@ jobs:
       - name: 프로젝트 생성
         run: xcodegen generate --spec project.yml
 
-      - name: 태그-번들 버전 일치 검증
+      - name: 현지화 가드
+        run: python3 scripts/check-localizable.py
+
+      - name: 버전 단일 출처 가드
+        run: python3 scripts/check-version.py
+
+      - name: 태그-번들 버전 일치 검증 (project.yml 단일 출처)
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           EXPECTED="${TAG#v}"
-          ACTUAL="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Sources/ApexKey/Info.plist)"
-          if [ "$EXPECTED" != "$ACTUAL" ]; then
-            echo "버전 불일치: 태그=${EXPECTED} 번들=${ACTUAL} — Info.plist를 먼저 범프하세요"
+          # 버전은 project.yml의 MARKETING_VERSION이 유일한 출처다 (E-MAC-REL-9301).
+          # Info.plist에는 빌드 시 $(MARKETING_VERSION)으로 치환되므로 여기서 읽으면 안 된다.
+          DECLARED="$(sed -nE 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"(.*)".*/\1/p' project.yml | head -1)"
+          if [ -z "$DECLARED" ]; then
+            echo "project.yml에서 MARKETING_VERSION을 찾을 수 없습니다"
             exit 1
           fi
+          if [ "$EXPECTED" != "$DECLARED" ]; then
+            echo "버전 불일치: 태그=${EXPECTED} project.yml=${DECLARED} — project.yml의 MARKETING_VERSION을 먼저 올리세요"
+            exit 1
+          fi
+          echo "버전 일치 확인: ${DECLARED}"
 
       - name: Release 빌드 (서명 없음 — CI)
         run: |
+          set -euo pipefail
           xcodebuild \
             -project "${APP_NAME}.xcodeproj" \
             -scheme "${APP_NAME}" \
@@ -56,6 +71,7 @@ jobs:
 
       - name: 단위 테스트
         run: |
+          set -euo pipefail
           xcodebuild test \
             -project "${APP_NAME}.xcodeproj" \
             -scheme "${APP_NAME}" \
@@ -65,22 +81,32 @@ jobs:
             DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM}" \
             2>&1 | tail -30
 
-      - name: 앱 번들 준비
+      - name: 앱 번들 준비 + 빌드 산출물 버전 검증
         run: |
+          set -euo pipefail
           APP_PATH="build/Build/Products/Release/${APP_NAME}.app"
           mkdir -p "${ARCHIVE_DIR}"
           cp -R "${APP_PATH}" "${ARCHIVE_DIR}/${APP_NAME}.app"
           # 문구용 버전 (태그 'v' 제거, 예: v1.0.0 → 1.0.0)
           echo "RELEASE_VERSION=${GITHUB_REF_NAME#v}" >> "${GITHUB_ENV}"
           VERSION="${GITHUB_REF_NAME#v}"
-          # Info.plist 버전 동기화
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" \
-            "${ARCHIVE_DIR}/${APP_NAME}.app/Contents/Info.plist" 2>/dev/null || true
+          # 빌드된 산출물의 실제 버전을 검증한다 (E-MAC-REL-9301).
+          # 이전에는 여기서 PlistBuddy로 "동기화"하며 `|| true`로 실패를 삼켰고,
+          # 그 결과 잘못된 버전이 조용히 배포될 수 있었다. 이제 검증만 하고 실패시킨다.
+          BUILT="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' \
+            "${ARCHIVE_DIR}/${APP_NAME}.app/Contents/Info.plist")"
+          if [ "$BUILT" != "$VERSION" ]; then
+            echo "산출물 버전 불일치: 태그=${VERSION} 빌드결과=${BUILT} — MARKETING_VERSION 치환 실패"
+            exit 1
+          fi
+          echo "산출물 버전 검증 통과: ${BUILT}"
+          # CFBundleVersion(빌드 번호)만 갱신 — ShortVersionString은 치환 결과를 그대로 쓴다
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" \
-            "${ARCHIVE_DIR}/${APP_NAME}.app/Contents/Info.plist" 2>/dev/null || true
+            "${ARCHIVE_DIR}/${APP_NAME}.app/Contents/Info.plist"
 
       - name: DMG 생성 (create-dmg, 단일 산출물)
         run: |
+          set -euo pipefail
           brew install create-dmg || true
           create-dmg \
             --volname "${APP_NAME}" \
@@ -96,6 +122,7 @@ jobs:
       - name: 노타라이즈 (선택 — 시크릿 설정 시)
         if: env.NOTARIZE == 'true'
         run: |
+          set -euo pipefail
           APP_PATH="${ARCHIVE_DIR}/${APP_NAME}.app"
           ZIP="${ARCHIVE_DIR}/notarize-upload.zip"
           # 코드 서명 (Developer ID — 설치된 인증서 사용)
@@ -117,6 +144,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           # release-notes/<tag>.md가 있으면 그것을 본문으로, 없으면 자동 생성
           TAG="${GITHUB_REF_NAME}"
           DMG="${ARCHIVE_DIR}/${APP_NAME}-${RELEASE_VERSION}-macOS.dmg"
