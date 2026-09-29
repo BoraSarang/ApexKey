@@ -16,7 +16,31 @@ final class MenuActionPathTests: XCTestCase {
 
     /// 실행 중인 앱(Finder)에 없는 메뉴 항목을 지정하면 실제로 -1728이 난다.
     /// 이 시나리오가 빠르므로(~0.3초) 분류 로직의 근거 검증에 쓴다.
-    func testMissingMenuItemProduces1728() {
+    ///
+    /// - Important: **호스트가 UI 스크립팅을 못 하면 이 테스트에는 신호가 없다.**
+    ///   GitHub Actions 러너는 접근성 권한이 없어서, 없는 메뉴 항목이 -1728이 아니라
+    ///   권한 오류로 실패한다. 그 상태에서 단언을 유지하면 **분류 로직이 아니라
+    ///   러너의 권한 상태를 측정**하게 되고, 매번 CI가 빨개진다.
+    ///   (로컬에서는 영원히 통과하므로 로컬만으로는 발견 불가)
+    ///
+    ///   `AXIsProcessTrusted()` 대신 **실측 probe**를 쓴다. osascript는 우리
+    ///   프로세스와 별개의 TCC 컨텍스트에서 실행되므로 우리 프로세스의 권한과
+    ///   일치하지 않는다. "진짜 해볼 수 있는가"를 직접 물어야 한다.
+    func testMissingMenuItemProduces1728() throws {
+        let probe = ProcessRunner.run(
+            executable: "/usr/bin/osascript",
+            arguments: ["-e", "tell application \"System Events\" to count menu bar items of process \"Finder\""],
+            timeout: MenuEnumerator.osaScriptTimeout
+        )
+        try XCTSkipUnless(
+            probe.succeeded,
+            """
+            이 환경에서는 System Events UI 스크립팅이 불가능 (접근성 권한 없음).
+            -1728 분류 로직을 측정할 수 없어 건너뛴다. \
+            실제 오류: \(probe.standardError.prefix(160))
+            """
+        )
+
         let run = ProcessRunner.run(
             executable: "/usr/bin/osascript",
             arguments: ["-e", "tell application \"System Events\" to tell process \"Finder\" to click menu item \"__nope__\" of menu 1 of menu bar item \"__nope__\" of menu bar 1"],

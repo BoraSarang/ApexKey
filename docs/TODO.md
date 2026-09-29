@@ -369,6 +369,17 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
+## v0.28 — CI 실패 수정 + PR #7 머지 (2026-09-29)
+
+- [x] T-184: **호스트 권한에 의존하던 테스트 수정** — `MenuActionPathTests.
+  testMissingMenuItemProduces1728`이 PR #7의 첫 CI에서 실패했다. 로컬에서는 항상
+  통과한다. **GitHub Actions 러너에는 접근성 권한이 없어** osascript가 -1728이 아니라
+  권한 오류를 낸다 — 그 테스트는 분류 로직이 아니라 **러너의 권한 상태**를 측정하고 있었다.
+  `AXIsProcessTrusted()` 대신 **실측 probe**로 측정 가능 여부를 먼저 확인하고,
+  없으면 `XCTSkipUnless`로 실제 오류를 남기며 건너뛴다. 로컬에서는 그대로 실행된다
+  - **로컬 테스트 통과가 CI 통과를 보장하지 않는다** — PR을 올리기 전 CI가
+    유일하게 다른 호스트다
+
 ## v0.27 — 클린 빌드 경고 0 (2026-09-29)
 
 - [x] T-183: **클린 빌드 경고 13건(7종) 제거** — `onChange(of:perform:)` migration ·
