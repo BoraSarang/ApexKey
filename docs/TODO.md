@@ -7,6 +7,8 @@
 
 - **[x] 는 여기서 끝난 기록**이다. 읽지 말고 넘어가도 된다
 - **[ ] 가 실제로 남은 일**이다. 현재 **14건** — 목록은 아래
+- **에이전트가 대신할 수 없는 것**(사용자 실동작 52건·PR·서명)은
+  [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서(TODO)에는 없다
 - 진행 현황 전체는 [`STATUS.md`](STATUS.md), 문서 색인은 [`README.md`](README.md)
 
 ## 현재 미해결 14건 (2026-09-29)
@@ -98,7 +100,7 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
 > 근거: `menuCommandPicker` 소스 0건 · `MenuChoiceNode`(`ShortcutStationView.swift:377`)는 자기 자신 재귀만 참조하는 dead code · `ShortcutEditorView.swift:357`은 여전히 `target: ""`로 생성 → `performAction(in: "")` 구조적 실패.
 > 상세: `docs/plans/ACTION_AUDIT_v3_macos.md` §5 / 착수 계획: PLAN_v0.21 D-05
 
-- [ ] T-036: **동작(단축어)의 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리) — **[ ] 미구현](docs/plans/PLAN_v0.21_audit-fix_macos.md) (2026-09-27 감사에서 [x]→[ ] 정정, 코드 부재 확인)**
+- [ ] T-036: **동작(단축어)의 메뉴 명령 단계 실행 불가 해결 + 앱/메뉴 선택 UI** — 기존 `buildStep`의 `.menuCommand`가 `target=""`·`menuPath=[]`로 만들어 실행(`performAction(in: "")`)이 구조적으로 실패. 단계 편집에서 메뉴 명령 선택 시 ① 앱 피커 → ② 선택 앱의 메뉴 트리에서 실행 항목 선택하도록 개선. `ShortcutStep.target=앱번들ID`, `menuPath=항목경로` 저장 → `execute`의 `.menuCommand`가 정상 호출. (`ShortcutStationView.swift` `menuCommandPicker`/`MenuChoiceNode` 재귀 선택 트리) — **[ ] 미구현](plans/PLAN_v0.21_audit-fix_macos.md) (2026-09-27 감사에서 [x]→[ ] 정정, 코드 부재 확인)**
 
 ## 다음 백로그
 
@@ -156,10 +158,10 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
 
 - [x] T-130: 셸 실행 강화 — `ActionExecutor.runShellScript`가 Homebrew/Android SDK PATH 자동 포함 + 출력/종료코드 로그 + 성공 여부 반환. `.runScriptInShell` 미구현(E-MAC-ACT-3005) 해소. `ExecutionEngine`에 `.script`/`.runScriptInShell` 명시 분기(변수 토큰 치환 후 실행)
 - [x] T-131: 스크립트 전용 설정 UI — `ScriptSettingsView`(제목+여러 줄 명령+테스트 실행 버튼). `ShortcutEditorView.selectStep`이 스크립트 단계도 설정 창 열도록 연결 (기존엔 설정 창이 안 열려 target 비어있는 채로 방치됨)
-- [ ] T-132: `ADB Wi-Fi 연결` 샘플 동작 자동 제공 — ~~첫 실행이 아닌 기존 사용자도 이름 기준 1회 생성~~ → **실제 코드는 생성이 아니라 삭제** (`ConfigStore.swift:301-304` `ensureADBWifiSample()` → `removeLegacyAndroidShortcutsIfNeeded()`). v0.8 S-05가 무효화했으나 `[x]` 잔존 → **[ ] superseded](docs/plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정)
+- [ ] T-132: `ADB Wi-Fi 연결` 샘플 동작 자동 제공 — ~~첫 실행이 아닌 기존 사용자도 이름 기준 1회 생성~~ → **실제 코드는 생성이 아니라 삭제** (`ConfigStore.swift:301-304` `ensureADBWifiSample()` → `removeLegacyAndroidShortcutsIfNeeded()`). v0.8 S-05가 무효화했으나 `[x]` 잔존 → **[ ] superseded](plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정)
 - [x] T-133: 스크립트 테스트 결과 표시 — `runShellScriptResult`가 출력/종료코드 반환, `ScriptSettingsView`에 성공·실패 배지 + 결과 텍스트 표시. `ApexKeyScriptTests` 7건(ADB 실기 end-to-end 포함)
 - [x] T-134: Cmd+C/V/X/A/Z 미동작 — 메인 메뉴에 앱 메뉴만 있고 편집 메뉴가 없어 first responder로 전달 불가. `AppDelegate.makeMainMenu`에 편집 메뉴(실행 취소/다시 실행/잘라내기/복사/붙여넣기/지우기/모두 선택, target nil=responder chain) 추가. `ApexKeyMenuTests` 회귀 테스트
-- [ ] T-135: 동작 고정 프리셋 — ~~시스템 탭(SystemActionType)과 동급 취급. `BuiltInShortcutPresets`(Android Untether/Mirror 2개…)에 코드 고정 + `ensureBuiltInShortcuts`가 이름 기준 자동 보충~~ → **실제 코드는 빈 배열 + 삭제** (`ConfigStore.swift:428-430` `BuiltInShortcutPresets.all = []` "호환용 스텁", `ensureBuiltInShortcuts()`는 `removeLegacyAndroidShortcutsIfNeeded()` 호출). v0.8 S-05가 무효화 → **[ ] superseded](docs/plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정). 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영은 유효
+- [ ] T-135: 동작 고정 프리셋 — ~~시스템 탭(SystemActionType)과 동급 취급. `BuiltInShortcutPresets`(Android Untether/Mirror 2개…)에 코드 고정 + `ensureBuiltInShortcuts`가 이름 기준 자동 보충~~ → **실제 코드는 빈 배열 + 삭제** (`ConfigStore.swift:428-430` `BuiltInShortcutPresets.all = []` "호환용 스텁", `ensureBuiltInShortcuts()`는 `removeLegacyAndroidShortcutsIfNeeded()` 호출). v0.8 S-05가 무효화 → **[ ] superseded](plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정). 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영은 유효
 - [x] T-136: 편집기 빨간 X 저장 유실 — 단계 설정 수정 후 윈도우 닫기(빨간 X)로 닫으면 저장 없이 유실 (헤더 X만 저장). `ShortcutEditorView`에 `.onDisappear` 저장(단계/이름/설명/자동화/변수) 추가. `build_and_run.sh debug`에 기존 앱 종료+재시작(5/5) 추가
 
 ## v0.4 — 깊은 리팩터 R1 (2026-09-16, PLAN_v0.4_refactor)
@@ -354,7 +356,7 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
-## v0.25 — 수치·날짜·목록 액션 12종 + 문서 구조 정비 (2026-09-29)
+## v0.25 — 수치·날짜·목록 액션 12종 + 문서 구조 정비 + 미완료 장부 (2026-09-29)
 
 - [x] T-172: **수치·날짜·목록 액션 12종 구현** — `changeCase`·`sort`·`surroundText`·
   `wordCount`·`calculate`·`math`·`number`·`outputDifference`·`base64Encode`·`hash`·
@@ -372,6 +374,13 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
   신규. `TODO.md` 최상단에 미해결 14건 요약 인덱스 추가. `FUNCTIONAL_CHECKLIST.md` §6에
   "감사 스냅샷이라 낡아진다 — 착수 전 코드와 대조할 것" 경고 추가.
   §8-8 신설(텍스트/데이터 액션 23종 UI 확인 14항목)
+- [x] T-174: **미완료 항목 장부 분리** — "안 한 것"이 `STATUS.md`·`FUNCTIONAL_CHECKLIST.md`·
+  `TODO.md`에 흩어져 있어 나중에 확인하려면 어디를 봐야 하는지 알 수 없었다.
+  `docs/OPEN_ITEMS.md` 신규 — 6개 항목이 **완료 기준과 함께** 체크박스로 남는다.
+  세부는 옮기지 않고 링크만 걸었다(체크박스를 두 곳에 만들면 어느 쪽이 밀린
+  항목이 되는지 알 수 없다 — `FUNCTIONAL_CHECKLIST.md` §6이 낡아진 것과 같은 종류의 문제).
+  **집계 정정**: 이전 보고에서 실동작을 "8건 + 23종 UI"로 적었으나 실제로는
+  **§8 전체 52건**이었다(새로 추가한 것만 세고 있었음)
 
 ## v0.24 — 텍스트 액션 11종 구현 (2026-09-29)
 

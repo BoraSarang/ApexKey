@@ -25,8 +25,9 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | i18n | ko/en **876키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.3.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
 | 미해결 작업 | **14건** | `TODO.md` |
-| user 실동작 대기 | **8 + 11종 UI** | `FUNCTIONAL_CHECKLIST.md` §8 |
-| 브랜치 | `fix/macos-audit-p0` — main보다 48커밋 앞 | — |
+| 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
+| user 실동작 대기 | **52건** (8-1~8-8) | `FUNCTIONAL_CHECKLIST.md` §8 |
+| 브랜치 | `fix/macos-audit-p0` — main보다 49커밋 앞 | — |
 | 릴리스 | **없음** (PR 없음, 브랜치 push만 됨) | — |
 
 ---
@@ -74,13 +75,17 @@ T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한
 
 ## 5. 아직 안 한 것 (착수 시 주의)
 
+**단일 출처는 [`OPEN_ITEMS.md`](OPEN_ITEMS.md)** — 6개 항목이 완료 기준과 함께
+체크박스로 남아 있다. 여기서는 요약만 적는다.
+
 | 항목 | 왜 안 했나 |
 |---|---|
-| **사용자 실동작 검증 8건** | 에이전트가 대신할 수 없음 (스레드 모델·핫키·권한). `FUNCTIONAL_CHECKLIST.md` §8-7 |
-| **텍스트/데이터 액션 23종의 설정 UI 조작 검증** | 배선·순수 로직은 테스트로 고정했지만 "UI에서 입력한 값이 `actionParameters`에 저장되고 실행에 반영되는지"는 사용자가 봐야 한다 |
-| **PR 생성** | 브랜치는 push됐지만 PR 없음. base 후보는 `feat/macos-p0-critical-fixes`(기존 PR #6) |
-| **main 병합** | v0.4~v0.24가 한 번에 들어간다. 리뷰 범위가 크다 |
-| **bled/dead plan 정리** | `docs/plans/` 27개 중 완료분 다수. 각 파일에 status가 있어 판단 가능하다고 보아 미착수 |
+| **사용자 실동작 검증 52건** | 에이전트가 대신할 수 없음 (스레드·핫키·권한·UI). `FUNCTIONAL_CHECKLIST.md` §8. **8-7(8건)이 특히 위험** — 스레드 모델을 바꿨다 |
+| **PR 생성 / main 병합** | 브랜치는 push됐지만 PR 없음. v0.4~v0.25가 한 번에 들어가 리뷰 범위가 크다 |
+| **macOS 14 런타임 실기 검증** | 이 작업은 macOS 26에서만 수행됐다 |
+| **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월. `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
+| **`docs/plans/` 27개 정리** | **하지 않기로 판단.** 각 파일에 `status`가 있어 색인만 있으면 된다. 삭제·이동하면 이력 맥락이 사라진다 |
+| **`TODO.md` 427줄 재배치** | **하지 않기로 판단.** 요약 인덱스로 탐색 비용만 낮췄다. 재배치하면 "T-036이 왜 superseded됐는지" 같은 맥락이 사라진다 |
 | **CI 서명 경로 검증** | 서명 도입의 일부. T-166 후속과 함께 |
 
 ---
