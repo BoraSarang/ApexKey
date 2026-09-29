@@ -41,6 +41,8 @@ struct TextActionSettingsView: View {
 
     /// 클립보드에서 읽는 액션은 입력을 직접 고를 필요가 없다
     private var usesClipboard: Bool { step.type == .getClipboard }
+    /// 입력을 쓰지 않고 설정만으로 동작하는 액션 (uuid)
+    private var needsNoInput: Bool { step.type == .uuid }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -49,6 +51,10 @@ struct TextActionSettingsView: View {
 
             if usesClipboard {
                 Text("ui.text_action.clipboard_read_hint".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+            } else if needsNoInput {
+                Text("ui.text_action.no_input_hint".localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
             } else {
@@ -155,11 +161,146 @@ struct TextActionSettingsView: View {
                 ))
             }
 
+            dataActionControls
+
             Text("ui.text_action.magic_hint".localized)
                 .font(.caption2)
                 .foregroundColor(theme.secondaryText)
         }
         .sectionCard()
+    }
+
+    // MARK: - 수치·날짜·목록 액션 설정 (E-MAC-TEXT-6002)
+
+    @ViewBuilder
+    private var dataActionControls: some View {
+        switch step.type {
+        case .changeCase:
+            Picker("ui.text_action.case_style".localized, selection: Binding(
+                get: { config.caseStyle ?? .uppercase },
+                set: { newValue in updateConfig { cfg in cfg.caseStyle = newValue } }
+            )) {
+                ForEach(DataActions.CaseStyle.allCases, id: \.self) { s in
+                    Text(s.displayName).tag(s)
+                }
+            }
+
+        case .sort:
+            Picker("ui.text_action.sort_mode".localized, selection: Binding(
+                get: { config.sortMode ?? .text },
+                set: { newValue in updateConfig { cfg in cfg.sortMode = newValue } }
+            )) {
+                ForEach(DataActions.SortMode.allCases, id: \.self) { m in
+                    Text(m.displayName).tag(m)
+                }
+            }
+            Picker("ui.text_action.sort_order".localized, selection: Binding(
+                get: { config.sortOrder ?? .ascending },
+                set: { newValue in updateConfig { cfg in cfg.sortOrder = newValue } }
+            )) {
+                Text("ui.text_action.order_ascending".localized).tag(DataActions.SortOrder.ascending)
+                Text("ui.text_action.order_descending".localized).tag(DataActions.SortOrder.descending)
+            }
+            dataSeparatorField
+
+        case .surroundText:
+            dataTextField("ui.text_action.prefix".localized, key: \.prefix)
+            dataTextField("ui.text_action.suffix".localized, key: \.suffix)
+
+        case .math:
+            Picker("ui.text_action.math_operation".localized, selection: Binding(
+                get: { config.mathOperation ?? .add },
+                set: { newValue in updateConfig { cfg in cfg.mathOperation = newValue } }
+            )) {
+                ForEach(DataActions.MathOperation.allCases, id: \.self) { op in
+                    Text("\(op.displayName)  (\(op.symbol))").tag(op)
+                }
+            }
+            dataSeparatorField
+
+        case .base64Encode:
+            Picker("ui.text_action.base64_direction".localized, selection: Binding(
+                get: { config.decode ?? false },
+                set: { newValue in updateConfig { cfg in cfg.decode = newValue } }
+            )) {
+                Text("ui.text_action.base64_encode".localized).tag(false)
+                Text("ui.text_action.base64_decode".localized).tag(true)
+            }
+
+        case .hash:
+            Picker("ui.text_action.hash_algorithm".localized, selection: Binding(
+                get: { config.hashAlgorithm ?? .sha256 },
+                set: { newValue in updateConfig { cfg in cfg.hashAlgorithm = newValue } }
+            )) {
+                ForEach(DataActions.HashAlgorithm.allCases, id: \.self) { a in
+                    Text(a.displayName).tag(a)
+                }
+            }
+
+        case .uuid:
+            Stepper(
+                "ui.text_action.uuid_count".localized,
+                value: Binding(
+                    get: { config.count ?? 1 },
+                    set: { newValue in updateConfig { cfg in cfg.count = newValue } }
+                ),
+                in: 1...100
+            )
+
+        case .dateFormatter:
+            inputField(
+                label: "ui.text_action.date_format".localized,
+                hint: "ui.text_action.date_format_hint".localized,
+                isMultiline: false,
+                monospaced: true,
+                text: Binding(
+                    get: { config.dateFormat ?? "yyyy-MM-dd" },
+                    set: { newValue in updateConfig { cfg in cfg.dateFormat = newValue } }
+                )
+            )
+
+        case .number:
+            Stepper(
+                "ui.text_action.decimals".localized,
+                value: Binding(
+                    get: { config.decimals ?? 0 },
+                    set: { newValue in updateConfig { cfg in cfg.decimals = newValue } }
+                ),
+                in: 0...10
+            )
+
+        case .outputDifference:
+            dataSeparatorField
+
+        default:
+            EmptyView()
+        }
+    }
+
+    /// `TextActionConfig`의 문자열 필드 하나를 바인딩
+    private func dataTextField(_ label: String, key: WritableKeyPath<TextActionConfig, String?>) -> some View {
+        inputField(
+            label: label,
+            hint: label,
+            isMultiline: false,
+            text: Binding(
+                get: { config[keyPath: key] ?? "" },
+                set: { newValue in updateConfig { cfg in cfg[keyPath: key] = newValue } }
+            )
+        )
+    }
+
+    /// 이항 연산의 피연산자 구분자 (여러 값 입력용)
+    private var dataSeparatorField: some View {
+        inputField(
+            label: "ui.text_action.separator".localized,
+            hint: "ui.text_action.separator_math_hint".localized,
+            isMultiline: false,
+            text: Binding(
+                get: { config.separator ?? "" },
+                set: { newValue in updateConfig { cfg in cfg.separator = newValue } }
+            )
+        )
     }
 
     // MARK: - 공통 입력

@@ -104,7 +104,10 @@ struct StepSettingsView: View {
             VariableStepSettingsView(step: $step)
         // 텍스트 액션 11종 — 전용 UI 없이는 "선택은 되지만 쓸 수 없다"가 된다 (E-MAC-TEXT-6001)
         case .text, .combineText, .splitText, .trimWhitespace, .replaceText,
-             .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard:
+             .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard,
+             // 수치·날짜·목록 보조 12종 (E-MAC-TEXT-6002)
+             .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
+             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:
             TextActionSettingsView(step: $step)
         case .comment:
             CommentSettingsView(step: $step)

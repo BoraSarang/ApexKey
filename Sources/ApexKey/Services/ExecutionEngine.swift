@@ -177,6 +177,72 @@ final class ExecutionEngine {
         }
     }
 
+    /// 수치·날짜·목록 보조 액션 12종 실행 (E-MAC-TEXT-6002)
+    ///
+    /// `TextActions`와 같은 배선 규칙을 따른다 — `target`이 주 입력,
+    /// 나머지는 `actionParameters`의 `TextActionConfig`에서.
+    private func executeDataAction(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let config = TextActionConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let rawInput = config.text?.isEmpty == false ? config.text! : step.target
+        let input = VariableResolver.resolveText(rawInput, context: ctx)
+        let separator = VariableResolver.resolveText(config.separator ?? "", context: ctx)
+
+        let outcome: DataActions.Outcome
+        switch step.type {
+        case .changeCase:
+            outcome = DataActions.changeCase(input, style: config.caseStyle ?? .uppercase)
+        case .sort:
+            outcome = DataActions.sort(
+                input,
+                separator: separator,
+                order: config.sortOrder ?? .ascending,
+                mode: config.sortMode ?? .text
+            )
+        case .surroundText:
+            outcome = DataActions.surround(
+                input,
+                prefix: config.prefix ?? "",
+                suffix: config.suffix ?? ""
+            )
+        case .wordCount:
+            outcome = DataActions.wordCount(input)
+        case .calculate:
+            outcome = DataActions.calculate(input)
+        case .math:
+            outcome = DataActions.math(input, operation: config.mathOperation ?? .add, separator: separator)
+        case .number:
+            outcome = DataActions.toNumber(input, decimals: config.decimals ?? 0)
+        case .outputDifference:
+            outcome = DataActions.difference(input, separator: separator)
+        case .base64Encode:
+            outcome = DataActions.base64(input, decode: config.decode ?? false)
+        case .hash:
+            outcome = DataActions.hash(input, algorithm: config.hashAlgorithm ?? .sha256)
+        case .uuid:
+            outcome = DataActions.generateUUID(count: config.count ?? 1)
+        case .dateFormatter:
+            outcome = DataActions.formatDate(input, format: config.dateFormat ?? "yyyy-MM-dd")
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let value):
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "데이터 액션 완료: \(step.type.rawValue) (\(value.count)자)")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-TEXT-6003", "데이터 액션 실패: \(step.type.rawValue) — \(reason)")
+            return Result(success: false, controlFlow: .continueExecution, error: reason.messageKey.localized)
+        }
+    }
+
     // MARK: - 단계 실행
     
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -185,6 +251,10 @@ final class ExecutionEngine {
         case .text, .combineText, .splitText, .trimWhitespace, .replaceText,
              .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard:
             return executeTextAction(step, context: &context)
+        // === 수치·날짜·목록 보조 12종 (E-MAC-TEXT-6002) ===
+        case .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
+             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:
+            return executeDataAction(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

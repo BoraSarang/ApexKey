@@ -27,6 +27,26 @@ struct TextActionConfig: Codable, Hashable {
     var decimals: Int?
     /// 천 단위 구분자 사용 여부
     var grouping: Bool?
+    /// Base64 인코딩(true) / 디코딩(false)
+    var decode: Bool?
+    /// 해시 알고리즘
+    var hashAlgorithm: DataActions.HashAlgorithm?
+    /// 이항 수학 연산
+    var mathOperation: DataActions.MathOperation?
+    /// 대소문자 스타일
+    var caseStyle: DataActions.CaseStyle?
+    /// 정렬 순서
+    var sortOrder: DataActions.SortOrder?
+    /// 정렬 방식
+    var sortMode: DataActions.SortMode?
+    /// 접두사 (surroundText)
+    var prefix: String?
+    /// 접미사 (surroundText)
+    var suffix: String?
+    /// 날짜 형식 (dateFormatter)
+    var dateFormat: String?
+    /// 생성 개수 (uuid)
+    var count: Int?
 
     /// 특정 액션에서 "이 필드가 반드시 있어야 한다"를 표현한다
     enum CountUnit: String, Codable, CaseIterable, Hashable {

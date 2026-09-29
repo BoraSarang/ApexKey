@@ -36,7 +36,10 @@ extension ActionType {
              .stopShortcut, .system, .url, .wait,
              // 텍스트 액션 11종 — E-MAC-TEXT-6001 (ExecutionEngine.executeTextAction)
              .text, .combineText, .splitText, .trimWhitespace, .replaceText,
-             .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard:
+             .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard,
+             // 수치·날짜·목록 보조 12종 — E-MAC-TEXT-6002 (ExecutionEngine.executeDataAction)
+             .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
+             .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -55,17 +58,15 @@ extension ActionType {
              .setMailBody, .setMailRecipients, .drive, .oneDrive, .box,
              .getFiles, .moveFiles, .renameFiles, .extractArchive,
              .externalStorage, .fileActions, .getConfirmation,
-             .getAttachment, .getDictionary, .dateFormatter, .listActions,
-             .adjustDate, .math, .hash, .uuid,
-             .outputDifference, .typeNumber, .typeText,
-             .typeDateTime, .sort, .changeCase,
-             .surroundText, .wordCount, .calculate,
-             .base64Encode, .htmlToMarkdown, .measurement, .scanQRCode,
+             .getAttachment, .getDictionary, .listActions,
+             .adjustDate, .typeNumber, .typeText,
+             .typeDateTime,
+             .htmlToMarkdown, .measurement, .scanQRCode,
              .recognizeText, .recognizeAnimal, .detectLanguage, .map,
              .transportation, .message, .email, .calendar, .reminders,
              .webContent, .presentation, .webIntegration, .documentsAndFiles,
              .devicesAndSheet, .createShortcutIcon, .variableDetail,
-             .clipboardAction, .number, .appIntent, .appAction, .findApp,
+             .clipboardAction, .appIntent, .appAction, .findApp,
              .automation, .findAutomation, .automationRun, .trigger:
             return .planned
         }

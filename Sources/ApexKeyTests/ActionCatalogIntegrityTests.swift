@@ -111,13 +111,12 @@ final class ActionCatalogIntegrityTests: XCTestCase {
 
     /// iOS 단축어 원본에서 그대로 옮겨온 미구현 액션들이 planned로 남아 있는지
     ///
-    /// E-MAC-TEXT-6001로 텍스트 액션 11종이 구현되어 목록에서 빠졌다.
+    /// E-MAC-TEXT-6001(11종)·E-MAC-TEXT-6002(12종)로 구현되어 목록에서 빠졌다.
     /// 그 사실을 여기서 못 박아 둔다 — 목록에 넣었다가 구현 없이 되돌리면
     /// "카탈로그에는 노출되는데 실행은 안 되는" 상태(T-159)가 되돌아온다.
     func testKnownUnimplementedRemainPlanned() {
         let known: [ActionType] = [
-            .translate, .scanQRCode,
-            .recognizeText, .hash, .uuid, .base64Encode, .htmlToMarkdown,
+            .translate, .scanQRCode, .recognizeText, .htmlToMarkdown,
         ]
         for type in known {
             XCTAssertEqual(
@@ -127,14 +126,18 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
-    /// E-MAC-TEXT-6001로 구현한 텍스트 액션 11종이 implemented로 유지되는지
+    /// E-MAC-TEXT-6001/6002로 구현한 23종이 implemented로 유지되는지
     ///
     /// 역방향 가드: 구현을 되돌렸는데 정의를 그대로 두면 카탈로그가 "준비 중"으로
     /// 숨기지만 실제로는 동작하는, 설명과 반대의 상태가 된다.
     func testTextActionsStayImplemented() {
         let implemented: [ActionType] = [
+            // 6001 — 텍스트 11종
             .text, .combineText, .splitText, .trimWhitespace, .replaceText,
             .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard,
+            // 6002 — 수치·날짜·목록 12종
+            .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
+            .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter,
         ]
         for type in implemented {
             XCTAssertEqual(
@@ -188,6 +191,64 @@ final class ActionCatalogIntegrityTests: XCTestCase {
                 "\(c.type.rawValue) 결과 불일치"
             )
         }
+    }
+
+    /// 수치·날짜·목록 12종도 **엔진 경유**로 실행되는지 (E-MAC-TEXT-6002)
+    ///
+    /// 순수 함수 테스트만으로는 `executeStep`에 case가 없다는 걸 못 잡는다 —
+    /// 카탈로그가 "구현됨"이라 말하지만 실행하면 `planned`와 똑같이 실패한다.
+    func testDataActionsExecuteThroughEngine() {
+        struct Case {
+            let type: ActionType
+            let target: String
+            let config: TextActionConfig?
+            let expect: String
+        }
+        var caseStyle = TextActionConfig(); caseStyle.caseStyle = .uppercase
+        var sortCfg = TextActionConfig(); sortCfg.sortMode = .numeric; sortCfg.sortOrder = .ascending
+        var surround = TextActionConfig(); surround.prefix = "["; surround.suffix = "]"
+        var mathAdd = TextActionConfig(); mathAdd.mathOperation = .add
+        var mathMul = TextActionConfig(); mathMul.mathOperation = .multiply
+        var numDec = TextActionConfig(); numDec.decimals = 1
+        var diff = TextActionConfig(); diff.separator = "\n"
+        var b64dec = TextActionConfig(); b64dec.decode = true
+        var hashCfg = TextActionConfig(); hashCfg.hashAlgorithm = .sha256
+        var dateCfg = TextActionConfig(); dateCfg.dateFormat = "yyyy"
+
+        let cases: [Case] = [
+            Case(type: .changeCase, target: "abc", config: caseStyle, expect: "ABC"),
+            Case(type: .sort, target: "10\n9\n100", config: sortCfg, expect: "9\n10\n100"),
+            Case(type: .surroundText, target: "안녕", config: surround, expect: "[안녕]"),
+            Case(type: .wordCount, target: "a b c", config: nil, expect: "3"),
+            Case(type: .calculate, target: "2+3*4", config: nil, expect: "14"),
+            Case(type: .math, target: "3\n4", config: mathAdd, expect: "7"),
+            Case(type: .math, target: "3\n4", config: mathMul, expect: "12"),
+            Case(type: .number, target: "3.14159", config: numDec, expect: "3.1"),
+            Case(type: .outputDifference, target: "10\n3", config: diff, expect: "7"),
+            Case(type: .base64Encode, target: "7JWI64WV", config: b64dec, expect: "안녕"),
+            // 해시·날짜는 출력이 길거나 시간 의존이라 같은 함수의 결과를 기준으로 삼는다
+            Case(type: .hash, target: "a", config: hashCfg, expect: DataActions.hash("a", algorithm: .sha256).text),
+            Case(type: .dateFormatter, target: "0", config: dateCfg, expect: DataActions.formatDate("0", format: "yyyy").text),
+        ]
+
+        for c in cases {
+            var step = ShortcutStep(type: c.type, target: c.target, title: "")
+            step.actionParameters = c.config.flatMap { try? JSONEncoder().encode($0) }
+            var context = UseModelExecutor.ExecutionContext()
+            let result = ExecutionEngine.shared.execute(steps: [step], context: &context)
+            XCTAssertTrue(result.success, "\(c.type.rawValue) 실행 실패: \(result.error ?? "-")")
+            XCTAssertEqual(
+                context.lastOutput.asText ?? "<nil>", c.expect,
+                "\(c.type.rawValue) 결과 불일치"
+            )
+        }
+
+        // uuid는 입력이 없고 결과가 매번 달라지므로 "성공 + 형식"만 확인
+        let uuidStep = ShortcutStep(type: .uuid, target: "", title: "")
+        var uuidContext = UseModelExecutor.ExecutionContext()
+        let uuidResult = ExecutionEngine.shared.execute(steps: [uuidStep], context: &uuidContext)
+        XCTAssertTrue(uuidResult.success, "uuid 실행 실패")
+        XCTAssertNotNil(UUID(uuidString: uuidContext.lastOutput.asText ?? ""), "UUID 형식이 아니다")
     }
 
     /// 클립보드 2종도 엔진 경유로 확인한다
