@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import ApexKey
 
 /// 카탈로그 정합성 회귀 테스트 (PLAN_v0.21 T-159 / E-MAC-CAT-9401)
@@ -109,10 +110,13 @@ final class ActionCatalogIntegrityTests: XCTestCase {
     }
 
     /// iOS 단축어 원본에서 그대로 옮겨온 미구현 액션들이 planned로 남아 있는지
+    ///
+    /// E-MAC-TEXT-6001로 텍스트 액션 11종이 구현되어 목록에서 빠졌다.
+    /// 그 사실을 여기서 못 박아 둔다 — 목록에 넣었다가 구현 없이 되돌리면
+    /// "카탈로그에는 노출되는데 실행은 안 되는" 상태(T-159)가 되돌아온다.
     func testKnownUnimplementedRemainPlanned() {
         let known: [ActionType] = [
-            .translate, .regex, .matchText, .replaceText, .splitText, .trimWhitespace,
-            .count, .formatNumber, .getClipboard, .setClipboard, .scanQRCode,
+            .translate, .scanQRCode,
             .recognizeText, .hash, .uuid, .base64Encode, .htmlToMarkdown,
         ]
         for type in known {
@@ -121,6 +125,97 @@ final class ActionCatalogIntegrityTests: XCTestCase {
                 "\(type.rawValue) 는 미구현이므로 planned여야 함"
             )
         }
+    }
+
+    /// E-MAC-TEXT-6001로 구현한 텍스트 액션 11종이 implemented로 유지되는지
+    ///
+    /// 역방향 가드: 구현을 되돌렸는데 정의를 그대로 두면 카탈로그가 "준비 중"으로
+    /// 숨기지만 실제로는 동작하는, 설명과 반대의 상태가 된다.
+    func testTextActionsStayImplemented() {
+        let implemented: [ActionType] = [
+            .text, .combineText, .splitText, .trimWhitespace, .replaceText,
+            .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard,
+        ]
+        for type in implemented {
+            XCTAssertEqual(
+                type.implementation, .implemented,
+                "\(type.rawValue) 는 구현되어 있으므로 implemented여야 함"
+            )
+            XCTAssertTrue(type.isSelectable, "\(type.rawValue) 는 카탈로그에서 선택 가능해야 함")
+            XCTAssertTrue(type.hasStepSettingsUI, "\(type.rawValue) 는 설정 UI를 제공해야 함")
+        }
+    }
+
+    /// 텍스트 액션 11종이 엔진에서 **실제로 실행된다**
+    ///
+    /// `TextActions`의 순수 함수만 테스트하면 **배선을 놓친다.** 카탈로그가 "구현됨"이라
+    /// 말하지만 `executeStep`에 case가 없으면 `.planned`일 때와 똑같이 실패한다.
+    /// T-159(카탈로그 정합)가 바로 그랬다. 여기서 엔진 경유로 확인한다.
+    func testTextActionsExecuteThroughEngine() {
+        struct Case {
+            let type: ActionType
+            let target: String
+            let config: TextActionConfig?
+            let expect: String
+        }
+        var config1 = TextActionConfig(); config1.separator = ","
+        var configR = TextActionConfig(); configR.search = "\\d+"
+        var configRep = TextActionConfig(); configRep.search = "X"; configRep.replacement = "-"
+        var configSep = TextActionConfig(); configSep.separator = ","
+        var configCnt = TextActionConfig(); configCnt.countUnit = .words
+        var configNum = TextActionConfig(); configNum.numberStyle = .decimal; configNum.decimals = 0; configNum.grouping = false
+
+        let cases: [Case] = [
+            Case(type: .text, target: "안녕", config: nil, expect: "안녕"),
+            Case(type: .trimWhitespace, target: "  안녕  ", config: nil, expect: "안녕"),
+            Case(type: .combineText, target: "a,b,c", config: config1, expect: "a,b,c"),
+            Case(type: .splitText, target: "a,b,c", config: configSep, expect: "a\nb\nc"),
+            Case(type: .replaceText, target: "aXbXc", config: configRep, expect: "a-b-c"),
+            Case(type: .regex, target: "a1b22", config: configR, expect: "1"),
+            Case(type: .matchText, target: "a1", config: configR, expect: "true"),
+            Case(type: .count, target: "hello world", config: configCnt, expect: "2"),
+            Case(type: .formatNumber, target: "1234", config: configNum, expect: "1234"),
+        ]
+
+        for c in cases {
+            var step = ShortcutStep(type: c.type, target: c.target, title: "")
+            step.actionParameters = c.config.flatMap { try? JSONEncoder().encode($0) }
+            var context = UseModelExecutor.ExecutionContext()
+            let result = ExecutionEngine.shared.execute(steps: [step], context: &context)
+            XCTAssertTrue(result.success, "\(c.type.rawValue) 실행 실패: \(result.error ?? "-")")
+            XCTAssertEqual(
+                context.lastOutput.asText ?? "<nil>", c.expect,
+                "\(c.type.rawValue) 결과 불일치"
+            )
+        }
+    }
+
+    /// 클립보드 2종도 엔진 경유로 확인한다
+    ///
+    /// 엔진은 `NSPasteboard.general`을 쓰므로 **사용자 클립보드를 건드린다.**
+    /// 원래 값을 저장해 두고 복원한다. 순서도 의도적이다 —
+    /// 빈 클립보드에서 get을 먼저 하면 "빈 클립보드"와 "배선 누락"을 구분할 수 없다.
+    func testClipboardActionsExecuteThroughEngine() {
+        let general = NSPasteboard.general
+        let original = general.string(forType: .string)
+        defer {
+            general.clearContents()
+            if let original { general.setString(original, forType: .string) }
+        }
+
+        // 1) set → 실제 클립보드에 쓰는지
+        let setStep = ShortcutStep(type: .setClipboard, target: "엔진이 씁니다", title: "")
+        var setContext = UseModelExecutor.ExecutionContext()
+        let setResult = ExecutionEngine.shared.execute(steps: [setStep], context: &setContext)
+        XCTAssertTrue(setResult.success, "setClipboard 실행 실패: \(setResult.error ?? "-")")
+        XCTAssertEqual(general.string(forType: .string), "엔진이 씁니다", "클립보드에 쓰이지 않음")
+
+        // 2) get → 방금 쓴 값을 읽는지
+        let getStep = ShortcutStep(type: .getClipboard, target: "", title: "")
+        var getContext = UseModelExecutor.ExecutionContext()
+        let getResult = ExecutionEngine.shared.execute(steps: [getStep], context: &getContext)
+        XCTAssertTrue(getResult.success, "getClipboard 실행 실패: \(getResult.error ?? "-")")
+        XCTAssertEqual(getContext.lastOutput.asText, "엔진이 씁니다", "클립보드 읽기 배선 실패")
     }
 
     /// 카테고리별 actionTypes 목록에 없는 case가 allCases에 있으면 안 된다

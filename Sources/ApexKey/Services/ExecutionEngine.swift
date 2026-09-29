@@ -102,10 +102,90 @@ final class ExecutionEngine {
         return Result(success: ok, controlFlow: .continueExecution, error: firstError)
     }
     
+    // MARK: - 텍스트 액션 (E-MAC-TEXT-6001)
+    
+    /// 텍스트 액션 11종 실행.
+    ///
+    /// `target`이 주 입력이고, 나머지 파라미터는 `actionParameters`의
+    /// `TextActionConfig`에서 온다. `target`의 Magic Variable 토큰을 먼저 해석한다.
+    private func executeTextAction(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let config = TextActionConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        // 주 입력: actionParameters.text가 우선, 없으면 target
+        let rawInput = config.text?.isEmpty == false ? config.text! : step.target
+        let input = VariableResolver.resolveText(rawInput, context: ctx)
+        // 보조 입력들도 Magic Variable를 받을 수 있어야 한다
+        let search = VariableResolver.resolveText(config.search ?? "", context: ctx)
+        let replacement = VariableResolver.resolveText(config.replacement ?? "", context: ctx)
+        let separator = VariableResolver.resolveText(config.separator ?? "", context: ctx)
+
+        let outcome: TextActions.Outcome
+        switch step.type {
+        case .text:
+            outcome = TextActions.text(input)
+        case .combineText:
+            // `\u{1F}` 블록 구분은 설정 UI가 쓰는 다중 입력 표현이다
+            let parts = separator.isEmpty
+                ? input.components(separatedBy: "\u{1F}")
+                : input.components(separatedBy: separator)
+            outcome = TextActions.combine(parts.isEmpty ? [input] : parts, separator: config.separator ?? " ")
+        case .splitText:
+            outcome = TextActions.split(input, separator: separator)
+        case .trimWhitespace:
+            outcome = TextActions.trimWhitespace(input)
+        case .replaceText:
+            outcome = TextActions.replace(input, search: search, replacement: replacement)
+        case .regex:
+            // 치환 문자열이 있으면 치환, 없으면 매치 추출
+            if config.replacement?.isEmpty == false {
+                outcome = TextActions.regexReplace(input, pattern: search, replacement: replacement)
+            } else {
+                outcome = TextActions.regex(input, pattern: search, allMatches: step.title == "all")
+            }
+        case .matchText:
+            outcome = TextActions.matches(input, pattern: search)
+        case .count:
+            outcome = TextActions.count(input, unit: config.countUnit ?? .characters)
+        case .formatNumber:
+            outcome = TextActions.formatNumber(
+                input,
+                style: config.numberStyle ?? .decimal,
+                decimals: config.decimals ?? 0,
+                grouping: config.grouping ?? true
+            )
+        case .getClipboard:
+            outcome = TextActions.getClipboard()
+        case .setClipboard:
+            outcome = TextActions.setClipboard(input)
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let value):
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "텍스트 액션 완료: \(step.type.rawValue) (\(value.count)자)")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-TEXT-6002", "텍스트 액션 실패: \(step.type.rawValue) — \(reason)")
+            return Result(success: false, controlFlow: .continueExecution, error: reason.messageKey.localized)
+        }
+    }
+
     // MARK: - 단계 실행
     
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
         switch step.type {
+        // === 텍스트 액션 11종 (E-MAC-TEXT-6001) ===
+        case .text, .combineText, .splitText, .trimWhitespace, .replaceText,
+             .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard:
+            return executeTextAction(step, context: &context)
+
         // === AI 액션 ===
         case .useModel:
             let ok = UseModelExecutor.shared.execute(step, context: &context)
@@ -445,7 +525,7 @@ final class ExecutionEngine {
         if let data = step.actionParameters,
            let action = try? JSONDecoder().decode(StopShortcutAction.self, from: data),
            let outputVariable = action.outputVariable {
-            let value = action.outputValue ?? context.lastOutput ?? .null
+            let value = action.outputValue ?? context.lastOutput
             context.variables[outputVariable] = value
             Logger.info("ExecutionEngine", "단축어 중지 → 출력 변수 기록")
         }

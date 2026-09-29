@@ -59,8 +59,12 @@ extension ConfigStore {
     /// 자동화 트리거로 단축어 실행
     ///
     /// E-MAC-ACT-3006: 실행은 백그라운드로, 통계 갱신은 메인으로.
-    /// 컨텍스트 구성에 MainActor 상태(변수 기본값)를 쓰므로 **메인에서 먼저 끝내고**,
-    /// 값 타입만 캡처해 백그라운드로 넘긴다.
+    ///
+    /// 컨텍스트 구성도 백그라운드 안에서 한다. `shortcut`는 값 타입이라 캡처 시점에
+    /// 스냅샷이 결정되고, `shortcut.variables`는 그 값의 일부이므로 오프메인에서 읽어도
+    /// MainActor 상태가 아니다. 메인에서 컨텍스트를 만들어 `&context`(var 캡처)를
+    /// `@Sendable` 클로저로 넘기면 "concurrently-executing code에서 var 변형"이 되고
+    /// Swift 6에서 오류가 된다 — 컴파일러가 증명할 수 없으므로 아예 그렇게 만들지 않는다.
     func runAutomation(shortcutID: UUID, trigger: AutomationTrigger, input: VariableValue) {
         guard let shortcut = shortcuts.first(where: { $0.id == shortcutID }) else {
             Logger.error("E-MAC-AUTO-8001", "자동화 대상 단축어 없음: \(shortcutID.uuidString.prefix(8))")
@@ -68,22 +72,21 @@ extension ConfigStore {
         }
         Logger.info("ConfigStore", "개인 자동화 실행: \(shortcut.name) (트리거: \(trigger.displayName))")
 
-        var context = UseModelExecutor.ExecutionContext()
-        context.shortcutInput = input
-        // 트리거 입력을 단축어 입력 변수로 연결
-        let inputID = UUID(uuidString: "00000000-0000-0000-0000-000000000000") ?? UUID()
-        context.setOutput(input, for: inputID)
-        context.variables[inputID] = input
-        // 사용자 정의 변수 기본값 주입
-        for variable in shortcut.variables where variable.type == .manual {
-            if let defaultValue = variable.defaultValue {
-                context.variables[variable.id] = defaultValue
-            }
-        }
-
         runOffMainThread(
             {
-                ExecutionEngine.shared.execute(shortcut, context: &context)
+                var context = UseModelExecutor.ExecutionContext()
+                context.shortcutInput = input
+                // 트리거 입력을 단축어 입력 변수로 연결
+                let inputID = UUID(uuidString: "00000000-0000-0000-0000-000000000000") ?? UUID()
+                context.setOutput(input, for: inputID)
+                context.variables[inputID] = input
+                // 사용자 정의 변수 기본값 주입
+                for variable in shortcut.variables where variable.type == .manual {
+                    if let defaultValue = variable.defaultValue {
+                        context.variables[variable.id] = defaultValue
+                    }
+                }
+                return ExecutionEngine.shared.execute(shortcut, context: &context)
             },
             onFinish: { [weak self] result in
                 guard let self else { return }
