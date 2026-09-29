@@ -152,7 +152,11 @@ final class ConfigStore: ObservableObject {
         }
         // 전용 저장소 경로 사용 — 기본 경로(~ibrary/Application Support/default.store)는
         // 다른 SwiftData 앱과 공유되어 스키마 충돌로 컨테이너 생성이 실패할 수 있음
-        let schema = Schema([PersistedApp.self, PersistedBinding.self, PersistedScript.self, PersistedShortcut.self])
+        //
+        // 스키마는 `ConfigMigrationPlan.currentSchema`(최신 버전)를 사용한다 (E-MAC-STORE-5007).
+        // 여기서 무버전 `Schema([...])`로 되돌리면 향후 필드 추가 시 기존 store가
+        // 열리지 않아 `quarantineStore` → 사용자 설정 전체 격리가 된다.
+        let schema = ConfigMigrationPlan.currentSchema
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         let storeDirectory = appSupport.appendingPathComponent("com.borasarang.ApexKey", isDirectory: true)
@@ -167,6 +171,7 @@ final class ConfigStore: ObservableObject {
         func makeContainer() throws -> ModelContainer {
             try ModelContainer(
                 for: schema,
+                migrationPlan: ConfigMigrationPlan.self,
                 configurations: [ModelConfiguration(schema: schema, url: storeURL)]
             )
         }
