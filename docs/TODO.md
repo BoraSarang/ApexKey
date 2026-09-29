@@ -276,7 +276,7 @@
 - [x] R-01: CI `run: |` 블록 `set -euo pipefail` (ci.yml 2 + release.yml 7) — E-MAC-CI-9201
 - [x] R-02: CustomTheme.swift 1600줄 → Theme/ 8파일 분할 (Metadata/Colors/Background/Glass/StyleTokens/CustomTheme/Presets/Color+ThemeHex)
 - [x] R-03: AppDelegate.swift 950줄 → 본체 + extension 6 + Windowing (cross-file `private` 제거)
-- [ ] R-04: androidMirrorScriptPath 하드코 절대경로 → Application Support 시드 폴백 (CI 테스트 2건) — E-MAC-SYS-8005 → **절반만 구현**. 폴백은 추가됐으나 `SystemActionExecutor.swift:70-71`에 `/Users/lee/Documents/AGENTS/...`가 여전히 `preferred`(우선)로 하드코 → 세션 로그의 "절대경로 금지" 규칙 위반. 나머지는 PLAN_v0.21 C-03
+- [x] R-04: androidMirrorScriptPath 하드코 절대경로 — **T-161 `1d82cb6`에서 이미 수정됨**(2026-09-29 확인). `SystemActionExecutor.ensurePortableMirrorScriptPath()`는 Application Support만 사용하고 번들/소스 리소스에서 시드한다. 소스의 `/Users/lee/`는 **과거를 설명하는 주석**뿐이고 코드는 아니다 — TODO가 낡아 있었다
 
 ## v0.21 — 감사 결함 수정 (2026-09-27, PLAN_v0.21)
 
@@ -317,6 +317,27 @@
 - [x] T-163: **죽은 자산 정리** — 미사용 스크립트 6개, 죽은 i18n 키 23개 — **죽은 자산 정리 — 미사용 스크립트 6개, ui.system.* 키 9건**
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
+
+## v0.24 — 텍스트 액션 11종 구현 (2026-09-29)
+
+- [x] T-171: **P1 순수 로직 11종 구현** — `text`·`combineText`·`splitText`·
+  `trimWhitespace`·`replaceText`·`regex`·`matchText`·`count`·`formatNumber`·
+  `getClipboard`·`setClipboard`. 전부 `ActionType`에는 있었으나 구현 0이었다.
+  카탈로그에는 노출되고 실행하면 "미구현" 토스트가 떴다 — T-159가 고친 상태가
+  백로그에 남아 있었다.
+  - `TextActions`(순수 함수) + `TextActionConfig`(`actionParameters` JSON) +
+    `TextActionSettingsView`(전용 UI). **실패를 빈 문자열로 뭉개지 않는다** —
+    패턴 오류·빈 입력·비숫자 입력을 구분해 돌려준다
+  - **전용 설정 UI가 필수였다.** `implemented`인 액션은 카탈로그에서 선택되는데
+    `DefaultSettingsView`로 두면 "정규식"을 골라도 패턴을 입력할 곳이 없다
+  - `TextActionsTests` 38건(순수 로직) + 엔진 경유 배선 테스트 2건.
+    변환 테스트로 `executeStep`의 case를 지우면 배선 테스트가 실패함을 실측
+  - i18n 31키 추가 (ko/en 833키 일치). `check-localizable.py`는 **키 존재를
+    검사하지 않는다** — 없는 키는 게이트를 통과하고 UI에 원문으로 노출된다
+  - 카탈로그 가드가 정확히 작동: `testKnownUnimplementedRemainPlanned`가
+    11종 때문에 실패했다. 목록에서 빼고 역방향 가드를 추가했다
+  - 부수: `executeStopShortcut`의 죽은 `?? .null` 제거, `runAutomation`의
+    `@Sendable` 클로저 `var` 캡처 제거(Swift 6 오류)
 
 ## v0.23 — 저장 계층 안전 + 실행 엔진 백그라운드화 (2026-09-29)
 
@@ -397,11 +418,10 @@
 - [ ] **blob 손상 컬럼 영구 쓰기 잠금 해제 경로** — `corruptedShortcutBlobColumns` 해제 지점이 `load()`·`removeShortcut`뿐이라, 인코딩 실패 시 4컬럼 전부 영구 잠금. T-141 이후 착수
 - [ ] **`saveContext` → `Bool` 반환** — 23개 호출부. 컴파일 오류로 누락 호출부 자동 발견
 - [ ] **저장 debounce** — 스텝 편집 1회 = 전체 blob 4컬럼 재인코딩 + save
-- [ ] **`ConfigStore()` 인스턴스 테스트 0건 보강** — 컨테이너 경로 주입 가능하게
-- [ ] **단축키 프로필/빠른 전환**
+- [x] **`ConfigStore()` 인스턴스 테스트 0건 보강** — **T-169로 완료**(2026-09-29). `init`에 storeDirectory·defaults 주입 + 테스트 23건- [ ] **단축키 프로필/빠른 전환**
 - [ ] Run Shortcut 호출 시 ConfigStore 자동화 UI에서 조회 단계 연결 (multishortcut 재귀 공유 변수 전달)
 - [ ] Choose from Menu/Use Model 등 단계 저장값(actionParameters) UI 연동 세부 다듬기
 - [ ] **AI 3종 실제 FoundationModels 연동** — A-03은 "정직한 실패"로 전환하는 것. 실제 구현은 별도 과제(리서치 필요)
-- [ ] **P1 순수 로직 11종** (권장 확장 후보) — `text`/`combineText`/`replaceText`/`regex`/`matchText`/`splitText`/`trimWhitespace`/`count`/`formatNumber`/`getClipboard`/`setClipboard`. 의존성 0·테스트 용이·macOS 14 동작
+- [x] **P1 순수 로직 11종** — **T-171로 완료**(2026-09-29). `text`·`combineText`·`splitText`·`trimWhitespace`·`replaceText`·`regex`·`matchText`·`count`·`formatNumber`·`getClipboard`·`setClipboard` 11종 구현 + 전용 설정 UI + 테스트 40건
 - [ ] 오프라인/큐(비해당 — 로컬 앱)
 - [ ] macOS 14 런타임 실기 검증 (v0.3.2로 SwiftUI 빈 윈도우 근본 제거, macOS 26에서 검증 완료) — 배포 타깃 14 컴파일만 보장

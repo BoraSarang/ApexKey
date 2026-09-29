@@ -3,6 +3,58 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-29 macos — 텍스트 액션 11종 구현 (PLAN_v0.24, T-171)
+
+> 테스트 335건 0실패(2 skip). i18n 802 → 833키.
+
+### 카탈로그에 있던 11종을 실제로 동작하게 (E-MAC-TEXT-6001)
+
+`text`·`combineText`·`splitText`·`trimWhitespace`·`replaceText`·`regex`·`matchText`·
+`count`·`formatNumber`·`getClipboard`·`setClipboard` 11종이 `ActionType`에는 있었으나
+구현은 0이었다. 즉 **카탈로그에는 노출되고 실행하면 "미구현" 토스트**가 떴다 —
+T-159가 고친 바로 그 상태가 백로그에 남아 있었다.
+
+- `TextActions` — 순수 함수(클립보드 2종만 주입 가능하게 분리). 의존성 0이라
+  테스트가 쉽고 실행이 메인을 블로킹하지 않는다
+- **실패를 빈 문자열로 뭉개지 않는다.** `Outcome.failure(사유)`가 잘못된 패턴·
+  빈 입력·숫자 아님을 구분해 돌려준다. "결과가 비었다"와 "패턴이 틀렸다"를
+  사용자가 구분할 수 있어야 한다
+- 숫자→읽기는 한국어 단위어(만/억/조)를 하드코딩하지 않고 `NumberFormatter.spellOut`에
+  맡겼다. 하드코딩하면 영어 로케일에서 엉뚱한 값이 나오고, 현지화 가드를 통과시키려고
+  예외를 늘려야 했다
+- 파라미터는 `target`이 아니라 `actionParameters`에 — `target` 한 줄로는 2입력
+  액션("찾을 문자열 → 바꿀 문자열")을 표현할 수 없다
+
+### 전용 설정 UI가 없으면 또 그 상태가 된다
+
+`implementation == .implemented`인 액션은 카탈로그에서 **선택된다.** 전용 UI 없이
+`DefaultSettingsView`로 두면 "정규식"을 골라도 패턴을 입력할 곳이 없다 —
+**선택은 되지만 쓸 수 없는** T-159가 고친 상태가 그대로 되돌아온다.
+그래서 `TextActionSettingsView`를 함께 넣고, 액션마다 필요한 입력만 노출한다.
+
+### 카탈로그 정합성 가드가 정확히 작동했다
+
+`testKnownUnimplementedRemainPlanned`가 11종이 `planned`가 아니라고 실패했다
+(9 assertion). 목록에서 빼고 **역방향 가드** `testTextActionsStayImplemented`를
+추가했다 — 구현을 되돌렸는데 정의를 그대로 두면 카탈로그가 "준비 중"으로 숨기지만
+실제로는 동작하는, 설명과 반대의 상태가 되기 때문이다.
+
+**검증** — 순수 함수만 테스트하면 **배선을 놓친다.** 카탈로그가 "구현됨"이라 말해도
+`executeStep`에 case가 없으면 `.planned`일 때와 똑같이 실패한다. 그래서 11종을
+**엔진 경유로** 실행하는 테스트를 추가했다. `executeStep`의 텍스트 case를 지우면
+이 테스트들이 실패한다(21 assertion) — 실측 확인.
+
+### 부수 수정
+
+- `executeStopShortcut`의 `?? .null` — `lastOutput`이 비옵셔널이라 죽은 분기.
+  캐시된 빌드에서는 경고가 재컴파일 때만 나와 세션 로그의 "빌드 경고 0"이
+  과장이었다
+- `runAutomation`이 `@Sendable` 클로저에 `var context`를 캡처 — Swift 6 언어 모드에서
+  오류가 된다. 컴파일러가 증명할 수 없으므로 컨텍스트 구성을 백그라운드 안으로 옮겨
+  아예 만들지 않게 했다
+- i18n 31키 추가. **`check-localizable.py`는 키 존재를 검사하지 않는다** —
+  없는 키는 게이트를 통과하고 UI에 원문 키로 노출된다. ko/en 833키 일치 확인
+
 ## 2026-09-29 macos — 저장 계층 안전 + 실행 엔진 백그라운드화 (PLAN_v0.23, T-167~T-170)
 
 > 인계 문서 `SESSION_2026-09-27_handoff.md` §3의 2·3·4순위를 한 번에 착수.
