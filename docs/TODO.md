@@ -1,7 +1,43 @@
 # ApexKey — TODO
 
 > `T-번호` 기반 작업 추적. 완료 시 [x] 체크.
-> 작성일: 2026-09-01
+> 작성일: 2026-09-01 · 마지막 갱신: 2026-09-29
+
+## 이 문서 읽는 법
+
+- **[x] 는 여기서 끝난 기록**이다. 읽지 말고 넘어가도 된다
+- **[ ] 가 실제로 남은 일**이다. 현재 **14건** — 목록은 아래
+- 진행 현황 전체는 [`STATUS.md`](STATUS.md), 문서 색인은 [`README.md`](README.md)
+
+## 현재 미해결 14건 (2026-09-29)
+
+| 분류 | 항목 | 상태 |
+|---|---|---|
+| **배포** | T-166 후속 — Developer ID 서명 + notarization | 🔴 **Program 가입이 선행.** 코드만으로 불가 |
+| **저장** | `saveContext` → `Bool` 반환 | 🟡 **검증 수단 없음** — SwiftData 저장 실패 재현 불가(`PLAN_v0.24`에 근거) |
+| **저장** | blob 손상 컬럼 영구 쓰기 잠금 해제 경로 | 🟢 착수 가능 |
+| **저장** | 저장 debounce (스텝 편집 1회 = blob 4컬럼 재인코딩) | 🟢 착수 가능 |
+| **기능** | T-036 — 동작의 메뉴 명령 단계 실행 불가 + 앱/메뉴 선택 UI | 🟡 규모 큼 |
+| **기능** | Run Shortcut ↔ 자동화 UI 조회 단계 연결 (재귀 공유 변수) | 🟢 |
+| **기능** | Choose from Menu / Use Model 단계 설정값 UI 다듬기 | 🟢 |
+| **기능** | AI 3종 실제 FoundationModels 연동 | 🟡 **리서치 필요.** 현재는 정직한 실패 |
+| **미구현 액션** | 남은 **103종** (`ActionType` 162종 중 55종 구현 · 4종 스텁) | 🟡 대부분 Apple 앱 연동 → ScriptingBridge 필요 |
+| **정리** | T-132 / T-135 — 완료로 표시돼 있으나 v0.8 S-05가 무효화 | 🟢 문서만 |
+| **정리** | L-09 — "키 526 전수 존재"는 **거짓 주장**이었던 기록 | 🟢 문서만 |
+| **검증** | macOS 14 런타임 실기 검증 (macOS 26에서만 확인됨) | 🟡 |
+| — | 오프라인/큐 | ⚪ **비해당**(로컬 앱) — 닫을 것 |
+
+### 미구현 액션 103종의 성격
+
+Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할 수 없다.
+`Photos`·`Music`·`Mail`·`Calendar`·`Reminders`·`Podcasts`는 ScriptingBridge 또는
+앱별 URL scheme이 필요하다 — **각 앱의 API를 먼저 조사해야** 착수 가능하다.
+
+남은 것 중 그래도 순수 로직으로 가능한 후보:
+`htmlToMarkdown`(HTML 파서 필요하지만 순수) · `detectLanguage`(휴리스틱) ·
+`typeText`·`typeNumber`(키 입력 — `ActionExecutor`에 기반 코드 존재)
+
+---
 
 ## v0.1 — 초기 개발
 
@@ -317,6 +353,25 @@
 - [x] T-163: **죽은 자산 정리** — 미사용 스크립트 6개, 죽은 i18n 키 23개 — **죽은 자산 정리 — 미사용 스크립트 6개, ui.system.* 키 9건**
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
+
+## v0.25 — 수치·날짜·목록 액션 12종 + 문서 구조 정비 (2026-09-29)
+
+- [x] T-172: **수치·날짜·목록 액션 12종 구현** — `changeCase`·`sort`·`surroundText`·
+  `wordCount`·`calculate`·`math`·`number`·`outputDifference`·`base64Encode`·`hash`·
+  `uuid`·`dateFormatter`. `DataActions`(순수 함수) + `ExecutionEngine.executeDataAction` +
+  기존 `TextActionSettingsView` 확장. 테스트 46건 + 엔진 배선 테스트.
+  - **계산기는 `eval`을 쓰지 않는다.** 재귀 하강 파서를 직접 구현했다.
+    우선순위·오른쪽 결합 거듭제곱·괄호·단항 마이너스 지원, 재귀 깊이 64 제한
+  - **0으로 나누기는 명시적 실패.** IEEE 754의 `inf`는 오류가 아니라 조용히 이상한 값이다
+  - **정렬에서 숫자가 아닌 항목은 뒤로 보낸다.** 0으로 취급하면 순서가 거짓말이 된다
+  - **MD5를 넣지 않았다.** 충돌이 실제로 만들어지는 해시를 제공하지 않는다
+  - **테스트가 실제 버그 2건을 잡았다** — ① 괄호 중첩 깊이 제한이 `parsePrimary`에서
+    `parse()`를 depth 0으로 호출해 리셋됐다(`((((...))))` 500중첩이 통과) ② 제 테스트의
+    기대값 오류
+- [x] T-173: **문서 구조 정비** — `docs/README.md`(색인)와 `docs/STATUS.md`(현황 단일 출처)
+  신규. `TODO.md` 최상단에 미해결 14건 요약 인덱스 추가. `FUNCTIONAL_CHECKLIST.md` §6에
+  "감사 스냅샷이라 낡아진다 — 착수 전 코드와 대조할 것" 경고 추가.
+  §8-8 신설(텍스트/데이터 액션 23종 UI 확인 14항목)
 
 ## v0.24 — 텍스트 액션 11종 구현 (2026-09-29)
 
