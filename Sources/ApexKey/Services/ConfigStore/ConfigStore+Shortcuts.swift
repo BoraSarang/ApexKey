@@ -224,11 +224,25 @@ extension ConfigStore {
 
     // MARK: - 편집기 저장 (기존 ShortcutEditorView 확장 이관)
 
+    /// 단계 순서·내용 편집 — **저장을 합친다** (E-MAC-STORE-5011)
+    ///
+    /// 왜 debounce 경로를 따로 두나:
+    /// 스텝 편집은 `onChange(of: steps)`로 들어온다. 드래그 재배열이나 텍스트 한 글자
+    /// 편집마다 `syncShortcut`이 곧바로 돌아가면 **blob 4컬럼 전체를 재인코딩하고
+    /// SQLite에 저장**한다. 중간 상태(5단계 중 3단계만 옮긴 상태)가 디스크에 남는다.
+    ///
+    /// 다른 뮤테이션(추가·삭제·복제·이름)은 `syncShortcut`을 직접 부른다. 이건 사용자가
+    /// 한 번의 명시적 동작을 한 것이므로 합칠 필요가 없다 — 합치면 "추제한 게 안 보인다"
+    /// 는 불안을 키운다. **빈도가 다른 두 경로를 구분한 것**이 이 설계의 요점이다.
     func updateShortcutSteps(_ shortcut: ShortcutItem, steps: [ShortcutStep]) {
-        if let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
-            shortcuts[index].steps = steps
-            shortcuts[index].modifiedAt = Date()
-            syncShortcut(shortcuts[index])
+        guard let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        shortcuts[index].steps = steps
+        shortcuts[index].modifiedAt = Date()
+        // 예약된 이전 저장은 최신 steps 클로저로 대체된다
+        shortcutSaveScheduler.schedule(shortcut.id) { [weak self] in
+            guard let self, let i = self.shortcuts.firstIndex(where: { $0.id == shortcut.id })
+            else { return }
+            self.syncShortcut(self.shortcuts[i])
         }
     }
     

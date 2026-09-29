@@ -92,6 +92,13 @@ final class ConfigStore: ObservableObject {
     /// 복구 판정 기준. 왕복 검증만으로는 fallback(`[]`)과 정상적인 빈 값을 구별할 수 없다.
     /// 여기 기록된 바이트와 **같으면** "아직 손상 직후 그대로"이므로 잠금을 유지한다.
     var corruptedBlobFallbackBytes: [UUID: [StoreBlobColumn: Data]] = [:]
+    /// 단계 편집 저장을 합치는 스케줄러 (E-MAC-STORE-5011)
+    ///
+    /// `ConfigStore`가 `@MainActor`이므로 실행 큐는 `.main`이다. 창을 닫을 때
+    /// `flushPendingSaves()`를 불러야 예약된 저장이 실제 반영된다.
+    let shortcutSaveScheduler = CoalescingScheduler<UUID>()
+    /// 대기 중인 저장을 즉시 기록한다 (창 종료·앱 종료 경로)
+    func flushPendingSaves() { shortcutSaveScheduler.flushNow() }
     /// 저장소 손상 격리 후 재생성된 경우 백업 경로 (UI 안내용, P0-2)
     @Published var storeRecoveryBackupPath: String? = nil
     private var cancellables = Set<AnyCancellable>()

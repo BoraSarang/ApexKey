@@ -98,6 +98,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Logger.info("AppDelegate", "[APP] ApexKey 종료")
+        // debounce로 예약된 저장을 먼저 실제 기록한다 (E-MAC-STORE-5011).
+        // 이게 빠지면 창을 닫은 직후(0.4초 이내)에 편집한 내용이 유실된다.
+        store?.flushPendingSaves()
         // FSEventStream·타이머를 명시적으로 정리한다 (E-MAC-AUTO-8004).
         // 이전에는 로그 한 줄뿐이라 FSEventStream이 종료까지 유지되었고,
         // `AutomationManager.stopAll()`이 어디서도 호출되지 않는 문제로 이어졌다

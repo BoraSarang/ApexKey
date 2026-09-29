@@ -290,6 +290,77 @@ final class ConfigStoreMutationTests: XCTestCase {
         XCTAssertEqual(persisted.first?.categoryManuallySet, true, "플래그가 store에 저장되지 않음")
     }
 
+    // MARK: - 저장 debounce (E-MAC-STORE-5011)
+
+    /// 단계 편집 N회가 실제로 **1회 저장**으로 합쳐지는지
+    ///
+    /// 스케줄러 단위 테스트만으로는 배선을 검증하지 못한다 —
+    /// `updateShortcutSteps`가 스케줄러를 우회해 `syncShortcut`을 직접 불러도
+    /// 스케줄러 테스트는 통과한다. 그래서 **저장 횟수**를 센다.
+    func testStepEditsCoalesceIntoOneSave() {
+        let store = makeStore()
+        guard let created = store.addShortcut(name: "debounce") else {
+            return XCTFail("동작 생성 실패")
+        }
+        let id = created.id
+
+        // 10회 연속 편집 (드래그 재배열·한 글자씩 편집을 흉내낸다)
+        for i in 0..<10 {
+            guard let current = store.shortcuts.first(where: { $0.id == id }) else { break }
+            store.updateShortcutSteps(
+                current,
+                steps: [ShortcutStep(type: .wait, target: "\(i)", title: "단계 \(i)")]
+            )
+        }
+        XCTAssertEqual(store.shortcutSaveScheduler.pendingCount, 1, "대기 키가 1개여야 한다")
+
+        // 예약이 실제로 저장되는지 — 유실되면 안 된다
+        store.flushPendingSaves()
+        XCTAssertEqual(store.shortcutSaveScheduler.flushCount, 1, "10회가 1회로 합쳐지지 않았다")
+
+        // 합쳐진 저장은 **마지막 값**이어야 한다 (중간 상태가 남으면 안 된다)
+        let p = store.shortcuts.first { $0.id == id }
+        XCTAssertEqual(p?.steps.first?.target, "9", "마지막 편집 내용이 아니다")
+    }
+
+    /// debounce 경로여도 **flush하면 반드시 기록된다** (이게 없으면 데이터 손실)
+    func testPendingStepEditIsPersistedAfterFlush() {
+        let store = makeStore()
+        guard let created = store.addShortcut(name: "flushpersist") else {
+            return XCTFail("동작 생성 실패")
+        }
+        store.updateShortcutSteps(
+            created,
+            steps: [ShortcutStep(type: .wait, target: "7", title: "최종")]
+        )
+        store.flushPendingSaves()
+
+        // 메모리 → 저장소 재적재로 실제 반영 확인
+        store.load(seedInstalledApps: false, registerSystemIntegrations: false)
+        XCTAssertEqual(
+            store.shortcuts.first { $0.id == created.id }?.steps.first?.target, "7",
+            "flush 후에도 저장소에 반영되지 않았다"
+        )
+    }
+
+    /// 명시적 뮤테이션(추가·삭제·이름 변경)은 **합치지 않는다**
+    ///
+    /// "추제한 게 잠깐 안 보인다"는 불안이 합치면 생긴다. 한 번의 명시적 동작은
+    /// 곧바로 저장되어야 한다.
+    func testExplicitMutationsAreNotDebounced() {
+        let store = makeStore()
+        guard let created = store.addShortcut(name: "explicit") else {
+            return XCTFail("동작 생성 실패")
+        }
+        XCTAssertEqual(store.shortcutSaveScheduler.pendingCount, 0, "addShortcut가 예약을 남겼다")
+
+        store.addStep(to: created, step: ShortcutStep(type: .wait, target: "1", title: "직접 추가"))
+        XCTAssertEqual(
+            store.shortcutSaveScheduler.pendingCount, 0,
+            "명시적 단계 추가가 debounce 큐로 들어갔다 — 즉시 저장돼야 한다"
+        )
+    }
+
     // MARK: - 동작(워크플로우) 저장
 
     func testAddShortcutPersistsSteps() {
