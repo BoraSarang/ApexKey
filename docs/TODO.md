@@ -318,6 +318,59 @@
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
+## v0.23 — 저장 계층 안전 + 실행 엔진 백그라운드화 (2026-09-29)
+
+> 인계 문서 `SESSION_2026-09-27_handoff.md` §3의 2·3·4순위를 한 번에 착수.
+> 테스트 247 → **294건 0실패** (2 skip). 새 테스트 38건.
+
+- [x] T-167: **스키마 버전 관리 도입** — `ConfigSchemaV1`(`VersionedSchema`) +
+  `ConfigMigrationPlan`(`SchemaMigrationPlan`) 추가, `ConfigStore`가 `currentSchema` 사용.
+  마이그레이션 stage는 비어 있다 — 무버전 → v1 경량 이관만 수행한다는 뜻이지 이관이
+  불필요하다는 뜻이 아니다. `ConfigSchemaMigrationTests` 8건.
+  **위험 제거가 목표였다**: 무버전 store를 새 계획으로 못 열면 `quarantineStore`가 발동해
+  전 사용자 설정이 격리된다. 그 경로를 테스트로 고정했다.
+  함정: `Schema(ConfigMigrationPlan.schemas)`는 컴파일되지 않고(`Schema.init`은
+  `[any PersistentModel.Type]`을 받음), `Schema(models)`만 쓰면 `version`이 기본값
+  `1.0.0`으로 들어가 버전을 명시하지 않은 새 스키마가 과거와 구분되지 않는다 →
+  둘을 `currentSchema`에 묶었다
+- [x] T-168: **저장 blob의 키 누락 내성** — T-167만으로는 실제 데이터 소실 경로가
+  안 막힌다. blob은 불투명한 `Data`라 SwiftData 마이그레이션이 건드리지 않고, Swift의
+  합성 `Decodable`은 **프로퍼티 기본값을 무시한다**(`= false`여도 키가 없으면
+  `keyNotFound`). 인계 문서가 지목한 "필드 추가 = 데이터 소실"의 실체가 이것.
+  `ShortcutStep`·`ShortcutPermissions`·`Variable`에 관대 `init(from:)` 적용
+  (전 필드 `decodeIfPresent ?? 기본값`, 새 필드 추가는 컴파일 에러로 감지).
+  `StoreBlobToleranceTests` 9건 — "키 하나씩 제거 → 여전히 디코딩" 스윕이 필드가
+  늘어날 때마다 같이 늘어 회귀를 자동 잡는다
+- [x] T-169: **`ConfigStore()` 인스턴스 테스트 0건 보강** — `init()`이 `storeURL`을
+  하드코딩해서 인스턴스화가 불가능했고, 그 결과 바인딩·앱·동작·스크립트의 모든
+  뮤테이션 경로가 검증되지 않았다. `init`를 주입 가능하게 변경
+  (storeDirectory·defaults·seedInstalledApps·registerSystemIntegrations, 기본값은 기존 동작).
+  `UserDefaults.standard` 하드코딩 17곳을 주입된 `defaults`로 교체.
+  `ConfigStoreMutationTests` 23건
+- [x] T-170: **실행 엔진 백그라운드화** — 핫키 콜백이 메인 스레드에서 동기 실행해
+  `wait 60초` 단계면 UI가 60초 정지. `ExecutionEngine.executionQueue`(직렬) +
+  `ConfigStore.runOffMainThread`로 실행만 백그라운드, MainActor 상태 접근은 메인 유지.
+  `ExecutionBackgroundTests` 7건 — 동기 실행으로 되돌리면 3건이 실패함을 실측 확인
+
+### 이번 세션에서 배운 함정 (반복하지 말 것)
+
+- **회귀 테스트는 "무엇을 측정하는지"뿐 아니라 "언제 측정하는지"를 검증해야 한다.**
+  백그라운드화 테스트의 첫 판은 실행이 **끝난 뒤**에 하트비트를 셌다. 실행이 끝나면
+  메인은 다시 자유로워서 동기/비동기 어느 쪽이든 통과했다. 실행 구간 *안*을 봐야 한다
+- **호출부 실행 시간 임계값 테스트는 신뢰도가 높다.** 1.5초 단계를 던지고 0.4초 안에
+  반환되는지 보는 게 가장 단순하고 확실히 잡는다 (실측 1.505초 vs 임계 0.4)
+- **`RunLoop.main.run` 수동 펌프는 XCTest에서 위험하다.** 단독 실행에서는 됐지만 전체
+  스위트에서 테스트 루프와 충돌해 불안정했다. 메인 응답성은 `await MainActor.run` 왕복
+  지연으로 재는 편이 낫다 (XCTest 루프에 개입하지 않음)
+- **단일 경로를 가리키는 테스트는 통과해도 무의미할 수 있다.** `setLaunchBinding`
+  회귀 테스트를 "다른 앱과 겹치는 조합 추가"로 썼더니 구버그 구현에서 통과했다.
+  실제 버그 조건은 "자기 바인딩을 겹치는 조합으로 교체"였다
+- **테스트 픽스처가 호스트 환경에 의존하지 말 것.** `/Applications/Notes.app`을 경로로
+  썼다가 이 기기에 없어 두 앱이 모두 prune되어 실패했다. `pruneRemovedApps()`는
+  `fileExists`만 보므로 임시 파일이면 충분하다
+- **`VersionedSchema`는 컬럼만 보호한다.** blob 스키마 변경은 손대지 못한다 →
+  T-168이 별개로 필요하다
+
 ## v0.22 — 무서명 릴리스 고지 정직화 (2026-09-29)
 
 > 인계 문서 `SESSION_2026-09-27_handoff.md` §3의 1순위. 2026-09-29 사용자 결정 **(b) 문구 정직화** —

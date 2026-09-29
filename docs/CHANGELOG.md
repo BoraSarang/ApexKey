@@ -3,6 +3,76 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-29 macos — 저장 계층 안전 + 실행 엔진 백그라운드화 (PLAN_v0.23, T-167~T-170)
+
+> 인계 문서 `SESSION_2026-09-27_handoff.md` §3의 2·3·4순위를 한 번에 착수.
+> 테스트 247 → **294건 0실패**(2 skip). 새 테스트 38건. 빌드 경고 0.
+
+### 데이터 소실 — 스키마 버전 관리만으로는 안 된다 (T-167, T-168)
+
+인계 문서가 경고한 "`ShortcutPermissions`에 필드를 추가하면 JSONDecoder가 전 레코드에
+실패 → 4컬럼 영구 쓰기 잠금"의 실체를 파고들었다. **원인은 두 개였고, 하나만 고치면
+끝이 아니었다.**
+
+- **(1) 컬럼 계층** — `VersionedSchema`가 없어 필드 추가가 이관 불가 신호조차 없었음.
+  `ConfigSchemaV1` + `ConfigMigrationPlan`을 도입했다. 마이그레이션 stage는 비어 있는데
+  이 상태가 안전하다(무버전 → v1 경량 이관만 수행). 위험한 건 도입 자체가 아니라
+  **무버전 store가 새 계획으로 열리는가**였는데, 못 열면 `quarantineStore`가 발동해
+  전 사용자 설정이 격리된다. 그 경로를 `ConfigSchemaMigrationTests`가 고정한다
+- **(2) blob 계층 — 이것이 진짜 원인이었고 `VersionedSchema`는 손대지 못한다.**
+  `stepsData`·`permissionsData`는 불투명한 `Data`라 SwiftData 마이그레이션이 무관하다.
+  게다가 Swift의 합성 `Decodable`은 **프로퍼티 기본값을 무시한다** —
+  `var requiresConfirmation: Bool = false` 여도 JSON에 키가 없으면 `keyNotFound`를 던진다.
+  → `ShortcutStep`·`ShortcutPermissions`·`Variable`에 관대 `init(from:)` 추가
+  (전 필드 `decodeIfPresent ?? 기본값`). 새 필드 추가는 컴파일 에러로 감지된다
+
+**검증** — `requiresConfirmation`을 `decodeIfPresent` → `decode`로 되돌리면 4개 테스트가
+동시에 실패하고 `undecodableBlobColumns()`에 `["permissions"]` **영구 쓰기 잠금이 재현**된다.
+
+### UI 정지 — 핫키 실행이 메인 스레드를 블로킹 (T-170)
+
+핫키 콜백이 메인 스레드에서 `executeWithDetail`을 동기 호출했다. `wait 60초` 단계 하나면
+메뉴바·패널이 60초 정지. `Process.waitUntilExit`·`pauseUntilInput`도 같았다.
+
+`ExecutionEngine.executionQueue`(**직렬**) + `ConfigStore.runOffMainThread`로 실행만
+백그라운드로 옮겼다. MainActor 상태(통계·토스트·저장)는 메인에서만 만진다.
+
+**왜 `.global`이 아니라 직렬 큐인가**: 실행 횟수가 아니라 **상태가 하나뿐인 싱글턴**이 있다.
+`ActionExecutor.pauseSemaphore`(사이보그 모드 대기 세마포어)와 `pauseMonitor`(NSEvent
+모니터)가 각각 하나뿐이라, 두 실행이 겹치면 나중에 시작한 쪽이 앞선 대기를 깨뜨린다.
+메인 동기 실행이 공짜로 보장하던 이 직렬성을 직접 보존해야 한다.
+
+`shortcutProvider`는 이제 오프메인에서 불리므로 `shortcuts` 접근을 메인으로 한 번 홉한다.
+교착은 없다 — 실행 큐가 직렬이고 메인이 실행 큐를 기다리지 않는다(메인을 막던 동기
+실행을 이번 커밋에서 제거했으므로). 단계 테스트도 같은 큐로 통일했다.
+
+**검증** — 동기 실행으로 되돌리면 3개 테스트가 실패한다 (실측):
+`testExecuteShortcutStatsReturnsBeforeExecutionFinishes` 1.505초 vs 임계 0.4초 ·
+`testHandleHotKeyDoesNotBlockOnLongStep` 1.515초 vs 0.4초 ·
+`testMainThreadRemainsResponsiveDuringExecution` "1.016초간 응답하지 않았다 — UI가 정지했다"
+
+### ConfigStore 테스트 0건 해소 (T-169)
+
+`init()`이 `storeURL`을 하드코딩해 인스턴스화가 불가능했고, 그 결과 바인딩 추가·교체·삭제,
+앱 제거 시 고아 핫키 정리, 동작·스크립트 저장 같은 모든 뮤테이션 경로가 검증되지 않았다.
+`init`를 주입 가능하게 만들고(`storeDirectory`·`defaults`·`seedInstalledApps`·
+`registerSystemIntegrations`, 기본값은 전부 기존 동작) 테스트 23건을 추가했다.
+
+`UserDefaults.standard` 하드코딩 17곳을 주입된 `defaults`로 교체했다.
+
+### 테스트 설계에서 배운 것 (회귀 테스트가 통과했는데 아무것도 안 잡던 사례)
+
+- **하트비트 테스트가 통과했는데 판별력이 없었다.** 실행이 **끝난 뒤**에 메인 틱을
+  셌기 때문이다. 실행이 끝나면 메인은 다시 자유롭다. 실행 구간 *안*을 봐야 한다
+- **단일 경로를 가리키는 테스트는 통과해도 무의미하다.** `setLaunchBinding` 회귀
+  테스트를 "다른 앱과 겹치는 조합 추가"로 썼더니 구버그 구현에서 통과했다. 실제 버그
+  조건은 "자기 바인딩을 겹치는 조합으로 교체"였다 (이 경우에만 `removeBinding`이 먼저
+  호출돼 핫키가 사라진다)
+- **`RunLoop.main.run` 수동 펌프는 전체 스위트에서 불안정**하다. 단독 실행에선 됐지만
+  XCTest 루프와 충돌했다. 메인 응답성은 `await MainActor.run` 왕복 지연으로 잰다
+- **픽스처가 호스트에 의존하면 조용히 무의미해진다.** `/Applications/Notes.app`을
+  경로로 썼다가 이 기기에 없어 두 앱이 모두 prune되어 실패했다
+
 ## 2026-09-29 macos — 무서명 릴리스 고지 정직화 (PLAN_v0.22, T-166)
 
 > 인계 문서 `SESSION_2026-09-27_handoff.md` §3 1순위 착수. 사용자 결정 **(b) 문구 정직화** —
