@@ -87,6 +87,39 @@ struct ShortcutStep: Identifiable, Codable, Hashable {
         self.magicVariableTokens = magicVariableTokens
     }
 
+    /// 관대 디코딩 — **키가 없어도 디코딩이 성공해야 한다** (E-MAC-STORE-5008)
+    ///
+    /// Swift의 합성 `Decodable`은 프로퍼티 기본값을 **사용하지 않는다.** 필드가 없으면
+    /// `decode`가 `keyNotFound`를 던져 **레코드 전체 디코딩이 실패**한다.
+    /// 이 단계는 `PersistedShortcut.stepsData` blob의 원소라서, 필드 하나 추가로
+    /// 사용자의 모든 동작이 디코딩 불가 → `undecodableBlobColumns()`가 `.steps`를
+    /// 영구 쓰기 잠금으로 표시하고 복구 경로는 `removeShortcut`뿐이 된다.
+    ///
+    /// 따라서 **모든 필드를 `decodeIfPresent ?? 기본값`**으로 읽는다.
+    /// 새 필드를 추가할 때 여기도 반드시 추가할 것 (컴파일 에러로 자동 감지된다).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        self.type = try c.decodeIfPresent(ActionType.self, forKey: .type) ?? .launchApp
+        self.target = try c.decodeIfPresent(String.self, forKey: .target) ?? ""
+        self.title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        self.menuPath = try c.decodeIfPresent([String].self, forKey: .menuPath) ?? []
+        self.onlyWhenAppActive = try c.decodeIfPresent(Bool.self, forKey: .onlyWhenAppActive) ?? false
+        self.outputVariables = try c.decodeIfPresent([Variable].self, forKey: .outputVariables)
+        self.actionParameters = try c.decodeIfPresent(Data.self, forKey: .actionParameters)
+        self.ifBranch = try c.decodeIfPresent(IfBranch.self, forKey: .ifBranch)
+        self.repeatLoop = try c.decodeIfPresent(RepeatLoop.self, forKey: .repeatLoop)
+        self.chooseFromMenu = try c.decodeIfPresent(ChooseFromMenu.self, forKey: .chooseFromMenu)
+        self.useModel = try c.decodeIfPresent(UseModelStep.self, forKey: .useModel)
+        self.writingTool = try c.decodeIfPresent(WritingToolStep.self, forKey: .writingTool)
+        self.imagePlayground = try c.decodeIfPresent(ImagePlaygroundStep.self, forKey: .imagePlayground)
+        self.launchConfig = try c.decodeIfPresent(LaunchConfig.self, forKey: .launchConfig)
+        self.keyPress = try c.decodeIfPresent(HotKeyCombo.self, forKey: .keyPress)
+        self.isSkipped = try c.decodeIfPresent(Bool.self, forKey: .isSkipped) ?? false
+        self.note = try c.decodeIfPresent(String.self, forKey: .note)
+        self.magicVariableTokens = try c.decodeIfPresent([String].self, forKey: .magicVariableTokens)
+    }
+
     /// 이 단계를 실행 가능한 임시 바인딩으로 변환
     func toBinding() -> HotKeyBinding {
         HotKeyBinding(
@@ -676,5 +709,23 @@ struct ShortcutPermissions: Codable, Hashable {
         self.allowRunningFromLockScreen = allowRunningFromLockScreen
         self.showOnLockScreen = showOnLockScreen
         self.requiresConfirmation = requiresConfirmation
+    }
+
+    /// 관대 디코딩 — **키가 없어도 디코딩이 성공해야 한다** (E-MAC-STORE-5008)
+    ///
+    /// 인계 문서가 지목한 데이터 소실 경로가 정확히 여기다. 합성 `Decodable`은
+    /// `= true` 같은 프로퍼티 기본값을 무시하고 `keyNotFound`를 던지므로, 필드 하나
+    /// 추가하면 `permissionsData` blob이 **레코드 전체에서** 디코딩 불가 →
+    /// `undecodableBlobColumns()`가 `.permissions`를 영구 쓰기 잠금으로 표시한다.
+    ///
+    /// 새 필드를 추가할 때 여기도 반드시 추가할 것 (컴파일 에러로 자동 감지된다).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.allowExporting = try c.decodeIfPresent(Bool.self, forKey: .allowExporting) ?? true
+        self.allowRunningOnMac = try c.decodeIfPresent(Bool.self, forKey: .allowRunningOnMac) ?? true
+        self.allowRunningOnWatch = try c.decodeIfPresent(Bool.self, forKey: .allowRunningOnWatch) ?? false
+        self.allowRunningFromLockScreen = try c.decodeIfPresent(Bool.self, forKey: .allowRunningFromLockScreen) ?? false
+        self.showOnLockScreen = try c.decodeIfPresent(Bool.self, forKey: .showOnLockScreen) ?? false
+        self.requiresConfirmation = try c.decodeIfPresent(Bool.self, forKey: .requiresConfirmation) ?? false
     }
 }
