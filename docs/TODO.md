@@ -6,14 +6,14 @@
 ## 이 문서 읽는 법
 
 - **[x] 는 여기서 끝난 기록**이다. 읽지 말고 넘어가도 된다
-- **[ ] 가 실제로 남은 일**이다. 현재 **9건** — 목록은 아래
+- **[ ] 가 실제로 남은 일**이다. 현재 **8건** — 목록은 아래
 - **[~] 는 무효화**다. 실행할 작업이 아니라 **폐기된 요구사항**이다. 구현하지 않는 것이
   의도이며, 누군가 "왜 안 하지?" 하고 되살리면 안 된다
 - **에이전트가 대신할 수 없는 것**(사용자 실동작 52건·PR·서명)은
   [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서(TODO)에는 없다
 - 진행 현황 전체는 [`STATUS.md`](STATUS.md), 문서 색인은 [`README.md`](README.md)
 
-## 현재 미해결 9건 (2026-09-29)
+## 현재 미해결 8건 (2026-09-29)
 
 | # | 분류 | 항목 | 상태 |
 |:-:|---|---|:-:|
@@ -24,7 +24,7 @@
 | 5 | **기능** | Choose from Menu / Use Model 단계 설정값 UI 다듬기 | 🟢 착수 가능 |
 | 6 | **기능** | AI 3종 실제 FoundationModels 연동 | 🟡 **리서치 필요.** 현재는 정직한 실패 |
 | 7 | **검증** | macOS 14 런타임 실기 검증 (macOS 26에서만 확인됨) | 🟡 환경 부족 |
-| 8 | **품질** | 클린 빌드 경고 7종 정리 | 🟢 **이번에 발견.** "경고 0" 기록이 계속 거짓말 |
+
 | 9 | **조사** | `StoreBlobRecoveryTests` 격리 기전 특정 | 🟢 픽스처 격리로 우회함 — 원인은 미특정 |
 
 **에이전트가 대신할 수 없는 것**(사용자 실동작 52건·PR·macOS 14 실기)은
@@ -369,6 +369,17 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
+## v0.27 — 클린 빌드 경고 0 (2026-09-29)
+
+- [x] T-183: **클린 빌드 경고 13건(7종) 제거** — `onChange(of:perform:)` migration ·
+  `activateIgnoringOtherApps` 제거(14부터 효과 없음) · `weak` 캡처 소유권 정합 ·
+  `hideToast()` main-actor 격리 · `hotKeyID` var→let · AppIcon 중복본 삭제.
+  **`undo:`/`redo:`는 responder chain용이라 메서드를 선언하면 오히려 동작이 깨진다** —
+  `NSSelectorFromString`으로 정적 검사만 우회했다. **같은 이름이라도 호출 API에 따라
+  var/let가 다르다**(`GetEventParameter`는 inout, `RegisterEventHotKey`는 값).
+  **제거한 13건 중 1건은 오늘 쓴 `HTMLToMarkdown` 코드였다** — 새로 쓴 코드는
+  클린 빌드로 확인해야 한다 (점진 빌드는 경고를 숨긴다)
+
 ## v0.26 — 저장 계층 복구·debounce + 키 입력·HTML 3종 + Run Shortcut UI (2026-09-29)
 
 > "바로 착수 가능 6건"을 전부 처리. 테스트 381 → **451건 0실패**(2 skip),
@@ -397,10 +408,11 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   뻔한 것을 함께 막았다. 테스트 5건
 - [x] T-182: **T-132/T-135/L-09 무효화 정리 + 문서 정합**. `[~]` 표기 도입.
   세 항목의 코드 주장을 2026-09-29에 재검증. 문서 수치 전부 재계산
-- [ ] **클린 빌드 경고 7종 정리** — 이번에 발견. `onChange(of:perform:)`·
-  `activateIgnoringOtherApps` deprecation, `hideToast()` actor 격리 위반,
-  미사용 `hotKeyID`, `weak` 캡처 불일치, AppIcon unassigned child.
-  이번 변경분이 아니라 기존 결함이지만 **"경고 0" 기록이 계속 거짓말**이므로 착수 가능
+- [x] **클린 빌드 경고 13건(7종) 정리** — **T-183으로 완료**(2026-09-29). **경고 0.**
+  `onChange(of:perform:)` migration · `activateIgnoringOtherApps` 제거 ·
+  `weak` 캡처 소유권 정합 · `hideToast()` main-actor 격리 · `hotKeyID` var→let ·
+  AppIcon 중복본(`icon_1024.png`) 삭제. `undo:`/`redo:`는 responder chain용이라
+  **메서드를 선언하면 오히려 동작이 깨진다** — `NSSelectorFromString`으로 우회
 - [ ] **`StoreBlobRecoveryTests` 격리 기전 특정** — 픽스처 격리로 해결했지만
   저장소 공유 시에만 깨지는 **정확한 원인은 특정하지 못했다.** 남겨 둔다
 

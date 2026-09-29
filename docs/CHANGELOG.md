@@ -3,6 +3,45 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-29 macos — 클린 빌드 경고 13건(7종) 제거 (T-183)
+
+> `xcodebuild clean build` 기준 **경고 0건**. 점진 빌드는 경고를 숨겨서 0처럼 보인다.
+> **이번에 제거한 13건 중 1건은 오늘 새로 쓴 코드였다** (`HTMLToMarkdown`).
+
+| 종류 | 건 | 조치 |
+|---|:-:|---|
+| `onChange(of:perform:)` deprecated | 2 | 2-인자 `onChange(of:)` 로 migration. 동작 동일 |
+| `activateIgnoringOtherApps` deprecated | 1 | 제거. macOS 14부터 **효과가 없다** |
+| `weak` 캡처 소유권 어긋남 | 2 | 바깥 클로저에도 `[weak self]` 명시 |
+| `hideToast()` main-actor 격리 위반 | 1 | `MainActor.assumeIsolated` (전제 주석 명시) |
+| `undo:`/`redo:` 해석 실패 | 2 | `NSSelectorFromString` — **아래 함정 참조** |
+| `hotKeyID` 불필요한 `var` | 2 | `let` 로. 단 3번째 사용처는 `inout` 이라 `var` 유지 |
+| AppIcon 고아 파일 | 1 | 중복본 삭제 (아래 참조) |
+
+### 함정 1 — `undo:`/`redo:`는 메서드를 선언하면 동작이 깨진다
+
+컴파일러 경고는 "AppDelegate에 `undo:` 메서드 없음"이지만, 실제로는 **target이 nil이라
+responder chain이 처리한다**(`NSTextView`·`UndoManager`가 구현). AppDelegate에 빈
+`@objc func undo(_:)`를 추가해 경고를 끄면 **AppDelegate이 target이 되어 버려
+Cmd+Z가 죽는다.** `NSSelectorFromString`으로 런타임에 만들어 정적 검사를 우회했다.
+
+### 함정 2 — 같은 이름이라도 호출 API에 따라 `var`/`let` 가 다르다
+
+`hotKeyID`를 일괄 `let` 로 바꾸려 했다가 컴파일 에러. `GetEventParameter`는
+**inout으로 채워주므로** `var` 가 맞고, `RegisterEventHotKey`는 **값으로 받아서**
+`let` 이 맞다. 되돌린 뒤 주석에 구분 근거를 남겼다.
+
+### AppIcon 중복본
+
+`icon_1024.png`이 `Contents.json`에 없어 unassigned child 경고. macOS appiconset엔
+1024 슬롯이 없다(512@2x = 1024px가 그 역할). **SHA-256을 비교해
+`icon_512x512@2x.png`과 바이트 단위로 동일함**을 확인한 뒤 삭제했다 — 내용 손실 없음.
+
+### 부수
+
+`Contents.json`을 python으로 재직렬화하면 Xcode 포맷(`"key" : value`)과 달라
+diff가 88줄로 부풀었다. **변경이 필요 없었으므로 `git checkout`으로 원복**했다.
+
 ## 2026-09-29 macos — 저장 계층 복구·debounce + 키 입력·HTML 3종 + Run Shortcut UI (PLAN_v0.26, T-175~T-182)
 
 > 테스트 381 → **451건 0실패**(2 skip). 액션 구현 55 → 59종. i18n 876 → 891키.

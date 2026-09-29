@@ -20,7 +20,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 |---|---|---|
 | 테스트 | **451건 0실패** (2 skip, ~23초) | `./build_and_run.sh test macos unit` |
 | 스모크 | 69건 0실패 | `test macos smoke` |
-| 빌드 | **경고 7종 존재** (전부 기존 결함) | `xcodebuild clean build` — 이전 기록의 "경고 0"은 과장이었다 |
+| 빌드 | **클린 빌드 경고 0** | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. T-183으로 13건 제거 |
 | 액션 구현 | **59 / 162** (스텁 4, 미구현 100) | `ActionType.implementationCounts()` |
 | i18n | ko/en **891키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.3.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
@@ -73,9 +73,10 @@ T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한
 배포본이 `CODE_SIGNING_ALLOWED=NO`로 무서명이라 **사용자는 버전업마다 권한을 재승인한다.**
 코드로는 해결 불가 — Program 가입이 선행이다.
 
-**6. "빌드 경고 0"은 과장이다.**
-클린 빌드(`xcodebuild clean build`)에는 **경고 7종**이 있다. 캐시된 빌드는 재컴파일
-때만 경고를 보여주므로 점진 빌드로 확인하면 0처럼 보인다. 항상 `clean build`로 본다.
+**6. "빌드 경고 0"은 과장이었다 — T-183으로 해결.**
+클린 빌드에 **경고 13건(7종)**이 있었다. 캐시된 빌드는 재컴파일 때만 경고를
+보여주므로 점진 빌드로 확인하면 0처럼 보인다. **이제 클린 빌드 경고 0이다.**
+다시 같은 착각을 하지 않으려면 `xcodebuild clean build`로만 확인할 것.
 
 ---
 
@@ -134,9 +135,9 @@ T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한
 - Choose from Menu / Use Model 단계 설정값(actionParameters) UI 다듬기
 - `detectLanguage`(휴리스틱) · `recognizeText`(Vision — 프레임워크 내장이라 조사 부담 낮음)
 
-**이번 세션에 처리 완료** (T-175~T-181): blob 잠금 복구 경로 · 저장 debounce ·
+**이번 세션에 처리 완료** (T-175~T-183): blob 잠금 복구 경로 · 저장 debounce ·
 `JSONEncoder` 키 순서 결정성 · 키 입력·HTML 3종 · Run Shortcut 설정 UI ·
-T-132/T-135/L-09 무효화 정리
+T-132/T-135/L-09 무효화 정리 · **클린 빌드 경고 13건 제거**
 
 **착수 가능하나 규모 있음**:
 - T-036 (메뉴 명령 단계 + 선택 UI)
