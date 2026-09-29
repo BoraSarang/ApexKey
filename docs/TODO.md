@@ -369,7 +369,7 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
-## v0.28 — CI 실패 수정 + PR #7 머지 (2026-09-29)
+## v0.28 — CI 실패 수정 + PR #7 병합 (2026-09-29)
 
 - [x] T-184: **호스트 권한에 의존하던 테스트 수정** — `MenuActionPathTests.
   testMissingMenuItemProduces1728`이 PR #7의 첫 CI에서 실패했다. 로컬에서는 항상
@@ -379,6 +379,13 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   없으면 `XCTSkipUnless`로 실제 오류를 남기며 건너뛴다. 로컬에서는 그대로 실행된다
   - **로컬 테스트 통과가 CI 통과를 보장하지 않는다** — PR을 올리기 전 CI가
     유일하게 다른 호스트다
+- [x] T-185: **PR #7 생성·병합** — `fix/macos-audit-p0` → `main`, 60커밋
+  (v0.4~v0.27). 병합 커밋 `3664d99`. 기존 PR #6의 20커밋을 전부 포함해 GitHub이
+  자동 MERGED 처리했다. **병합 커밋 방식** — main의 기존 관례(`Merge pull request #N`)를
+  따랐고, **squash 하지 않았다**: 각 커밋에 회귀 테스트가 붙어 있어 커밋 단위로 읽어야
+  무엇을 막았는지 보이기 때문이다.
+  **배포는 되지 않는다** — `release.yml`은 태그 트리거, `pages.yml`은 `website/**`
+  변경 시만. PR CI와 main CI **둘 다 통과**
 
 ## v0.27 — 클린 빌드 경고 0 (2026-09-29)
 

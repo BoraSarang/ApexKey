@@ -3,6 +3,31 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-09-29 macos — PR #7 병합 (v0.4~v0.27, 59커밋)
+
+`fix/macos-audit-p0` → `main`. **60커밋**(T-184 포함). 병합 커밋 `3664d99`.
+
+기존 PR #6(`feat/macos-p0-critical-fixes`, 20커밋)의 커밋을 전부 포함하고 있어
+GitHub이 #6도 자동 MERGED 처리했다.
+
+**병합 방식**: `Merge pull request #7` 병합 커밋 — main의 기존 관례를 따랐다.
+squash하지 않은 이유는 **각 커밋에 회귀 테스트가 붙어 있어** 커밋 단위로 읽어야
+무엇을 막았는지 보이기 때문이다.
+
+### 배포는 되지 않는다
+
+`release.yml`은 **태그 트리거**라 main 병합으로 배포되지 않는다. `pages.yml`도
+`website/**` 변경 시에만 도는데 이번 변경은 그 경로를 건드리지 않는다.
+CI만 돌았다 — PR에서 한 번, main push에서 한 번, **둘 다 통과.**
+
+### CI가 실제로 한 일
+
+PR의 첫 CI에서 1건이 실패해 병합하지 않았다 (T-184).
+`MenuActionPathTests.testMissingMenuItemProduces1728`은 접근성 권한이 없는 러너에서
+-1728이 아니라 권한 오류를 받는다 — 앱의 분류 로직이 아니라 **러너의 권한 상태**를
+측정하는 테스트였다. 실측 probe로 게이팅해 수정했고, 로컬에서 probe가 성공하는 것을
+확인해 커버리지를 잃지 않았다.
+
 ## 2026-09-29 macos — CI 실패 1건 수정: 호스트 권한에 의존하던 테스트 (T-184)
 
 > PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건이 실패했다.
