@@ -130,20 +130,42 @@ T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한
 
 ## 7. 다음 세션이 할 수 있는 것
 
-**바로 착수 가능** (위험 낮음):
-- 단축키 프로필 / 빠른 전환
-- Choose from Menu / Use Model 단계 설정값(actionParameters) UI 다듬기
+### 읽는 순서
+
+1. `AGENTS.local.md` → 2. **이 문서** → 3. [`OPEN_ITEMS.md`](OPEN_ITEMS.md) →
+4. [`TODO.md`](TODO.md) → 5. `docs/plans/`의 최신 PLAN
+
+`docs/plans/SESSION_2026-09-27_handoff.md`는 **2026-09-27 스냅샷**이고 그 1·2·3·4순위는
+모두 처리됐다. 읽지 말고 현재 상태는 이 문서를 본다.
+
+### 착수 순서 제안
+
+**1순위 — 위험이 낮고 완결된다**
 - `detectLanguage`(휴리스틱) · `recognizeText`(Vision — 프레임워크 내장이라 조사 부담 낮음)
+- Choose from Menu / Use Model 단계 설정값(actionParameters) UI 다듬기
+- 단축키 프로필 / 빠른 전환
 
-**이번 세션에 처리 완료** (T-175~T-183): blob 잠금 복구 경로 · 저장 debounce ·
-`JSONEncoder` 키 순서 결정성 · 키 입력·HTML 3종 · Run Shortcut 설정 UI ·
-T-132/T-135/L-09 무효화 정리 · **클린 빌드 경고 13건 제거**
+**2순위 — 규모 있음**
+- T-036 (메뉴 명령 단계 실행 불가 + 앱/메뉴 선택 UI)
+- 미구현 액션 100종의 Apple 앱 연동 — **앱별 API 조사 선행 필요**
 
-**착수 가능하나 규모 있음**:
-- T-036 (메뉴 명령 단계 + 선택 UI)
-- 미구현 액션 100종의 Apple 앱 연동 (앱별 조사 선행)
+**착수 불가 (조건 대기)**
+- Developer ID 서명 — Apple Developer Program 가입 대기
+- `saveContext → Bool` — 저장 실패를 결정적으로 재현할 수단이 없음
+- AI 3종 FoundationModels — API 리서치 선행
 
-**착수 불가**:
-- 서명 (Program 가입 대기)
-- `saveContext → Bool` (검증 수단 대기)
-- AI 3종 (리서치 대기)
+### 이 세션에 처리 완료 (T-175~T-183)
+
+blob 잠금 복구 경로 · 저장 debounce · `JSONEncoder` 키 순서 결정성 ·
+키 입력·HTML 3종 · Run Shortcut 설정 UI · T-132/T-135/L-09 무효화 정리 ·
+**클린 빌드 경고 13건 제거(경고 0)**
+
+### 새 코드를 쓴 다음 세션이 반드시 지킬 것
+
+- **`xcodebuild clean build`로 경고를 확인한다.** 점진 빌드는 재컴파일하지 않은
+  파일의 경고를 숨겨서 0처럼 보인다. 이번에 제거한 13건 중 1건은 **그날 새로 쓴
+  코드**였다
+- **테스트가 고립 실행에서 통과하면 끝이 아니다.** 비결정적 결함은 전체 스위트에서만
+  드러난다 (T-177)
+- **실패를 빈 값·0·원문으로 뭉개지 않는다.** 조용한 실패는 조용할수록 오래 남는다
+- **비교가 필요하면 인코딩이 결정적인지 먼저 확인한다** (`StoreCoding`만 쓸 것)
