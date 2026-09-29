@@ -54,8 +54,10 @@ enum AppSwitcher {
             // 잠시 대기 후 활성화
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
+                    // `activateIgnoringOtherApps`는 macOS 14부터 **효과가 없다**(deprecation).
+                    // 넣어도 활성화 동작은 같으므로 제거한다. 남기면 경고만 남고
+                    // "이 옵션이 무시되는 걸 모른다"는 오해를 부른다.
                     app.activate(options: [.activateAllWindows])
-                    app.activate(options: [.activateIgnoringOtherApps])
                 }
             }
             return true

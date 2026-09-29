@@ -289,7 +289,10 @@ extension AppDelegate {
             return
         }
         let payload = ToastPayload(title: title, message: message, success: success)
-        let hosting = NSHostingController(rootView: ThemedRoot {
+        // 바깥 클로저에도 `[weak self]`를 명시한다. 안 그러면 바깥이 `self`를
+        // 암시적으로 **strong** 캡처한 채로 안쪽만 weak가 되어 소유권이 어긋난다
+        // (#ImplicitStrongCapture). 표시되는 토스트가 AppDelegate를 붙잡고 있어도
+        let hosting = NSHostingController(rootView: ThemedRoot { [weak self] in
             ToastView(payload: payload) { [weak self] in
                 self?.hideToast()
                 self?.openDebugLog()
@@ -327,7 +330,13 @@ extension AppDelegate {
 
         toastTimer?.invalidate()
         toastTimer = Timer.scheduledTimer(withTimeInterval: success ? 1.5 : 6.0, repeats: false) { [weak self] _ in
-            self?.hideToast()
+            // `Timer` 블록은 nonisolated 컨텍스트라 main-actor 메서드를 바로 부를 수 없다.
+            // `RunLoop.main`에 스케줄했으므로 **항상 메인 스레드에서 firing**된다 —
+            // 따라서 `assumeIsolated`이 정당하다. `DispatchQueue.main.async`로 넘기는
+            // 것도 맞지만 한 턴 지연되어 타이밍이 미세하게 어긋난다.
+            MainActor.assumeIsolated {
+                self?.hideToast()
+            }
         }
         Logger.info("AppDelegate", "[TOAST] \(success ? "성공" : "실패"): \(title)")
     }
@@ -392,7 +401,7 @@ extension AppDelegate {
         }
         guard let win = updateWindow else { return }
         let hosting = NSHostingController(rootView:
-            ThemedRoot {
+            ThemedRoot { [weak self] in
                 UpdateAvailableSheet(
                     release: release,
                     currentVersion: ReleaseChecker.currentVersion,

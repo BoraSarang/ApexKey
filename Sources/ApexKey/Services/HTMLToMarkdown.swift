@@ -75,7 +75,7 @@ enum HTMLToMarkdown {
             return .failure(.emptyInput)
         }
         let tokens = try? tokenize(input)
-        guard var tokens, !tokens.isEmpty else {
+        guard let tokens, !tokens.isEmpty else {
             return .failure(.unbalancedTags)
         }
         // 태그가 하나도 없으면 "HTML이 아니다" — 원문을 그대로 내보내지 않는다

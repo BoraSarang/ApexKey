@@ -48,10 +48,20 @@ extension AppDelegate {
 
         // 편집 메뉴 — 없으면 TextEditor/TextField에서 Cmd+C/V/X/A/Z가 동작하지 않음.
         // (AppKit은 메인 메뉴의 표준 edit action을 통해 first responder로 전달)
+        //
+        // **`undo:`/`redo:`에 `Selector("…")`를 쓰면 경고가 난다.** 컴파일러가 이
+        // 파일(AppDelegate 확장)의 `@objc` 멤버와 대조해 "해당 메서드 없음"으로
+        // 보고하는데, 실제로는 **target이 nil이라 responder chain이 처리한다.**
+        // `NSTextView`·`UndoManager`가 `undo:`를 구현하고 있다.
+        //
+        // AppDelegate에 빈 `@objc func undo(_:)`를 선언해 경고를 끄면 **동작이 깨진다**
+        // — AppDelegate이 target이 되어 버려 UndoManager로 전달되지 않는다.
+        // 따라서 `NSSelectorFromString`로 런타임에 만들어 정적 검사를 건드리지 않는다.
+        let responderChainAction = { (name: String) in NSSelectorFromString(name) }
         let editMenu = NSMenu(title: "ui.edit".localized)
         let editItems: [(String, Selector, String)] = [
-            ("ui.menu.undo".localized, Selector("undo:"), "z"),
-            ("ui.menu.redo".localized, Selector("redo:"), "Z"),
+            ("ui.menu.undo".localized, responderChainAction("undo:"), "z"),
+            ("ui.menu.redo".localized, responderChainAction("redo:"), "Z"),
             ("ui.menu.cut".localized, #selector(NSText.cut(_:)), "x"),
             ("ui.copy".localized, #selector(NSText.copy(_:)), "c"),
             ("ui.menu.paste".localized, #selector(NSText.paste(_:)), "v"),
