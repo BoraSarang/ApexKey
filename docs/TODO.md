@@ -6,38 +6,51 @@
 ## 이 문서 읽는 법
 
 - **[x] 는 여기서 끝난 기록**이다. 읽지 말고 넘어가도 된다
-- **[ ] 가 실제로 남은 일**이다. 현재 **14건** — 목록은 아래
+- **[ ] 가 실제로 남은 일**이다. 현재 **9건** — 목록은 아래
+- **[~] 는 무효화**다. 실행할 작업이 아니라 **폐기된 요구사항**이다. 구현하지 않는 것이
+  의도이며, 누군가 "왜 안 하지?" 하고 되살리면 안 된다
 - **에이전트가 대신할 수 없는 것**(사용자 실동작 52건·PR·서명)은
   [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서(TODO)에는 없다
 - 진행 현황 전체는 [`STATUS.md`](STATUS.md), 문서 색인은 [`README.md`](README.md)
 
-## 현재 미해결 14건 (2026-09-29)
+## 현재 미해결 9건 (2026-09-29)
 
-| 분류 | 항목 | 상태 |
-|---|---|---|
-| **배포** | T-166 후속 — Developer ID 서명 + notarization | 🔴 **Program 가입이 선행.** 코드만으로 불가 |
-| **저장** | `saveContext` → `Bool` 반환 | 🟡 **검증 수단 없음** — SwiftData 저장 실패 재현 불가(`PLAN_v0.24`에 근거) |
-| **저장** | blob 손상 컬럼 영구 쓰기 잠금 해제 경로 | 🟢 착수 가능 |
-| **저장** | 저장 debounce (스텝 편집 1회 = blob 4컬럼 재인코딩) | 🟢 착수 가능 |
-| **기능** | T-036 — 동작의 메뉴 명령 단계 실행 불가 + 앱/메뉴 선택 UI | 🟡 규모 큼 |
-| **기능** | Run Shortcut ↔ 자동화 UI 조회 단계 연결 (재귀 공유 변수) | 🟢 |
-| **기능** | Choose from Menu / Use Model 단계 설정값 UI 다듬기 | 🟢 |
-| **기능** | AI 3종 실제 FoundationModels 연동 | 🟡 **리서치 필요.** 현재는 정직한 실패 |
-| **미구현 액션** | 남은 **103종** (`ActionType` 162종 중 55종 구현 · 4종 스텁) | 🟡 대부분 Apple 앱 연동 → ScriptingBridge 필요 |
-| **정리** | T-132 / T-135 — 완료로 표시돼 있으나 v0.8 S-05가 무효화 | 🟢 문서만 |
-| **정리** | L-09 — "키 526 전수 존재"는 **거짓 주장**이었던 기록 | 🟢 문서만 |
-| **검증** | macOS 14 런타임 실기 검증 (macOS 26에서만 확인됨) | 🟡 |
-| — | 오프라인/큐 | ⚪ **비해당**(로컬 앱) — 닫을 것 |
+| # | 분류 | 항목 | 상태 |
+|:-:|---|---|:-:|
+| 1 | **배포** | T-166 후속 — Developer ID 서명 + notarization | 🔴 **Program 가입이 선행.** 코드만으로 불가 |
+| 2 | **저장** | `saveContext` → `Bool` 반환 | 🟡 **검증 수단 없음** (`PLAN_v0.24`에 근거) |
+| 3 | **기능** | T-036 — 동작의 메뉴 명령 단계 실행 불가 + 앱/메뉴 선택 UI | 🟡 규모 큼 |
+| 4 | **기능** | 단축키 프로필 / 빠른 전환 | 🟢 착수 가능 |
+| 5 | **기능** | Choose from Menu / Use Model 단계 설정값 UI 다듬기 | 🟢 착수 가능 |
+| 6 | **기능** | AI 3종 실제 FoundationModels 연동 | 🟡 **리서치 필요.** 현재는 정직한 실패 |
+| 7 | **검증** | macOS 14 런타임 실기 검증 (macOS 26에서만 확인됨) | 🟡 환경 부족 |
+| 8 | **품질** | 클린 빌드 경고 7종 정리 | 🟢 **이번에 발견.** "경고 0" 기록이 계속 거짓말 |
+| 9 | **조사** | `StoreBlobRecoveryTests` 격리 기전 특정 | 🟢 픽스처 격리로 우회함 — 원인은 미특정 |
 
-### 미구현 액션 103종의 성격
+**에이전트가 대신할 수 없는 것**(사용자 실동작 52건·PR·macOS 14 실기)은
+[`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서에는 없다 — 두 목록의 경계를
+섞지 않는 것이 이 구조의 목적이다.
 
-Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할 수 없다.
+### 무효화된 항목 `[~]` 3건 (2026-09-29 정리)
+
+`[x]`도 `[ ]`도 아니다. **구현하지 않는 게 의도**이며 되살리면 안 된다.
+- **T-132** `ADB Wi-Fi` 샘플 동작 자동 생성 → Android 미러가 `SystemActionType`으로
+  이관돼 `ensureADBWifiSample()`는 삭제만 한다 (`ConfigStore.swift:384-385`)
+- **T-135** 동작 고정 프리셋 → `BuiltInShortcutPresets.all = []`이 "호환용 스텁"으로
+  남아 있다 (`ConfigStore.swift:509-511`)
+- **L-09** "키 N 전수 존재" 주장 → **`check-localizable.py`에 키 존재 검사 로직이 없다.**
+  2026-09-29에 재확인했다. 누락 키는 게이트를 통과하고 UI에 원문 키로 노출된다.
+  키 수는 계속 늘므로 문서에 고정하지 않고 결함으로만 기록한다
+
+### 미구현 액션 100종의 성격
+
+Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 `Photos`·`Music`·`Mail`·`Calendar`·`Reminders`·`Podcasts`는 ScriptingBridge 또는
 앱별 URL scheme이 필요하다 — **각 앱의 API를 먼저 조사해야** 착수 가능하다.
 
 남은 것 중 그래도 순수 로직으로 가능한 후보:
-`htmlToMarkdown`(HTML 파서 필요하지만 순수) · `detectLanguage`(휴리스틱) ·
-`typeText`·`typeNumber`(키 입력 — `ActionExecutor`에 기반 코드 존재)
+`detectLanguage`(휴리스틱) · `recognizeText`(Vision — 프레임워크 내장이라 조사 부담 낮음) ·
+`measurement`/`listActions`/`getDictionary`(Apple framework API)
 
 ---
 
@@ -158,10 +171,10 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
 
 - [x] T-130: 셸 실행 강화 — `ActionExecutor.runShellScript`가 Homebrew/Android SDK PATH 자동 포함 + 출력/종료코드 로그 + 성공 여부 반환. `.runScriptInShell` 미구현(E-MAC-ACT-3005) 해소. `ExecutionEngine`에 `.script`/`.runScriptInShell` 명시 분기(변수 토큰 치환 후 실행)
 - [x] T-131: 스크립트 전용 설정 UI — `ScriptSettingsView`(제목+여러 줄 명령+테스트 실행 버튼). `ShortcutEditorView.selectStep`이 스크립트 단계도 설정 창 열도록 연결 (기존엔 설정 창이 안 열려 target 비어있는 채로 방치됨)
-- [ ] T-132: `ADB Wi-Fi 연결` 샘플 동작 자동 제공 — ~~첫 실행이 아닌 기존 사용자도 이름 기준 1회 생성~~ → **실제 코드는 생성이 아니라 삭제** (`ConfigStore.swift:301-304` `ensureADBWifiSample()` → `removeLegacyAndroidShortcutsIfNeeded()`). v0.8 S-05가 무효화했으나 `[x]` 잔존 → **[ ] superseded](plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정)
+- [~] T-132 **(무효화 — 2026-09-29 확인)**: `ADB Wi-Fi 연결` 샘플 동작 자동 제공 — ~~첫 실행이 아닌 기존 사용자도 이름 기준 1회 생성~~ → **실제 코드는 생성이 아니라 삭제** (`ConfigStore.swift:301-304` `ensureADBWifiSample()` → `removeLegacyAndroidShortcutsIfNeeded()`). v0.8 S-05가 무효화했으나 `[x]` 잔존 → **[~] 무효화](plans/ACTION_AUDIT_v3_macos.md)**. 2026-09-29에 코드 재확인: `ConfigStore.swift:384-385`에서 `ensureADBWifiSample()`가 `removeLegacyAndroidShortcutsIfNeeded()`만 부른다. Android 미러는 `SystemActionType.androidMirror`로 이관됐으므로 **샘플 동작을 만들지 않는 게 의도된 설계**다
 - [x] T-133: 스크립트 테스트 결과 표시 — `runShellScriptResult`가 출력/종료코드 반환, `ScriptSettingsView`에 성공·실패 배지 + 결과 텍스트 표시. `ApexKeyScriptTests` 7건(ADB 실기 end-to-end 포함)
 - [x] T-134: Cmd+C/V/X/A/Z 미동작 — 메인 메뉴에 앱 메뉴만 있고 편집 메뉴가 없어 first responder로 전달 불가. `AppDelegate.makeMainMenu`에 편집 메뉴(실행 취소/다시 실행/잘라내기/복사/붙여넣기/지우기/모두 선택, target nil=responder chain) 추가. `ApexKeyMenuTests` 회귀 테스트
-- [ ] T-135: 동작 고정 프리셋 — ~~시스템 탭(SystemActionType)과 동급 취급. `BuiltInShortcutPresets`(Android Untether/Mirror 2개…)에 코드 고정 + `ensureBuiltInShortcuts`가 이름 기준 자동 보충~~ → **실제 코드는 빈 배열 + 삭제** (`ConfigStore.swift:428-430` `BuiltInShortcutPresets.all = []` "호환용 스텁", `ensureBuiltInShortcuts()`는 `removeLegacyAndroidShortcutsIfNeeded()` 호출). v0.8 S-05가 무효화 → **[ ] superseded](plans/ACTION_AUDIT_v3_macos.md)** (2026-09-27 감사에서 [x]→[ ] 정정). 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영은 유효
+- [~] T-135 **(무효화 — 2026-09-29 확인)**: 동작 고정 프리셋 — ~~시스템 탭(SystemActionType)과 동급 취급. `BuiltInShortcutPresets`(Android Untether/Mirror 2개…)에 코드 고정 + `ensureBuiltInShortcuts`가 이름 기준 자동 보충~~ → **실제 코드는 빈 배열 + 삭제** (`ConfigStore.swift:428-430` `BuiltInShortcutPresets.all = []` "호환용 스텁", `ensureBuiltInShortcuts()`는 `removeLegacyAndroidShortcutsIfNeeded()` 호출). v0.8 S-05가 무효화 → **[~] 무효화](plans/ACTION_AUDIT_v3_macos.md)**. 2026-09-29에 코드 재확인: `ConfigStore.swift:384-385`에서 `ensureADBWifiSample()`가 `removeLegacyAndroidShortcutsIfNeeded()`만 부른다. Android 미러는 `SystemActionType.androidMirror`로 이관됐으므로 **샘플 동작을 만들지 않는 게 의도된 설계**다. 미러 scrcpy 옵션(`--show-touches --stay-awake --legacy-paste --max-size=1024 --video-bit-rate=2M --max-fps=30`) 반영은 유효
 - [x] T-136: 편집기 빨간 X 저장 유실 — 단계 설정 수정 후 윈도우 닫기(빨간 X)로 닫으면 저장 없이 유실 (헤더 X만 저장). `ShortcutEditorView`에 `.onDisappear` 저장(단계/이름/설명/자동화/변수) 추가. `build_and_run.sh debug`에 기존 앱 종료+재시작(5/5) 추가
 
 ## v0.4 — 깊은 리팩터 R1 (2026-09-16, PLAN_v0.4_refactor)
@@ -194,7 +207,7 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
 - [x] L-06: 키 "error.user.*" 추가 + ExecutionEngine/ActionExecutor/AIAvailability 사용자 에러 로컬라이즈
 - [x] L-07: ConfigStore(+Preferences/+Macro/+Bindings) + Views(ThemeSettings/SidebarNavigation/StepSettings/MenuHUD/HotKeyRecorder) + AppDelegate 창 타이틀 로컬라이즈
 - [x] L-08: ApexKeyModelTests를 키 기반 비교로 재작성 (언어 무관)
-- [ ] L-09: 검증 — ~~strings 문법(plutil OK) + 코드 참조 키 526 전수 존재~~ + build_and_run test smoke 통과(compile) + 현지화 가드 0건 통과 → **"키 526 전수 존재"는 거짓 주장**. `scripts/check-localizable.py`는 한글 리터럴 검사만 하고 **키 존재 검사 로직 0건**. 실제 키 수는 801(ko/en 동일). 2026-09-27 감사에서 분리 기록
+- [~] L-09 **(기록 정정 — 결함 아님)**: 검증 — ~~strings 문법(plutil OK) + 코드 참조 키 526 전수 존재~~ + build_and_run test smoke 통과(compile) + 현지화 가드 0건 통과 → **"키 526 전수 존재"는 거짓 주장**이었다. `scripts/check-localizable.py`는 한글 리터럴 검사만 하고 **키 존재 검사 로직 0건** — 2026-09-29에 `missing|exists|not in` 검색으로 재확인했다. 누락 키는 게이트를 통과하고 **UI에 원문 키로 노출된다**. 키 수는 계속 늘어나므로 문서에 고정하지 않고 `docs/README.md`에 결함으로만 기록한다
 - [x] L-10: 서비스 출력 로컬라이즈 — WritingToolExecutor(8) / ImagePlaygroundExecutor(2) / VariableResolver(3) / MenuEnumerator 상태(4)
 - [x] L-11: LLM 프롬프트 로컬라이즈 — UseModelExecutor FollowUp 대화 헤더·역할 (3키)
 - [x] L-12: 가드 스크립트 `scripts/check-localizable.py` 추가 + `build_and_run.sh` 게이트 연결
@@ -356,6 +369,41 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
+## v0.26 — 저장 계층 복구·debounce + 키 입력·HTML 3종 + Run Shortcut UI (2026-09-29)
+
+> "바로 착수 가능 6건"을 전부 처리. 테스트 381 → **451건 0실패**(2 skip),
+> 액션 구현 55 → 59종, i18n 891키. 상세는
+> [`plans/PLAN_v0.26_store-and-input_macos.md`](plans/PLAN_v0.26_store-and-input_macos.md)
+
+- [x] T-175: **blob 손상 컬럼 영구 쓰기 잠금에 복구 경로** (E-MAC-STORE-5010).
+  `tryRecoverBlob`이 "손상 시점 fallback과 달라졌을 때만" 해제한다.
+  **왕복 검증만으로는 fallback(`[]`)과 정상값을 구별할 수 없다** — fallback도 왕복에
+  성공하므로 원본 보호 가드가 자기 목적을 무력화한다. 값의 **출처**를 추적해야 한다.
+  컬럼은 독립적 — 안 건드린 컬럼의 잠금은 유지된다. 테스트 9건
+- [x] T-177: **`JSONEncoder` 키 순서 결정성** (E-MAC-STORE-5012). ★ 가장 중요한 발견.
+  기본 `outputFormatting`은 **프로세스마다 키 순서가 달라진다** (Swift `Hasher` 시드가
+  무작위). 실측: 같은 `ShortcutPermissions`를 두 번 인코딩해 165바이트로 길이는 같은데
+  내용이 달랐다. `StoreCoding`을 `.sortedKeys`로 고정 — 안 고쳐졌으면 T-175의 가드가
+  **간헐적으로 열려 사용자 원본을 덮어썼을 것.** 5회 연속 전체 스위트로 확인
+- [x] T-176: **저장 debounce** (E-MAC-STORE-5011). `updateShortcutSteps`만 합치고
+  명시적 뮤테이션은 합치지 않는다("추제한 게 안 보인다"는 불안 방지). 종료 시
+  `flushPendingSaves()`. `queue.sync` 데드락 회피. 테스트 12건(배선 포함)
+- [x] T-179: **`typeText`·`typeNumber`·`htmlToMarkdown`** (E-MAC-TEXT-6003).
+  게시와 계획을 분리해 권한 없이 테스트. 한글을 Character 경계에서만 잘라 결합음자
+  보호. HTML은 자체 파서 — **태그가 없으면 원문을 돌려주지 않고 실패**시킨다.
+  테스트가 실제 버그 3건 잡음(엔티티 `;` 잔존 · `Optional()` 보간 · 닫는 태그 오판)
+- [x] T-181: **Run Shortcut 전용 설정 UI** (E-MAC-FLOW-7011). 엔진은 정상이고 UI가
+  없었다. `ThemedRoot`가 store를 주입하지 않아 `@EnvironmentObject` 크래시가 날
+  뻔한 것을 함께 막았다. 테스트 5건
+- [x] T-182: **T-132/T-135/L-09 무효화 정리 + 문서 정합**. `[~]` 표기 도입.
+  세 항목의 코드 주장을 2026-09-29에 재검증. 문서 수치 전부 재계산
+- [ ] **클린 빌드 경고 7종 정리** — 이번에 발견. `onChange(of:perform:)`·
+  `activateIgnoringOtherApps` deprecation, `hideToast()` actor 격리 위반,
+  미사용 `hotKeyID`, `weak` 캡처 불일치, AppIcon unassigned child.
+  이번 변경분이 아니라 기존 결함이지만 **"경고 0" 기록이 계속 거짓말**이므로 착수 가능
+- [ ] **`StoreBlobRecoveryTests` 격리 기전 특정** — 픽스처 격리로 해결했지만
+  저장소 공유 시에만 깨지는 **정확한 원인은 특정하지 못했다.** 남겨 둔다
+
 ## v0.25 — 수치·날짜·목록 액션 12종 + 문서 구조 정비 + 미완료 장부 (2026-09-29)
 
 - [x] T-172: **수치·날짜·목록 액션 12종 구현** — `changeCase`·`sort`·`surroundText`·
@@ -371,7 +419,7 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
     `parse()`를 depth 0으로 호출해 리셋됐다(`((((...))))` 500중첩이 통과) ② 제 테스트의
     기대값 오류
 - [x] T-173: **문서 구조 정비** — `docs/README.md`(색인)와 `docs/STATUS.md`(현황 단일 출처)
-  신규. `TODO.md` 최상단에 미해결 14건 요약 인덱스 추가. `FUNCTIONAL_CHECKLIST.md` §6에
+  신규. `TODO.md` 최상단에 미해결 요약 인덱스 추가 (수는 고정하지 않음). `FUNCTIONAL_CHECKLIST.md` §6에
   "감사 스냅샷이라 낡아진다 — 착수 전 코드와 대조할 것" 경고 추가.
   §8-8 신설(텍스트/데이터 액션 23종 UI 확인 14항목)
 - [x] T-174: **미완료 항목 장부 분리** — "안 한 것"이 `STATUS.md`·`FUNCTIONAL_CHECKLIST.md`·
@@ -478,14 +526,26 @@ Apple 앱 연동이 대부분이라 이번처럼 "순수 로직"으로 처리할
 
 - [x] 대형 파일 분할 (CustomTheme 1600줄·AppDelegate 950줄) — v0.20
 - [x] blob 손상 덮어씀 가드 (P0-8) — **v0.16 S-01 `encodeKeeping`으로 이미 구현됨**. 잔류 백로그가 아님 (2026-09-27 감사 확인)
-- [ ] ~~`menuPath` 편집 UI + `runShortcut`/`system` 선택 UI (P1-5 잔류)~~ → T-036로 이동 ([ ] 상태)
-- [ ] **blob 손상 컬럼 영구 쓰기 잠금 해제 경로** — `corruptedShortcutBlobColumns` 해제 지점이 `load()`·`removeShortcut`뿐이라, 인코딩 실패 시 4컬럼 전부 영구 잠금. T-141 이후 착수
-- [ ] **`saveContext` → `Bool` 반환** — 23개 호출부. 컴파일 오류로 누락 호출부 자동 발견
-- [ ] **저장 debounce** — 스텝 편집 1회 = 전체 blob 4컬럼 재인코딩 + save
-- [x] **`ConfigStore()` 인스턴스 테스트 0건 보강** — **T-169로 완료**(2026-09-29). `init`에 storeDirectory·defaults 주입 + 테스트 23건- [ ] **단축키 프로필/빠른 전환**
-- [ ] Run Shortcut 호출 시 ConfigStore 자동화 UI에서 조회 단계 연결 (multishortcut 재귀 공유 변수 전달)
+- [~] ~~`menuPath` 편집 UI + `system` 선택 UI (P1-5 잔류)~~ — T-036으로 이관됨. 별개 작업이 아니다.
+  **`runShortcut` 선택 UI는 T-181로 완료** (2026-09-29) — 전용 동작 피커 추가
+- [x] **blob 손상 컬럼 영구 쓰기 잠금 해제 경로** — **T-175로 완료**(2026-09-29).
+  `tryRecoverBlob`이 "손상 시점 fallback과 달라졌을 때만" 해제한다. 왕복 검증만으로는
+  fallback(`[]`)과 정상값을 구별할 수 없다는 걸 테스트가 잡아내 출처 추적을 추가했다.
+  같은 조사에서 `JSONEncoder` 키 순서의 **비결정성**을 발견해 `.sortedKeys`로 고정 (E-MAC-STORE-5012)
+- [ ] **`saveContext` → `Bool` 반환** — 23개 호출부. 컴파일 오류로 누락 호출부 자동 발견.
+  **검증 수단 없음** — chmod는 소유자에게 통하지 않고 SQLite 배타 락은 무한 대기를 유발
+- [x] **저장 debounce** — **T-176으로 완료**(2026-09-29). `CoalescingScheduler`가
+  `updateShortcutSteps`만 합친다. 명시적 뮤테이션(추가·삭제·이름)은 합치지 않는다 —
+  합치면 "추제한 게 안 보인다"는 불안이 생긴다. 종료 시 `flushPendingSaves()`로 유실 방지
+- [x] **`ConfigStore()` 인스턴스 테스트 0건 보강** — **T-169로 완료**(2026-09-29).
+  `init`에 storeDirectory·defaults 주입 + 테스트 23건
+- [ ] **단축키 프로필/빠른 전환**
+- [x] Run Shortcut 호출 시 … 조회 단계 연결 — **T-181로 완료**(2026-09-29).
+  조사 결과 엔진은 정상이었고 **설정 UI가 없었다**(`DefaultSettingsView`로 떨어짐) —
+  사용자가 UUID를 직접 입력해야 했다. 전용 피커를 추가했다. `ThemedRoot`가
+  `store`를 주입하지 않아 `@EnvironmentObject` 크래시가 날 뻔한 건을 함께 막았다
 - [ ] Choose from Menu/Use Model 등 단계 저장값(actionParameters) UI 연동 세부 다듬기
 - [ ] **AI 3종 실제 FoundationModels 연동** — A-03은 "정직한 실패"로 전환하는 것. 실제 구현은 별도 과제(리서치 필요)
 - [x] **P1 순수 로직 11종** — **T-171로 완료**(2026-09-29). `text`·`combineText`·`splitText`·`trimWhitespace`·`replaceText`·`regex`·`matchText`·`count`·`formatNumber`·`getClipboard`·`setClipboard` 11종 구현 + 전용 설정 UI + 테스트 40건
-- [ ] 오프라인/큐(비해당 — 로컬 앱)
+- [~] 오프라인/큐 — **비해당.** 로컬 앱이다
 - [ ] macOS 14 런타임 실기 검증 (v0.3.2로 SwiftUI 빈 윈도우 근본 제거, macOS 26에서 검증 완료) — 배포 타깃 14 컴파일만 보장

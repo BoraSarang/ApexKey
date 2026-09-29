@@ -18,16 +18,16 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **381건 0실패** (2 skip, ~13초) | `./build_and_run.sh test macos unit` |
+| 테스트 | **451건 0실패** (2 skip, ~23초) | `./build_and_run.sh test macos unit` |
 | 스모크 | 69건 0실패 | `test macos smoke` |
-| 빌드 | 경고 0 | `xcodebuild` 전체 재컴파일 기준 |
-| 액션 구현 | **55 / 162** (스텁 4, 미구현 103) | `ActionType.implementationCounts()` |
-| i18n | ko/en **876키 일치** | `*.lproj/Localizable.strings` |
+| 빌드 | **경고 7종 존재** (전부 기존 결함) | `xcodebuild clean build` — 이전 기록의 "경고 0"은 과장이었다 |
+| 액션 구현 | **59 / 162** (스텁 4, 미구현 100) | `ActionType.implementationCounts()` |
+| i18n | ko/en **891키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.3.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
-| 미해결 작업 | **14건** | `TODO.md` |
+| 미해결 작업 | **7건** (+ 무효화 5건) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
-| user 실동작 대기 | **52건** (8-1~8-8) | `FUNCTIONAL_CHECKLIST.md` §8 |
-| 브랜치 | `fix/macos-audit-p0` — main보다 49커밋 앞 | — |
+| user 실동작 대기 | **61건** (8-1~8-10) | `FUNCTIONAL_CHECKLIST.md` §8 |
+| 브랜치 | `fix/macos-audit-p0` — main보다 53커밋 앞 | — |
 | 릴리스 | **없음** (PR 없음, 브랜치 push만 됨) | — |
 
 ---
@@ -42,21 +42,40 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | **PLAN_v0.24** 텍스트 액션 11종 | 카탈로그 "준비 중" → 실제 동작 |
 | **T-172** 수치·날짜·목록 액션 12종 | 위와 동일 |
 
-### 특히 중요한 발견 3가지
+### 특히 중요한 발견
 
-**1. `VersionedSchema`만으로는 데이터 소실을 막지 못한다.**
+**1. ★ `JSONEncoder`의 키 순서는 프로세스마다 다르다 (E-MAC-STORE-5012).**
+`outputFormatting`을 지정하지 않으면 내부 딕셔너리를 거치는데, **Swift의 `Hasher`
+시드는 프로세스마다 무작위**라 같은 값도 프로세스를 넘기면 바이트가 달라진다.
+(실측: `ShortcutPermissions`를 두 번 인코딩해 165바이트로 길이는 같은데 내용이 달랐다)
+
+`StoreCoding`을 `.sortedKeys`로 고정했다. 이게 안 고쳐졌으면 T-175의 복구 가드가
+**간헐적으로 열려 사용자 원본 데이터를 조용히 덮어썼을 것**이다. 원래부터 있던
+잠재 결함이 비교가 필요한 코드가 생기면서 드러났다.
+`StoreBlobRecoveryTests`가 고립 실행에서는 통과하고 전체 스위트에서만 실패했다 —
+**비결정적 결함의 전형적 징후이니 같은 증상이 보이면 원인을 재현 데이터로 좁힐 것.**
+
+**2. `VersionedSchema`만으로는 데이터 소실을 막지 못한다.**
 `stepsData`·`permissionsData`는 불투명한 `Data`라 SwiftData 마이그레이션이 무관하고,
 Swift의 합성 `Decodable`은 **프로퍼티 기본값을 무시한다**(`= false`여도 키 없으면
 `keyNotFound`). 필드 하나 추가 → 레코드 전체 디코딩 실패 → **영구 쓰기 잠금**.
 T-168이 이걸 닫았다. (`PLAN_v0.23`)
 
-**2. `FUNCTIONAL_CHECKLIST.md` §6이 이미 고친 항목을 미해결로 보여줬다.**
+**3. 왕복 검증만으로는 "값이 안 바뀌었는지"를 알 수 없다 (E-MAC-STORE-5010).**
+fallback인 `[]`도 인코딩 후 디코딩하면 그대로 `[]`이 돌아온다. 즉 원본 보호를
+목적으로 한 가드가 **자기 목적을 무력화**한다. 값의 **출처**를 추적해야 한다.
+
+**4. `FUNCTIONAL_CHECKLIST.md` §6이 이미 고친 항목을 미해결로 보여줬다.**
 감사 스냅샷이라 시간이 지나면 낡아진다. 실제로 그랬다. **착수 전 현재 코드와 대조할 것.**
 
-**3. 릴리스의 T-029 수정은 배포본에서 무효다.**
+**5. 릴리스의 T-029 수정은 배포본에서 무효다.**
 T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한 초기화를 고쳤는데,
 배포본이 `CODE_SIGNING_ALLOWED=NO`로 무서명이라 **사용자는 버전업마다 권한을 재승인한다.**
 코드로는 해결 불가 — Program 가입이 선행이다.
+
+**6. "빌드 경고 0"은 과장이다.**
+클린 빌드(`xcodebuild clean build`)에는 **경고 7종**이 있다. 캐시된 빌드는 재컴파일
+때만 경고를 보여주므로 점진 빌드로 확인하면 0처럼 보인다. 항상 `clean build`로 본다.
 
 ---
 
@@ -67,7 +86,7 @@ T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한
 | **Developer ID 서명 + notarization** | Apple Developer Program(연 $99) 가입이 선행 | 사용자 가입. 코드(`release.yml`)는 그 다음 |
 | **`saveContext` → `Bool`** | **검증 수단이 없음.** chmod는 소유자에게 통하지 않고, SQLite 배타 락은 저장 실패가 아니라 **무한 대기**를 유발 | SwiftData 저장 실패를 결정적으로 재현하는 수단 (예: 읽기 전용 볼륨 위의 store) |
 | **AI 3종 FoundationModels 연동** | macOS 26 / Apple Intelligence 가용성, API 리서치 필요 | 리서치 후 착수. 현재는 **정직한 실패**로 동작 중 |
-| **미구현 액션 103종** | 대부분 Apple 앱 연동 (`Photos`·`Music`·`Mail`·`Calendar`·`Reminders`·`Podcasts`) | 앱별 API 조사 필요. ScriptingBridge 또는 URL scheme |
+| **미구현 액션 100종** | 대부분 Apple 앱 연동 (`Photos`·`Music`·`Mail`·`Calendar`·`Reminders`·`Podcasts`) | 앱별 API 조사 필요. ScriptingBridge 또는 URL scheme |
 | **macOS 14 실기 검증** | 이 세션은 macOS 26에서만 실행 | macOS 14 기기 또는 가상머신 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월 | `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
 
@@ -80,11 +99,11 @@ T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한
 
 | 항목 | 왜 안 했나 |
 |---|---|
-| **사용자 실동작 검증 52건** | 에이전트가 대신할 수 없음 (스레드·핫키·권한·UI). `FUNCTIONAL_CHECKLIST.md` §8. **8-7(8건)이 특히 위험** — 스레드 모델을 바꿨다 |
+| **사용자 실동작 검증 61건** | 에이전트가 대신할 수 없음 (스레드·핫키·권한·UI). `FUNCTIONAL_CHECKLIST.md` §8. **8-7·8-9·8-10(17건)이 특히 위험** — 스레드 모델을 바꿨다. 이번에 8-9(키 입력)·8-10(debounce)이 추가됐다 |
 | **PR 생성 / main 병합** | 브랜치는 push됐지만 PR 없음. v0.4~v0.25가 한 번에 들어가 리뷰 범위가 크다 |
 | **macOS 14 런타임 실기 검증** | 이 작업은 macOS 26에서만 수행됐다 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월. `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
-| **`docs/plans/` 27개 정리** | **하지 않기로 판단.** 각 파일에 `status`가 있어 색인만 있으면 된다. 삭제·이동하면 이력 맥락이 사라진다 |
+| **`docs/plans/` 28개 정리** | **하지 않기로 판단.** 각 파일에 `status`가 있어 색인만 있으면 된다. 삭제·이동하면 이력 맥락이 사라진다 |
 | **`TODO.md` 427줄 재배치** | **하지 않기로 판단.** 요약 인덱스로 탐색 비용만 낮췄다. 재배치하면 "T-036이 왜 superseded됐는지" 같은 맥락이 사라진다 |
 | **CI 서명 경로 검증** | 서명 도입의 일부. T-166 후속과 함께 |
 
@@ -111,14 +130,17 @@ T-029는 "고정 TeamID → CDHash 유지 → 접근성 권한 유지"로 권한
 ## 7. 다음 세션이 할 수 있는 것
 
 **바로 착수 가능** (위험 낮음):
-- 저장 debounce
-- blob 손상 컬럼 영구 쓰기 잠금 해제 경로
-- Run Shortcut ↔ 자동화 UI 연결
-- T-132 / T-135 / L-09 문서 정리
+- 단축키 프로필 / 빠른 전환
+- Choose from Menu / Use Model 단계 설정값(actionParameters) UI 다듬기
+- `detectLanguage`(휴리스틱) · `recognizeText`(Vision — 프레임워크 내장이라 조사 부담 낮음)
+
+**이번 세션에 처리 완료** (T-175~T-181): blob 잠금 복구 경로 · 저장 debounce ·
+`JSONEncoder` 키 순서 결정성 · 키 입력·HTML 3종 · Run Shortcut 설정 UI ·
+T-132/T-135/L-09 무효화 정리
 
 **착수 가능하나 규모 있음**:
 - T-036 (메뉴 명령 단계 + 선택 UI)
-- 미구현 액션 103종의 Apple 앱 연동 (앱별 조사 선행)
+- 미구현 액션 100종의 Apple 앱 연동 (앱별 조사 선행)
 
 **착수 불가**:
 - 서명 (Program 가입 대기)
