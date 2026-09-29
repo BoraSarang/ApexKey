@@ -310,7 +310,11 @@ struct ShortcutEditorView: View {
 
     /// 단계 상세 설정을 독립 창으로 표시 — steps 배열 요소를 가리키는 Binding 전달
     private func openStepSettings(for step: ShortcutStep) {
-        (NSApp.delegate as? AppDelegate)?.showStepSettings(for: stepBinding(for: step))
+        // 현재 동작 ID를 넘긴다 — Run Shortcut 피커가 자기 자신을 제외하려면 필요하다
+        (NSApp.delegate as? AppDelegate)?.showStepSettings(
+            for: stepBinding(for: step),
+            currentShortcutID: shortcut.id
+        )
     }
     
     // MARK: - 액션 추가

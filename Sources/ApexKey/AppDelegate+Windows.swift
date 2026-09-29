@@ -207,9 +207,16 @@ extension AppDelegate {
     }
 
     /// 단계 상세 설정을 독립 창으로 표시 — 전달된 Binding이 편집기의 steps 요소를 가리킴
-    func showStepSettings(for stepBinding: Binding<ShortcutStep>) {
+    func showStepSettings(for stepBinding: Binding<ShortcutStep>, currentShortcutID: UUID? = nil) {
         Logger.info("AppDelegate", "[EDITOR] 단계 설정 창")
         NSApp.activate(ignoringOtherApps: true)
+        // Run Shortcut 피커는 동작 목록을 읽어야 하므로 store가 필요하고,
+        // `ThemedRoot`는 theme만 주입한다 — **여기서 store를 넣지 않으면
+        // `@EnvironmentObject` 접근 시 런타임 크래시**가 난다.
+        guard let store else {
+            Logger.error("E-MAC-FLOW-7011", "단계 설정 창을 열 수 없음 — store 미초기화")
+            return
+        }
         let win: NSWindow
         if let existing = stepSettingsWindow {
             win = existing
@@ -227,7 +234,12 @@ extension AppDelegate {
             win = w
         }
         // 편집 대상 단계가 바뀔 수 있으므로 매번 새 호스팅 컨트롤러로 rootView 교체
-        let hosting = NSHostingController(rootView: ThemedRoot { StepSettingsView(step: stepBinding) })
+        let hosting = NSHostingController(
+            rootView: ThemedRoot {
+                StepSettingsView(step: stepBinding, currentShortcutID: currentShortcutID)
+            }
+            .environmentObject(store)
+        )
         stepSettingsHosting = hosting
         win.contentViewController = hosting
         win.setContentSize(NSSize(width: 480, height: 680))

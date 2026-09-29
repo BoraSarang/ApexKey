@@ -6,6 +6,8 @@ struct StepSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.theme) private var theme
     @Binding var step: ShortcutStep
+    /// 편집 중인 동작의 ID — Run Shortcut 피커가 자기 자신을 제외하는 데 쓴다
+    var currentShortcutID: UUID?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -102,6 +104,9 @@ struct StepSettingsView: View {
             ImagePlaygroundSettingsView(step: $step)
         case .setVariable, .outputToVariable:
             VariableStepSettingsView(step: $step)
+
+        case .runShortcut:
+            RunShortcutSettingsView(step: $step, currentShortcutID: currentShortcutID)
         // 텍스트 액션 11종 — 전용 UI 없이는 "선택은 되지만 쓸 수 없다"가 된다 (E-MAC-TEXT-6001)
         case .text, .combineText, .splitText, .trimWhitespace, .replaceText,
              .regex, .matchText, .count, .formatNumber, .getClipboard, .setClipboard,
