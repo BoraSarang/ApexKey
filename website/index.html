@@ -215,6 +215,13 @@
     <p class="download-note">
       Homebrew (<code>brew install borasarang/tap/apexkey</code>) is on the way.
     </p>
+    <p class="download-warn">
+      ⚠️ Current releases are <strong>unsigned and not notarized.</strong>
+      Launch with <strong>right-click → Open</strong> on first run — a Gatekeeper block is expected.
+      You must <strong>re-grant Accessibility permission on every update</strong>,
+      because macOS binds that permission to the code signature and an unsigned app's identity
+      changes with each build. Planned fix: Developer ID signing + notarization.
+    </p>
     <pre class="code-block"><code># Build from source
 brew install xcodegen
 xcodegen generate --spec project.yml
