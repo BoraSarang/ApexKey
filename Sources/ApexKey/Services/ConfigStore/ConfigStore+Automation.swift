@@ -33,7 +33,21 @@ extension ConfigStore {
             self?.runAutomation(shortcutID: shortcutID, trigger: trigger, input: event.toVariableValue())
         }
         ExecutionEngine.shared.shortcutProvider = { [weak self] shortcutID in
-            self?.shortcuts.first(where: { $0.id == shortcutID })
+            // E-MAC-ACT-3006: 실행이 백그라운드로 옮겨져 이 클로저가 **오프메인에서** 불린다
+            // (Run Shortcut 단계가 하위 단축어를 조회할 때). `shortcuts`는 MainActor 상태라
+            // 직접 읽으면 데이터 경쟁이므로 메인으로 한 번 홉한다.
+            //
+            // 교착이 없는 이유: 실행 큐는 직렬이고, 메인은 실행 큐를 기다리지 않는다.
+            // 메인이 막히는 유일한 경로(동기 실행)는 이번 커밋에서 제거했다.
+            guard let self else { return nil }
+            if Thread.isMainThread {
+                return self.shortcuts.first(where: { $0.id == shortcutID })
+            }
+            var resolved: ShortcutItem?
+            DispatchQueue.main.sync {
+                resolved = self.shortcuts.first(where: { $0.id == shortcutID })
+            }
+            return resolved
         }
         automationManager.unregisterAll()
         for shortcut in shortcuts where !shortcut.automations.isEmpty {
@@ -43,6 +57,10 @@ extension ConfigStore {
     }
 
     /// 자동화 트리거로 단축어 실행
+    ///
+    /// E-MAC-ACT-3006: 실행은 백그라운드로, 통계 갱신은 메인으로.
+    /// 컨텍스트 구성에 MainActor 상태(변수 기본값)를 쓰므로 **메인에서 먼저 끝내고**,
+    /// 값 타입만 캡처해 백그라운드로 넘긴다.
     func runAutomation(shortcutID: UUID, trigger: AutomationTrigger, input: VariableValue) {
         guard let shortcut = shortcuts.first(where: { $0.id == shortcutID }) else {
             Logger.error("E-MAC-AUTO-8001", "자동화 대상 단축어 없음: \(shortcutID.uuidString.prefix(8))")
@@ -63,12 +81,19 @@ extension ConfigStore {
             }
         }
 
-        let result = ExecutionEngine.shared.execute(shortcut, context: &context)
-        if result.success, let idx = shortcuts.firstIndex(where: { $0.id == shortcutID }) {
-            shortcuts[idx].lastRunAt = Date()
-            shortcuts[idx].runCount += 1
-            syncShortcut(shortcuts[idx])
-        }
-        Logger.info("ConfigStore", "자동화 실행 결과: success=\(result.success)")
+        runOffMainThread(
+            {
+                ExecutionEngine.shared.execute(shortcut, context: &context)
+            },
+            onFinish: { [weak self] result in
+                guard let self else { return }
+                if result.success, let idx = self.shortcuts.firstIndex(where: { $0.id == shortcutID }) {
+                    self.shortcuts[idx].lastRunAt = Date()
+                    self.shortcuts[idx].runCount += 1
+                    self.syncShortcut(self.shortcuts[idx])
+                }
+                Logger.info("ConfigStore", "자동화 실행 결과: success=\(result.success)")
+            }
+        )
     }
 }

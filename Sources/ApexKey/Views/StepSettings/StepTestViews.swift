@@ -75,7 +75,9 @@ struct StepTestFooter: View {
         isTesting = true
         didTest = false
         Logger.info("FEATURE", "[STEP-TEST] 테스트 실행 시작 (\(snapshot.type.rawValue))")
-        DispatchQueue.global(qos: .userInitiated).async {
+        // E-MAC-ACT-3006: 핫키 실행과 같은 **직렬** 큐를 쓴다.
+        // `.global`로 돌리면 실행이 겹쳐 사이보그 모드(pauseSemaphore) 상태가 뒤섞인다.
+        ExecutionEngine.executionQueue.async {
             let success: Bool
             let output: String
             let errorOutput: String

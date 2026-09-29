@@ -4,10 +4,25 @@ import AppKit
 /// 단축어 실행 엔진 — 단계를 순서대로 실행하며 흐름 제어(If/Repeat/ChooseFromMenu) 처리
 final class ExecutionEngine {
     static let shared = ExecutionEngine()
-    
+
+    /// 실행 전용 **직렬** 큐 (E-MAC-ACT-3006)
+    ///
+    /// 왜 직렬인가: 실행 횟수가 아니라 **상태가 하나뿐인 싱글턴**이 있다.
+    /// - `ActionExecutor.pauseSemaphore` — 사이보그 모드는 대기 중 세마포어 하나를 갖는다.
+    ///   두 실행이 겹치면 나중에 시작한 쪽이 이전 세마포어를 교체·신호해 대기가 깨진다.
+    /// - `ActionExecutor.pauseMonitor` — NSEvent 모니터도 하나뿐이다.
+    /// 메인 스레드 동기 실행에서는 이 직렬성이 런타임이 공짜로 보장했으므로
+    /// 백그라운드로 옮기면서 **직접 보존해야 한다.** `DispatchQueue.global`로 풀면 안 된다.
+    ///
+    /// 핫키 실행·자동화 실행·단계 테스트가 전부 이 큐를 공유한다.
+    static let executionQueue = DispatchQueue(
+        label: "com.borasarang.ApexKey.execution",
+        qos: .userInitiated
+    )
+
     /// Run Shortcut이 호출할 단축어 조회 클로저 (ConfigStore에서 주입)
     var shortcutProvider: ((UUID) -> ShortcutItem?)?
-    
+
     /// Run Shortcut 최대 재귀 깊이 (순환 호출 가드)
     static let maxRunShortcutDepth = 10
 
