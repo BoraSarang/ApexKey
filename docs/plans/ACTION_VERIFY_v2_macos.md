@@ -12,7 +12,7 @@
 - **수동 체크**: 시나리오대로 직접 해보고 `[ ]` → `[x]`로 바꾼다. 실패하면 행 뒤에 `FAIL: 증상` 메모.
 - **마지막 자동 반영**: 2026-09-21 — [자동] 행 24통과 0실패 1스킵
 
-## 자동화 가능/불가 경계 (확인済)
+## 자동화 가능/불가 경계 (확인함)
 
 - **자동 가능**: 실패 경로(오타 번들ID·빈 입력·문법 오류), 파싱/인코딩 왕복, 읽기 전용 실실행
   (셸 echo·Finder 이름 조회 AppleScript/JXA), 기기 없을 때의 조용한 실패.
@@ -70,8 +70,8 @@
 |---|---|---|---|
 | [ ] | V-SYS-01 | Android 미러: 기기 없음 → 조용히 실패(false), 크래시 없음 (기기 연결 시 스킵) | [자동] `ApexKeyActionVerifyTests.testVerifyAndroidMirrorNoDeviceFailsGracefully` <!-- auto:ApexKeyActionVerifyTests.testVerifyAndroidMirrorNoDeviceFailsGracefully --> **SKIP**|
 | [x] | V-SYS-02 | 시스템 액션 9종 타입·이름·아이콘 완비 (목록 누락 방지) | [자동] `ApexKeyActionVerifyTests.testVerifySystemActionCatalogComplete` <!-- auto:ApexKeyActionVerifyTests.testVerifySystemActionCatalogComplete --> |
-| [x] | M-SYS-01 | 시스템 탭에 `Android Remote Mirror (scrcpy)` 표시 + 실행 버튼 동작 (기기 연결 시 scrcpy 뜸) | [수동] 2026-09-21 확인: 단축키 실동작으로 scrcpy 정상 표시 (동일 execute 경로). USB+무선 중복 연결 시 기기 미지정 실패 → `-s` 시리얼 명시로 수정済. 이후 외부 파일 `scrcpy_run.sh` 단일 소스로 전환 (재빌드 없이 파일 수정 즉시 반영) |
-| [x] | M-SYS-02 | 미러에 단축키 지정 → 글로벌 핫키로 실행됨 | [수동] 2026-09-21 확인: 지정 단축키로 scrcpy 뜸 |
+| [x] | M-SYS-01 | 시스템 탭에 `Android Remote Mirror (scrcpy)` 표시 + 실행 버튼 동작 (기기 연결 시 scrcpy 뜬다) | [수동] 2026-09-21 확인: 단축키 실동작으로 scrcpy 정상 표시 (동일 execute 경로). USB+무선 중복 연결 시 기기 미지정 실패 → `-s` 시리얼 명시로 수정함. 이후 외부 파일 `scrcpy_run.sh` 단일 소스로 전환 (재빌드 없이 파일 수정 즉시 반영) |
+| [x] | M-SYS-02 | 미러에 단축키 지정 → 글로벌 핫키로 실행됨 | [수동] 2026-09-21 확인: 지정 단축키로 scrcpy 뜬다 |
 | [ ] | M-SYS-03 | 과거 고정 3건(Untether/Mirror/Remote) 삭제됨 + 예시 동작 재생성 없음 | [수동] |
 
 ## KEYCOMBO — 키 조합 보내기

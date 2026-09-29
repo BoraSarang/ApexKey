@@ -535,7 +535,7 @@ macOS TCC는 접근성 권한을 앱의 코드 서명(CDHash)에 묶는데, 서�
 - **R-01 엔진 실패 전파** — 미구현 액션이 성공으로 둔갑하던 silent 실패 해소. `default` 분기가 변수 토큰 치환 후 실행하고 실패를 `Result(success:false)`로 반환, 단계 루프가 전체 성공도를 추적. 실행 통계·자동화도 실패 시 미증가로 일관
 - **R-02/R-03 대기·입력대기** — `wait`가 호출 스레드에서 동기 sleep(순서 보장), 메인 스레드 호출 시 `E-MAC-ACT-3006` 경고. `pauseUntilInput`은 메인 호출 시 교착 대신 백그라운드 전환
 - **R-04 메뉴바 타입 확인** — `as!` 강제 캐스트를 타입ID 비교 + `unsafeDowncast`로 교체, 불일치 시 `E-MAC-MENU-3004`
-- **R-05 저장 묵살 해소** — `saveContext`/`fetchContext`/`StoreCoding` 헬퍼로 `try?` 30여 곳을 에러 로그付き로 전환 (`E-MAC-STORE-5001` 저장/`5002` 인코딩/`5003` 디코딩/`5004` 조회)
+- **R-05 저장 묵살 해소** — `saveContext`/`fetchContext`/`StoreCoding` 헬퍼로 `try?` 30여 곳을 에러 로그를 남기도록 전환 (`E-MAC-STORE-5001` 저장/`5002` 인코딩/`5003` 디코딩/`5004` 조회)
 - **R-06 죽은 코드 삭제** — `runScript` 래퍼, `debugInfo`, `toModelContext`(손실 변환), `value(forName:)` 제거. `executeFollowUp`은 Follow-Up 토글 UI용이라 유지(연결은 백로그)
 - **R-07 PATH 단일화** — `ShellEnvironment` 신설, 앱·테스트가 공유 (adb 탐색 경로 드리프트 방지)
 - **R-08 카테고리 정합** — 변수 5종 `.variables` 귀속(중복 등록 해소), `automationRun`/`trigger`를 automation 목록에 추가. 변수 단계 색상이 cyan으로 통일
