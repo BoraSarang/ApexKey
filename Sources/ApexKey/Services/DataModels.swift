@@ -225,6 +225,30 @@ final class PersistedShortcut {
         return cols
     }
 
+    /// 손상 컬럼의 **fallback 메모리 값**을 인코딩한 바이트 (E-MAC-STORE-5010)
+    ///
+    /// 왜 이것이 필요한가:
+    /// 복구 판정의 유일한 안전한 신호는 "값이 손상 시점의 fallback에서 **바뀌었는지**"다.
+    /// **왕복 검증만으로는 불가능하다** — fallback인 `[]`도 인코딩 후 디코딩하면
+    /// 그대로 `[]`이 돌아온다. 즉 `[]`는 왕복에 성공하므로, 왕복만 보는 가드는
+    /// "손상 원본을 조용히 덮어쓴다"를 막지 못한다. (테스트가 이걸 실제로 잡았다)
+    ///
+    /// 그래서 손상 시점에 fallback을 **기록**해 두고, 저장 시점에 현재 값과 비교한다.
+    /// 값이 같으면 "아직 손상 직후 그대로" → 잠금 유지. 다르면 "누군가 바꿨다" → 복구.
+    func fallbackBlobBytes(_ column: StoreBlobColumn) -> Data {
+        // `toShortcut()`와 **동일한 fallback**을 써야 비교가 성립한다.
+        switch column {
+        case .steps:
+            return StoreCoding.encode([ShortcutStep](), label: "fallback 단계")
+        case .triggers:
+            return StoreCoding.encode([AutomationTrigger](), label: "fallback 트리거")
+        case .variables:
+            return StoreCoding.encode([Variable](), label: "fallback 변수")
+        case .permissions:
+            return StoreCoding.encode(ShortcutPermissions(), label: "fallback 권한")
+        }
+    }
+
     func toShortcut() -> ShortcutItem {
         let steps = StoreCoding.decode([ShortcutStep].self, from: stepsData, label: "단축어 단계", fallback: [])
         let triggers = StoreCoding.decode([AutomationTrigger].self, from: triggersData, label: "자동화 트리거", fallback: [])

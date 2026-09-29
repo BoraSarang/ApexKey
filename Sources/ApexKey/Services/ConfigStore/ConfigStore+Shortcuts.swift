@@ -48,6 +48,7 @@ extension ConfigStore {
         AutomationManager.shared.unregister(shortcutID: shortcut.id)
         shortcuts.removeAll { $0.id == shortcut.id }
         corruptedShortcutBlobColumns.removeValue(forKey: shortcut.id)
+        corruptedBlobFallbackBytes.removeValue(forKey: shortcut.id)
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedShortcut>(predicate: #Predicate { $0.id == shortcut.id })
         if let found = fetchContext(context, fetch).first {
@@ -136,7 +137,10 @@ extension ConfigStore {
             if !corrupt.isEmpty {
                 Logger.error("E-MAC-STORE-5003", "손상 blob 컬럼 쓰기 건너뜀: \(shortcut.name) (\(corrupt.map(\.rawValue).sorted().joined(separator: ",")))")
             }
-            if !corrupt.contains(.steps) {
+            if corrupt.contains(.steps) {
+                // 잠긴 컬럼이라도 지금 값이 왕복하면 잠금을 푼다 (E-MAC-STORE-5010)
+                tryRecoverBlob(shortcut.steps, column: .steps, id: shortcut.id) { found.stepsData = $0 }
+            } else {
                 found.stepsData = StoreCoding.encodeKeeping(shortcut.steps, previous: found.stepsData, label: "단축어 단계")
             }
             found.iconRaw = shortcut.icon.displayName
@@ -149,17 +153,73 @@ extension ConfigStore {
             found.modifiedAt = shortcut.modifiedAt
             found.lastRunAt = shortcut.lastRunAt
             found.runCount = shortcut.runCount
-            if !corrupt.contains(.triggers) {
+            if corrupt.contains(.triggers) {
+                tryRecoverBlob(shortcut.automations, column: .triggers, id: shortcut.id) { found.triggersData = $0 }
+            } else {
                 found.triggersData = StoreCoding.encodeKeeping(shortcut.automations, previous: found.triggersData, label: "자동화 트리거")
             }
-            if !corrupt.contains(.variables) {
+            if corrupt.contains(.variables) {
+                tryRecoverBlob(shortcut.variables, column: .variables, id: shortcut.id) { found.variablesData = $0 }
+            } else {
                 found.variablesData = StoreCoding.encodeKeeping(shortcut.variables, previous: found.variablesData, label: "사용자 변수")
             }
-            if !corrupt.contains(.permissions) {
+            if corrupt.contains(.permissions) {
+                tryRecoverBlob(shortcut.permissions, column: .permissions, id: shortcut.id) { found.permissionsData = $0 }
+            } else {
                 found.permissionsData = StoreCoding.encodeKeeping(shortcut.permissions, previous: found.permissionsData, label: "단축어 권한")
             }
         }
         saveContext(context)
+    }
+
+    /// 잠긴 blob 컬럼의 복구를 시도한다 (E-MAC-STORE-5010)
+    ///
+    /// **왜 필요한가**: `corruptedShortcutBlobColumns`의 해제 지점이 `load()`와
+    /// `removeShortcut`뿐이었다. 그래서 한 번 손상되면 그 컬럼은 **영구 쓰기 잠금**이 되고,
+    /// 복구 경로는 동작 삭제뿐이다. 사용자가 아무리 편집해도 저장은 계속 건너뛰어진다.
+    /// 데이터는 소실되지 않지만 **편집이 반영되지 않는다** — 사용자는 버그로 느낀다.
+    ///
+    /// **해제 조건 3가지 (모두 만족해야 한다)**:
+    /// 1. 인코딩이 성공했다
+    /// 2. 디코딩이 성공하고 원래 값과 같다 (왕복)
+    /// 3. **손상 시점의 fallback 값과 다르다**
+    ///
+    /// 3번이 핵심이다. 처음엔 1·2번(왕복)만으로 충분하다고 생각했는데 **틀렸다** —
+    /// fallback인 `[]`도 왕복에 성공하므로, 이 조건만으로는 "손상 원본을 조용히
+    /// 덮어쓴다"(P0-3이 막으려던 것)를 막지 못한다. 테스트가 실제로 이 결함을 잡았다.
+    /// 값의 **출처**를 추적해야 구별할 수 있다. (`corruptedBlobFallbackBytes`)
+    ///
+    /// 알려진 한계: 사용자가 의도적으로 그 값을 fallback과 같은 값(빈 배열 등)으로
+    /// 만들면 잠금이 유지된다. 안전 쪽으로 실패하는 선택이며, 빈 값 저장이 필요한
+    /// 경우는 드물다. 잠금을 강제로 푸는 경로는 **두지 않는다** — 원본을 지우는
+    /// 유일한 방법이 되어 버리면 P0-3이 무의미해진다.
+    ///
+    /// - Parameter apply: 조건을 모두 만족했을 때만 호출해 blob을 덮어쓴다
+    private func tryRecoverBlob<T: Codable & Equatable>(
+        _ value: T,
+        column: StoreBlobColumn,
+        id: UUID,
+        apply: (Data) -> Void
+    ) {
+        let data = StoreCoding.encode(value, label: "blob 복구 시도 (\(column.rawValue))")
+        guard !data.isEmpty else { return }
+        guard let roundTrip = try? JSONDecoder().decode(T.self, from: data), roundTrip == value else {
+            Logger.info("ConfigStore", "[SHORTCUT] blob 잠금 유지: \(column.rawValue) (왕복 불일치)")
+            return
+        }
+        // 조건 3 — 아직 손상 직후의 fallback 값이면 "바뀐 게 없다"
+        if let fallback = corruptedBlobFallbackBytes[id]?[column], fallback == data {
+            Logger.info("ConfigStore", "[SHORTCUT] blob 잠금 유지: \(column.rawValue) (손상 시점 fallback과 동일 — 사용자 변경 없음)")
+            return
+        }
+        apply(data)
+        corruptedShortcutBlobColumns[id]?.remove(column)
+        corruptedBlobFallbackBytes[id]?[column] = nil
+        if corruptedShortcutBlobColumns[id]?.isEmpty == true {
+            corruptedShortcutBlobColumns.removeValue(forKey: id)
+            corruptedBlobFallbackBytes.removeValue(forKey: id)
+        }
+        Logger.info("ConfigStore", "[SHORTCUT] blob 잠금 해제: \(column.rawValue) — 사용자 변경분으로 복구됨")
     }
 
     // MARK: - 편집기 저장 (기존 ShortcutEditorView 확장 이관)

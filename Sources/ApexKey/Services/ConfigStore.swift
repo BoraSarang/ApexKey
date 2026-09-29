@@ -87,6 +87,11 @@ final class ConfigStore: ObservableObject {
     var container: ModelContainer?
     /// 원본 blob 디코딩 실패 컬럼 — 해당 컬럼은 sync 시 원본 Data 유지 (P0-3)
     var corruptedShortcutBlobColumns: [UUID: Set<StoreBlobColumn>] = [:]
+    /// 손상 시점의 fallback 값 스냅샷 (E-MAC-STORE-5010)
+    ///
+    /// 복구 판정 기준. 왕복 검증만으로는 fallback(`[]`)과 정상적인 빈 값을 구별할 수 없다.
+    /// 여기 기록된 바이트와 **같으면** "아직 손상 직후 그대로"이므로 잠금을 유지한다.
+    var corruptedBlobFallbackBytes: [UUID: [StoreBlobColumn: Data]] = [:]
     /// 저장소 손상 격리 후 재생성된 경우 백업 경로 (UI 안내용, P0-2)
     @Published var storeRecoveryBackupPath: String? = nil
     private var cancellables = Set<AnyCancellable>()
@@ -328,10 +333,15 @@ final class ConfigStore: ObservableObject {
         let persistedShortcuts = fetchContext(context, shortcutFetch)
         // 디코딩 실패 blob 컬럼 기록 — 이후 sync가 원본을 덮어쓰지 않도록 (P0-3)
         corruptedShortcutBlobColumns.removeAll()
+        corruptedBlobFallbackBytes.removeAll()
         for p in persistedShortcuts {
             let corrupt = p.undecodableBlobColumns()
             if !corrupt.isEmpty {
                 corruptedShortcutBlobColumns[p.id] = corrupt
+                // 복구 판정 기준: 손상 시점의 fallback 값 (E-MAC-STORE-5010)
+                var snapshots: [StoreBlobColumn: Data] = [:]
+                for c in corrupt { snapshots[c] = p.fallbackBlobBytes(c) }
+                corruptedBlobFallbackBytes[p.id] = snapshots
                 Logger.error("E-MAC-STORE-5003", "blob 디코딩 실패 — 해당 컬럼 쓰기 가드: \(p.name) (\(corrupt.map(\.rawValue).sorted().joined(separator: ",")))")
             }
         }
