@@ -6,6 +6,9 @@ import Combine
 /// 앱 전역 상태 저장소 (SwiftData + HotKeyService 연동)
 @MainActor
 final class ConfigStore: ObservableObject {
+    /// 설정 영속 대상 — 테스트에서는 전용 suite를 주입해 실제 설정을 오염시키지 않는다 (E-MAC-STORE-5009)
+    private let defaults: UserDefaults
+
     @Published var apps: [AppItem] = []
     @Published var bindings: [HotKeyBinding] = []
     @Published var scripts: [ScriptItem] = []
@@ -15,7 +18,7 @@ final class ConfigStore: ObservableObject {
     @Published var showHiddenApps: Bool {
         didSet {
             guard showHiddenApps != oldValue else { return }
-            UserDefaults.standard.set(showHiddenApps, forKey: Self.PrefKeys.showHiddenApps)
+            defaults.set(showHiddenApps, forKey: Self.PrefKeys.showHiddenApps)
         }
     }
     @Published var showPalette = false
@@ -26,43 +29,43 @@ final class ConfigStore: ObservableObject {
     @Published var toggleHotkey: HotKeyCombo
     @Published var paletteHotkey: HotKeyCombo
     @Published var alwaysOnTop = false {
-        didSet { UserDefaults.standard.set(alwaysOnTop, forKey: PrefKeys.alwaysOnTop) }
+        didSet { defaults.set(alwaysOnTop, forKey: PrefKeys.alwaysOnTop) }
     }
     @Published var showInMenuBar = true {
-        didSet { UserDefaults.standard.set(showInMenuBar, forKey: PrefKeys.showInMenuBar) }
+        didSet { defaults.set(showInMenuBar, forKey: PrefKeys.showInMenuBar) }
     }
     @Published var showInDock = false {
-        didSet { UserDefaults.standard.set(showInDock, forKey: PrefKeys.showInDock) }
+        didSet { defaults.set(showInDock, forKey: PrefKeys.showInDock) }
     }
     @Published var menuHUDStyle: MenuHUDStyle = .floatingWindow {
-        didSet { UserDefaults.standard.set(menuHUDStyle.rawValue, forKey: PrefKeys.menuHUDStyle) }
+        didSet { defaults.set(menuHUDStyle.rawValue, forKey: PrefKeys.menuHUDStyle) }
     }
     @Published var showNoShortcutItems: Bool = true {
 
-        didSet { UserDefaults.standard.set(showNoShortcutItems, forKey: PrefKeys.showNoShortcutItems) }
+        didSet { defaults.set(showNoShortcutItems, forKey: PrefKeys.showNoShortcutItems) }
     }
     @Published var showSystemApps: Bool = true {
         didSet {
-            UserDefaults.standard.set(showSystemApps, forKey: PrefKeys.showSystemApps)
+            defaults.set(showSystemApps, forKey: PrefKeys.showSystemApps)
             if showSystemApps {
                 addSystemAppsIfMissing()
             }
         }
     }
     @Published var showSuccessToast: Bool = true {
-        didSet { UserDefaults.standard.set(showSuccessToast, forKey: PrefKeys.showSuccessToast) }
+        didSet { defaults.set(showSuccessToast, forKey: PrefKeys.showSuccessToast) }
     }
     @Published var updateState: UpdateState = .idle
     @Published var updateCheckFrequency: UpdateCheckFrequency = .weekly {
-        didSet { UserDefaults.standard.set(updateCheckFrequency.rawValue, forKey: PrefKeys.updateFrequency) }
+        didSet { defaults.set(updateCheckFrequency.rawValue, forKey: PrefKeys.updateFrequency) }
     }
     /// 마지막 업데이트 확인 시각 (UserDefaults 영속 — 재실행해도 주기 유지)
     @Published var updateCheckedAt: Date? {
         didSet {
             if let date = updateCheckedAt {
-                UserDefaults.standard.set(date.timeIntervalSince1970, forKey: PrefKeys.updateLastChecked)
+                defaults.set(date.timeIntervalSince1970, forKey: PrefKeys.updateLastChecked)
             } else {
-                UserDefaults.standard.removeObject(forKey: PrefKeys.updateLastChecked)
+                defaults.removeObject(forKey: PrefKeys.updateLastChecked)
             }
         }
     }
@@ -73,10 +76,10 @@ final class ConfigStore: ObservableObject {
             if let code = appLanguage, !code.isEmpty {
                 // AppleLanguages 단일 출처는 LanguageManager (E-MAC-UX-9008)
                 LanguageManager.shared.setLanguage(code)
-                UserDefaults.standard.set(code, forKey: PrefKeys.appLanguage)
+                defaults.set(code, forKey: PrefKeys.appLanguage)
             } else {
                 LanguageManager.shared.setLanguage(nil)
-                UserDefaults.standard.removeObject(forKey: PrefKeys.appLanguage)
+                defaults.removeObject(forKey: PrefKeys.appLanguage)
             }
             Logger.info("ConfigStore", "앱 언어 설정 변경: \(appLanguage ?? "시스템") — 재시작 필요")
         }
@@ -108,8 +111,33 @@ final class ConfigStore: ObservableObject {
 
 
 
-    init() {
-        let defaults = UserDefaults.standard
+    /// 앱 전역 저장소 생성 — 실제 앱 진입점
+    convenience init() {
+        self.init(storeDirectory: nil, defaults: .standard, seedInstalledApps: true, registerSystemIntegrations: true)
+    }
+
+    /// 저장소 경로와 전역 부작용을 주입 가능한 초기화 (E-MAC-STORE-5009)
+    ///
+    /// 왜 주입 가능하게 했나: `storeURL`이 하드코딩돼 있어 `ConfigStore()`를 인스턴스화하는
+    /// 테스트가 **0건**이었다. 바인딩 추가·교체·삭제, 앱 제거 시 고아 핫키 정리,
+    /// 워크플로우 저장 같은 모든 뮤테이션 경로가 검증되지 않은 상태였다.
+    ///
+    /// - Parameters:
+    ///   - storeDirectory: `nil`이면 `~/Library/Application Support/com.borasarang.ApexKey`.
+    ///     테스트는 임시 디렉터리를 주입해 **실제 사용자 저장소를 건드리지 않는다.**
+    ///   - defaults: 테스트는 전용 suite를 주입해 실제 설정을 오염시키지 않는다.
+    ///   - seedInstalledApps: `false`면 설치 앱 자동 로드·시스템 앱 시딩을 건너뛴다.
+    ///     `true`면 앱 목록이 수백 개가 되어 검증이 무의미해진다.
+    ///   - registerSystemIntegrations: `false`면 Carbon 핫키 등록·자동화 매니저 연결·
+    ///     핫키 이벤트 구독을 하지 않는다. **`HotKeyService.shared`는 싱글턴이라
+    ///     테스트가 오염시키면 다른 테스트가 깨진다** (v0.21에서 실수 1건).
+    init(
+        storeDirectory: URL?,
+        defaults: UserDefaults,
+        seedInstalledApps: Bool,
+        registerSystemIntegrations: Bool
+    ) {
+        self.defaults = defaults
         if !defaults.bool(forKey: PrefKeys.showInMenuBar), defaults.object(forKey: PrefKeys.showInMenuBar) == nil {
             defaults.set(true, forKey: PrefKeys.showInMenuBar)
         }
@@ -130,9 +158,9 @@ final class ConfigStore: ObservableObject {
             self.menuHUDStyle = style
             defaults.set(style.rawValue, forKey: PrefKeys.menuHUDStyle)
         }
-        self.toggleHotkey = Self.loadHotkey(forKey: PrefKeys.panelToggleHotkey, fallback: Self.defaultToggleHotkey)
-        self.menuHUDHotkey = Self.loadHotkey(forKey: PrefKeys.menuHUDHotkey, fallback: Self.defaultMenuHUDHotkey)
-        self.paletteHotkey = Self.loadHotkey(forKey: PrefKeys.paletteHotkey, fallback: Self.defaultPaletteHotkey)
+        self.toggleHotkey = Self.loadHotkey(forKey: PrefKeys.panelToggleHotkey, fallback: Self.defaultToggleHotkey, defaults: defaults)
+        self.menuHUDHotkey = Self.loadHotkey(forKey: PrefKeys.menuHUDHotkey, fallback: Self.defaultMenuHUDHotkey, defaults: defaults)
+        self.paletteHotkey = Self.loadHotkey(forKey: PrefKeys.paletteHotkey, fallback: Self.defaultPaletteHotkey, defaults: defaults)
         self.showNoShortcutItems = defaults.object(forKey: PrefKeys.showNoShortcutItems) == nil ? true : defaults.bool(forKey: PrefKeys.showNoShortcutItems)
         self.showSuccessToast = defaults.object(forKey: PrefKeys.showSuccessToast) == nil ? true : defaults.bool(forKey: PrefKeys.showSuccessToast)
         self.showSystemApps = defaults.object(forKey: PrefKeys.showSystemApps) == nil ? true : defaults.bool(forKey: PrefKeys.showSystemApps)
@@ -159,15 +187,20 @@ final class ConfigStore: ObservableObject {
         let schema = ConfigMigrationPlan.currentSchema
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        let storeDirectory = appSupport.appendingPathComponent("com.borasarang.ApexKey", isDirectory: true)
-        let storeURL = storeDirectory.appendingPathComponent("default.store")
+        // 경로가 주입되면 그것을 쓴다 (테스트 격리, E-MAC-STORE-5009)
+        let resolvedStoreDirectory = storeDirectory
+            ?? appSupport.appendingPathComponent("com.borasarang.ApexKey", isDirectory: true)
+        let storeURL = resolvedStoreDirectory.appendingPathComponent("default.store")
         do {
-            try FileManager.default.createDirectory(at: storeDirectory, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: resolvedStoreDirectory, withIntermediateDirectories: true)
         } catch {
-            Logger.error("E-MAC-STORE-5001", "저장소 디렉터리 생성 실패 (\(storeDirectory.path)): \(error.localizedDescription)")
+            Logger.error("E-MAC-STORE-5001", "저장소 디렉터리 생성 실패 (\(resolvedStoreDirectory.path)): \(error.localizedDescription)")
         }
         // 구 기본 경로 → 전용 경로 1회 이관 (P0-1)
-        Self.migrateLegacyStoreIfNeeded(appSupport: appSupport, storeDirectory: storeDirectory, storeURL: storeURL)
+        // 경로가 주입된 경우(=테스트)에는 실제 사용자 저장소를 건드리지 않으므로 이관하지 않는다.
+        if storeDirectory == nil {
+            Self.migrateLegacyStoreIfNeeded(appSupport: appSupport, storeDirectory: resolvedStoreDirectory, storeURL: storeURL)
+        }
         func makeContainer() throws -> ModelContainer {
             try ModelContainer(
                 for: schema,
@@ -177,7 +210,7 @@ final class ConfigStore: ObservableObject {
         }
         do {
             container = try makeContainer()
-            load()
+            load(seedInstalledApps: seedInstalledApps, registerSystemIntegrations: registerSystemIntegrations)
         } catch {
             Logger.error("E-MAC-STORE-5001", "ModelContainer 생성 실패 (\(storeURL.path)): \(error.localizedDescription)")
             // 손상 store 격리 후 재시도 — 실패 시 무음 no-op 방지 (P0-2)
@@ -186,11 +219,19 @@ final class ConfigStore: ObservableObject {
                     container = try makeContainer()
                     storeRecoveryBackupPath = backupPath
                     Logger.error("E-MAC-STORE-5006", "손상 저장소 격리 후 재생성 성공 — 이전 데이터 백업: \(backupPath)")
-                    load()
+                    load(seedInstalledApps: seedInstalledApps, registerSystemIntegrations: registerSystemIntegrations)
                 } catch {
                     Logger.error("E-MAC-STORE-5001", "저장소 재생성 실패 (\(storeURL.path)): \(error.localizedDescription)")
                 }
             }
+        }
+
+        // 전역 통합(핫키·자동화)은 테스트에서 오염을 남기므로 통째로 건너뛴다
+        guard registerSystemIntegrations else {
+            if !seedInstalledApps {
+                Logger.info("ConfigStore", "[TEST] 전역 통합 비활성 — 시드 없음, 핫키 미등록")
+            }
+            return
         }
 
         // 글로벌 핫키 눌림 처리
@@ -244,7 +285,11 @@ final class ConfigStore: ObservableObject {
         Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 등록: \(menuHUDHotkey.displayString)")
     }
 
-    func load() {
+    /// 저장소 → 메모리 복원
+    /// - Parameters:
+    ///   - seedInstalledApps: `false`면 설치 앱 자동 로드·시스템 앱 시딩을 건너뛴다 (E-MAC-STORE-5009)
+    ///   - registerSystemIntegrations: `false`면 자동화 매니저 연결을 건너뛴다
+    func load(seedInstalledApps: Bool = true, registerSystemIntegrations: Bool = true) {
         guard let context = container?.mainContext else { return }
         let appFetch = FetchDescriptor<PersistedApp>()
         let bindingFetch = FetchDescriptor<PersistedBinding>()
@@ -291,23 +336,30 @@ final class ConfigStore: ObservableObject {
             }
         }
         shortcuts = persistedShortcuts.map { $0.toShortcut() }
-        if apps.isEmpty {
-            // 첫 실행 시 설치된 앱 자동 로드
-            let installed = AppFinder.installedApps()
-            installed.forEach { context.insert(PersistedApp.from($0)) }
-            do {
-                try context.save()
-                apps = installed
-            } catch {
-                Logger.error("E-MAC-STORE-5001", "설치 앱 초기 저장 실패: \(error.localizedDescription)")
+        // 시딩(설치 앱 자동 로드)은 테스트에서 비활성화한다 (E-MAC-STORE-5009).
+        // 비활성화해도 `pruneRemovedApps()`는 **항상** 돈다 — 경로가 사라진 앱과
+        // 그 고아 핫키를 정리하는 정합성 로직이라 시딩과 무관하다.
+        if seedInstalledApps {
+            if apps.isEmpty {
+                // 첫 실행 시 설치된 앱 자동 로드
+                let installed = AppFinder.installedApps()
+                installed.forEach { context.insert(PersistedApp.from($0)) }
+                do {
+                    try context.save()
+                    apps = installed
+                } catch {
+                    Logger.error("E-MAC-STORE-5001", "설치 앱 초기 저장 실패: \(error.localizedDescription)")
+                }
+            }
+            if showSystemApps {
+                addSystemAppsIfMissing()
             }
         }
         pruneRemovedApps()
-        if showSystemApps {
-            addSystemAppsIfMissing()
-        }
         ensureADBWifiSample()
-        configureAutomationManager()
+        if registerSystemIntegrations {
+            configureAutomationManager()
+        }
     }
 
     /// ADB Wi-Fi 연결 샘플 동작 — 고정 프리셋이 시스템 탭으로 이관되어
@@ -326,7 +378,6 @@ final class ConfigStore: ObservableObject {
     /// 대상: "Android Untether (언테더)", "Android Mirror (미러)",
     /// "Android Remote", 구 샘플명 "ADB Wi-Fi 연결".
     func removeLegacyAndroidShortcutsIfNeeded() {
-        let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: PrefKeys.didCleanupLegacyAndroid) else { return }
         defaults.set(true, forKey: PrefKeys.didCleanupLegacyAndroid)
         // 정리 후 목록이 비어도 예시 동작을 다시 만들지 않음
