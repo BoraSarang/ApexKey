@@ -41,9 +41,11 @@ enum ScriptExecutor {
             return Result(success: false, output: "", errorOutput: "error.user.empty_script".localized)
         }
         // 동시 드레인 — 64KiB 초과 출력 시 교착 방지 (E-MAC-SCRIPT-6004)
+        // osascript가 시스템 권한 프롬프트에서 멈추면 실행큐가 영구 점유되므로 상한 60초
         let run = ProcessRunner.run(
             executable: "/usr/bin/osascript",
-            arguments: ["-l", "JavaScript", "-e", trimmed]
+            arguments: ["-l", "JavaScript", "-e", trimmed],
+            timeout: 60
         )
         if let launchError = run.launchError {
             Logger.error("E-MAC-SCRIPT-6001", "JXA 실행 실패: \(launchError)")

@@ -37,15 +37,21 @@ extension ConfigStore {
             // (Run Shortcut 단계가 하위 단축어를 조회할 때). `shortcuts`는 MainActor 상태라
             // 직접 읽으면 데이터 경쟁이므로 메인으로 한 번 홉한다.
             //
-            // 교착이 없는 이유: 실행 큐는 직렬이고, 메인은 실행 큐를 기다리지 않는다.
-            // 메인이 막히는 유일한 경로(동기 실행)는 이번 커밋에서 제거했다.
+            // main.sync 영구 대기 금지: 메인런루프가 실행큐를 기다리는 역방향 대기와 만나면
+            // 교착한다. async+세마포어 5초 상한으로 조회 실패는 nil(단계 실패)로 처리한다.
             guard let self else { return nil }
             if Thread.isMainThread {
                 return self.shortcuts.first(where: { $0.id == shortcutID })
             }
             var resolved: ShortcutItem?
-            DispatchQueue.main.sync {
+            let sem = DispatchSemaphore(value: 0)
+            DispatchQueue.main.async {
                 resolved = self.shortcuts.first(where: { $0.id == shortcutID })
+                sem.signal()
+            }
+            if sem.wait(timeout: .now() + 5) == .timedOut {
+                Logger.error("E-MAC-FLOW-7007", "Run Shortcut 조회 타임아웃 (메인 응답 없음)")
+                return nil
             }
             return resolved
         }

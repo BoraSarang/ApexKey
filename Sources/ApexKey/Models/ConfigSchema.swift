@@ -57,9 +57,9 @@ extension ConfigMigrationPlan {
     /// 두 가지를 한곳에 묶어 잘못된 생성 지점을 막는다.
     static var currentSchema: Schema {
         guard let latest = schemas.last else {
-            // schemas가 비면 컨테이너를 만들 수 없다. 미방어 상태로 두면
-            // 기본 스키마(빈)를 써서 사용자 데이터가 보이지 않는 앱이 된다.
-            preconditionFailure("ConfigMigrationPlan.schemas가 비어 있음 — 최소 1개 버전을 선언해야 한다")
+            // schemas가 비어도 크래시 대신 빈 스키마로 복구 — 빈 화면은 고칠 수 있지만 크래시는 복구 불가
+            Logger.error("E-MAC-STORE-5003", "ConfigMigrationPlan.schemas가 비어 있음 — 빈 스키마로 폴백")
+            return Schema([], version: Schema.Version(1, 0, 0))
         }
         return Schema(latest.models, version: latest.versionIdentifier)
     }
