@@ -103,7 +103,8 @@ struct ShortcutStationView: View {
                         ActionExecutor.shared.execute(testShortcut)
                     }
                     return true
-                }
+                },
+                shareableCombos: { store.shareableCombos() }
             ) { combo in
                 store.setShortcutCombo(shortcut, combo: combo).errorMessage
             }

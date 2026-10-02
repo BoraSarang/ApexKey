@@ -10,6 +10,8 @@ struct SettingsView: View {
     @State private var recordingPanelHotkey = false
     @State private var recordingHUDHotkey = false
     @State private var recordingPaletteHotkey = false
+    @State private var recordingClipboardHotkey = false
+    @State private var recordingSendHotkey = false
     @State private var showRestartBanner = false
     @State private var showUpdateSheet = false
 
@@ -121,8 +123,51 @@ struct SettingsView: View {
                 }
             }
 
-            Section("settings.menu_hud".localized) {
+            Section("settings.clipboard".localized) {
                 HStack {
+                    Text("settings.clipboard.current".localized)
+                    Spacer()
+                    Text(store.clipboardHotkey.displayString)
+                        .font(.system(.body, design: .monospaced))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(theme.tertiaryBackground.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                Text("settings.clipboard.description".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                Button("settings.clipboard.change".localized) {
+                    recordingClipboardHotkey = true
+                }
+                Button("settings.clipboard.reset".localized) {
+                    store.setClipboardHotkey(ConfigStore.defaultClipboardHotkey)
+                }
+            }
+
+            Section("settings.send".localized) {
+                HStack {
+                    Text("settings.send.current".localized)
+                    Spacer()
+                    Text(store.sendHotkey.displayString)
+                        .font(.system(.body, design: .monospaced))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(theme.tertiaryBackground.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                Text("settings.send.description".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                Button("settings.send.change".localized) {
+                    recordingSendHotkey = true
+                }
+                Button("settings.send.reset".localized) {
+                    store.setSendHotkey(ConfigStore.defaultSendHotkey)
+                }
+            }
+
+            Section("settings.menu_hud".localized) {                HStack {
                     Text("settings.menu_hud.current".localized)
                     Spacer()
                     Text(store.menuHUDHotkey.displayString)
@@ -238,6 +283,35 @@ struct SettingsView: View {
                 }
             ) { combo in
                 store.setPaletteHotkey(combo).errorMessage
+            }
+            .environmentObject(store)
+        }
+        .sheet(isPresented: $recordingClipboardHotkey) {
+            HotKeyRecorderView(
+                title: "settings.clipboard".localized,
+                subtitle: "ui.appdetail.run_globally".localized,
+                excludedCombo: store.clipboardHotkey,
+                onTest: { _ in
+                    store.paletteMode = .clipboard
+                    store.showPalette.toggle()
+                    return true
+                }
+            ) { combo in
+                store.setClipboardHotkey(combo).errorMessage
+            }
+            .environmentObject(store)
+        }
+        .sheet(isPresented: $recordingSendHotkey) {
+            HotKeyRecorderView(
+                title: "settings.send".localized,
+                subtitle: "ui.appdetail.run_globally".localized,
+                excludedCombo: store.sendHotkey,
+                onTest: { _ in
+                    store.fireInstantSend()
+                    return true
+                }
+            ) { combo in
+                store.setSendHotkey(combo).errorMessage
             }
             .environmentObject(store)
         }

@@ -47,8 +47,7 @@ struct AppDetailView: View {
             HotKeyRecorderView(
                 title: target.title.trimmingCharacters(in: .whitespacesAndNewlines),
                 subtitle: "ui.appdetail.execute_then_menu".localizedFormat(app.name),
-                onTest: { combo in
-                    let t = target
+                onTest: { combo in                    let t = target
                     // E-MAC-MENU-7008: 경로를 승격시키지 않는다 (테스트도 동일한 규칙)
                     let binding = HotKeyBinding(
                         combo: combo,
@@ -60,7 +59,8 @@ struct AppDetailView: View {
                     )
                     let result = ActionExecutor.shared.execute(binding)
                     return result
-                }
+                },
+                shareableCombos: { store.shareableCombos() }
             ) { combo in
                 onRecord(combo: combo, menuItem: target)
             }
@@ -71,7 +71,8 @@ struct AppDetailView: View {
                 title: "ui.appdetail.run_toggle".localizedFormat(app.name),
                 subtitle: "ui.appdetail.run_globally".localized,
                 excludedCombo: store.launchBindings(for: app.id).first?.combo,
-                onTest: { _ in AppSwitcher.toggle(bundleID: app.bundleID) }
+                onTest: { _ in AppSwitcher.toggle(bundleID: app.bundleID) },
+                shareableCombos: { store.shareableCombos() }
             ) { combo in
                 store.setLaunchBinding(for: app.id, combo: combo).errorMessage
             }
@@ -92,7 +93,8 @@ struct AppDetailView: View {
                     }
                     NSWorkspace.shared.open(url)
                     return true
-                }
+                },
+                shareableCombos: { store.shareableCombos() }
             ) { combo in
                 guard let s = recordingScheme else { return "toast.reason.key_invalid".localized }
                 return onRecord(combo: combo, scheme: s)

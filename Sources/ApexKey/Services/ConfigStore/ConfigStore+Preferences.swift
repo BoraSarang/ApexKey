@@ -38,6 +38,8 @@ extension ConfigStore {
         static let panelToggleHotkey = "pref.panelToggleHotkey"
         static let paletteHotkey = "pref.paletteHotkey"
         static let menuHUDHotkey = "pref.menuHUDHotkey"
+        static let clipboardHotkey = "pref.clipboardHotkey"
+        static let sendHotkey = "pref.sendHotkey"
         static let updateFrequency = "pref.updateFrequency"
         static let updateLastChecked = "pref.updateLastChecked"
         static let didMigrateLegacyStore = "pref.didMigrateLegacyStore"

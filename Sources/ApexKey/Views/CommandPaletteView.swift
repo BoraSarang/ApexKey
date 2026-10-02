@@ -17,6 +17,7 @@ enum PaletteRow: Identifiable, Hashable {
     case stepHit(StepSearchHit)
     case binding(HotKeyBinding)
     case app(AppItem)
+    case clipboard(ClipboardEntry)
 
     var id: String {
         switch self {
@@ -25,6 +26,7 @@ enum PaletteRow: Identifiable, Hashable {
         case .stepHit(let h): return "hit-\(h.id)"
         case .binding(let b): return "binding-\(b.id.uuidString)"
         case .app(let a): return "app-\(a.bundleID)"
+        case .clipboard(let e): return "clip-\(e.id.uuidString)"
         }
     }
 }
@@ -139,15 +141,25 @@ struct CommandPaletteView: View {
     @State private var allApps: [AppItem] = []
     /// 앱 기록 변경 시 섹션 갱신용 버전 (record/clear 후 증가)
     @State private var appRecentsVersion = 0
+    /// 클립보드 기록 갱신용 버전
+    @State private var clipVersion = 0
+    @State private var lastClipCount = -1
+    /// ⌥↩ 처리 시 TextField onSubmit 중복 실행 방지
+    @State private var skipNextSubmit = false
+    private let clipTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
+
+    private var isClipboardMode: Bool { store.paletteMode == .clipboard }
+    private var clipHistory: ClipboardHistory { ClipboardMonitor.shared.history }
 
     private var isEmptyQuery: Bool {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// 고정 명령 6종.
+    /// 고정 명령 7종.
     private var commands: [PaletteCommand] {
         [
             PaletteCommand(id: "newShortcut", title: "palette.cmd.new_shortcut".localized, hint: "", icon: "plus"),
+            PaletteCommand(id: "clipboard", title: "palette.cmd.clipboard".localized, hint: "⌘⇧V", icon: "doc.on.clipboard"),
             PaletteCommand(id: "openSettings", title: "palette.cmd.open_settings".localized, hint: "", icon: "gearshape"),
             PaletteCommand(id: "openPanel", title: "palette.cmd.open_panel".localized, hint: "⇧⌥A", icon: "macwindow"),
             PaletteCommand(id: "menuHUD", title: "palette.cmd.menu_hud".localized, hint: "⇧⌥S", icon: "menubar"),
@@ -177,6 +189,14 @@ struct CommandPaletteView: View {
             timed.append((e.lastUsed, .app(AppItem(name: e.name, bundleID: e.bundleID, path: e.path))))
         }
         return timed.sorted { $0.0 > $1.0 }.prefix(6).map { $0.1 }
+    }
+
+    /// Instant Send 전송 대상 (최근 실행 우선) — 전송 모드용.
+    private var sendShortcuts: [ShortcutItem] {
+        guard store.paletteMode == .send else { return [] }
+        let rec = CommandPaletteFilter.recents(from: store.shortcuts)
+        let ids = Set(rec.map(\.id))
+        return rec + store.shortcuts.filter { !ids.contains($0.id) }.sorted { $0.name < $1.name }
     }
 
     /// 자주 쓰는 워크플로우 (runCount 순, 최근과 중복 제외) — 빈 입력 기본 화면용.
@@ -236,6 +256,17 @@ struct CommandPaletteView: View {
 
     /// 단일 선택 공간 (표시 순서: 최근 혼합/자주 쓰는 워크플로우/자주 쓰는 앱/명령/동작/단계내용/단축키/앱).
     private var rows: [PaletteRow] {
+        if store.paletteMode == .send {
+            _ = clipVersion
+            let base = sendShortcuts
+            let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let list = q.isEmpty ? base : CommandPaletteFilter.filterShortcuts(base, query: searchText)
+            return list.map(PaletteRow.shortcut)
+        }
+        if isClipboardMode {
+            _ = clipVersion
+            return clipHistory.search(searchText).map(PaletteRow.clipboard)
+        }
         if isEmptyQuery {
             return mixedRecents
                 + frequentWorkflows.map(PaletteRow.shortcut)
@@ -253,71 +284,139 @@ struct CommandPaletteView: View {
         rows.indices.contains(selectedIndex) ? rows[selectedIndex].id : nil
     }
 
+    // MARK: - 섹션 (body 타입체커 분할용)
+
+    @ViewBuilder
+    private var sendSections: some View {
+        if let payload = store.sendPayload {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("palette.send.from".localizedFormat(payload.sourceApp))
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                Text(String(payload.text.prefix(140)))
+                    .font(.system(size: 12))
+                    .lineLimit(3)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(theme.inputBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 6)
+            .padding(.bottom, 4)
+        }
+        sectionLabel("palette.send.workflows".localized)
+        ForEach(sendRows) { shortcut in
+            shortcutRow(shortcut)
+        }
+    }
+
+    /// 전송 모드 표시 목록 (검색 필터 적용).
+    private var sendRows: [ShortcutItem] {
+        rows.compactMap { row in
+            if case .shortcut(let s) = row { return s }
+            return nil
+        }
+    }
+
+    @ViewBuilder
+    private var clipboardSections: some View {
+        let entries = clipHistory.search(searchText)
+        let pinned = entries.filter { $0.pinned }
+        let rest = entries.filter { !$0.pinned }
+        if !pinned.isEmpty {
+            sectionLabel("palette.section.pinned".localized)
+            ForEach(pinned) { entry in
+                clipRow(entry)
+            }
+        }
+        if !rest.isEmpty {
+            sectionLabel("palette.section.recent".localized)
+            ForEach(rest) { entry in
+                clipRow(entry)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyQuerySections: some View {
+        if !mixedRecents.isEmpty {
+            recentHeader
+            ForEach(mixedRecents, id: \.id) { row in
+                paletteRow(row, showRecency: true)
+            }
+        }
+        if !frequentWorkflows.isEmpty {
+            sectionLabel("palette.section.frequent_shortcuts".localized)
+            ForEach(frequentWorkflows) { shortcut in
+                shortcutRow(shortcut)
+            }
+        }
+        if !frequentApps.isEmpty {
+            sectionLabel("palette.section.frequent_apps".localized)
+            ForEach(frequentApps) { app in
+                appRow(app)
+            }
+        }
+        if !emptyCommands.isEmpty {
+            sectionLabel("palette.section.commands".localized)
+            ForEach(emptyCommands) { cmd in
+                commandRow(cmd)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var searchSections: some View {
+        if !commandRows.isEmpty {
+            sectionLabel("palette.section.commands".localized)
+            ForEach(commandRows) { cmd in
+                commandRow(cmd)
+            }
+        }
+        if !matchedShortcuts.isEmpty {
+            sectionLabel("palette.section.shortcuts".localized)
+            ForEach(matchedShortcuts) { shortcut in
+                shortcutRow(shortcut)
+            }
+        }
+        if !matchedSteps.isEmpty {
+            sectionLabel("palette.section.steps".localized)
+            ForEach(matchedSteps) { hit in
+                stepHitRow(hit)
+            }
+        }
+        if !matchedBindings.isEmpty {
+            sectionLabel("palette.section.bindings".localized)
+            ForEach(matchedBindings) { binding in
+                bindingRow(binding)
+            }
+        }
+        if !matchedApps.isEmpty {
+            sectionLabel("palette.section.apps".localized)
+            ForEach(matchedApps) { app in
+                appRow(app)
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             searchBar
             Divider()
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    if isEmptyQuery {
-                        if !mixedRecents.isEmpty {
-                            recentHeader
-                            ForEach(mixedRecents, id: \.id) { row in
-                                paletteRow(row, showRecency: true)
-                            }
-                        }
-                        if !frequentWorkflows.isEmpty {
-                            sectionLabel("palette.section.frequent_shortcuts".localized)
-                            ForEach(frequentWorkflows) { shortcut in
-                                shortcutRow(shortcut)
-                            }
-                        }
-                        if !frequentApps.isEmpty {
-                            sectionLabel("palette.section.frequent_apps".localized)
-                            ForEach(frequentApps) { app in
-                                appRow(app)
-                            }
-                        }
-                        if !emptyCommands.isEmpty {
-                            sectionLabel("palette.section.commands".localized)
-                            ForEach(emptyCommands) { cmd in
-                                commandRow(cmd)
-                            }
-                        }
+                    if store.paletteMode == .send {
+                        sendSections
+                    } else if isClipboardMode {
+                        clipboardSections
+                    } else if isEmptyQuery {
+                        emptyQuerySections
                     } else {
-                        if !commandRows.isEmpty {
-                            sectionLabel("palette.section.commands".localized)
-                            ForEach(commandRows) { cmd in
-                                commandRow(cmd)
-                            }
-                        }
-                        if !matchedShortcuts.isEmpty {
-                            sectionLabel("palette.section.shortcuts".localized)
-                            ForEach(matchedShortcuts) { shortcut in
-                                shortcutRow(shortcut)
-                            }
-                        }
-                        if !matchedSteps.isEmpty {
-                            sectionLabel("palette.section.steps".localized)
-                            ForEach(matchedSteps) { hit in
-                                stepHitRow(hit)
-                            }
-                        }
-                        if !matchedBindings.isEmpty {
-                            sectionLabel("palette.section.bindings".localized)
-                            ForEach(matchedBindings) { binding in
-                                bindingRow(binding)
-                            }
-                        }
-                        if !matchedApps.isEmpty {
-                            sectionLabel("palette.section.apps".localized)
-                            ForEach(matchedApps) { app in
-                                appRow(app)
-                            }
-                        }
+                        searchSections
                     }
                     if rows.isEmpty {
-                        Text("palette.empty".localized)
+                        Text(isClipboardMode ? "palette.clipboard.empty".localized : "palette.empty".localized)
                             .font(.caption)
                             .foregroundColor(theme.secondaryText)
                             .padding(16)
@@ -325,7 +424,24 @@ struct CommandPaletteView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .frame(maxHeight: 340)
+            .frame(maxHeight: isClipboardMode ? 310 : 340)
+            if store.paletteMode == .send {
+                Divider()
+                Text("palette.send.hint".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+            } else if isClipboardMode {
+                Divider()
+                Text("palette.clipboard.footer".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+            }
         }
         .frame(width: 560)
         .background(theme.primaryBackground)
@@ -338,6 +454,25 @@ struct CommandPaletteView: View {
         .onAppear {
             isSearchFocused = true
             loadApps()
+            installClipKeyMonitor()
+            if isClipboardMode {
+                ClipboardMonitor.shared.refresh()
+                lastClipCount = clipHistory.all().count
+            }
+        }
+        .onDisappear {
+            removeClipKeyMonitor()
+            store.paletteMode = .normal
+            store.sendPayload = nil
+        }
+        .onReceive(clipTimer) { _ in
+            guard isClipboardMode else { return }
+            let count = clipHistory.all().count
+            if count != lastClipCount {
+                lastClipCount = count
+                clipVersion += 1
+                selectedIndex = 0
+            }
         }
         .onChange(of: searchText) { _, _ in selectedIndex = 0 }
         .onKeyPress(.upArrow) { moveSelection(by: -1) }
@@ -345,6 +480,76 @@ struct CommandPaletteView: View {
         .onKeyPress(.escape) {
             store.showPalette = false
             return .handled
+        }
+        // ⌫ — 검색어 있을 땐 텍스트 편집에 양보, 비어 있을 때만 항목 삭제
+        .onKeyPress(.delete) {
+            guard isClipboardMode, searchText.isEmpty else { return .ignored }
+            deleteSelectedClip()
+            return .handled
+        }
+    }
+
+    // MARK: - 클립보드 키 모니터 (⌘1–9/⌘P/⌥↩ — onKeyPress에 modifiers 오버로드가 없어 NSEvent로 처리)
+
+    @State private var clipKeyMonitor: Any?
+
+    private func installClipKeyMonitor() {
+        guard clipKeyMonitor == nil else { return }
+        let searchBinding = $searchText
+        let indexBinding = $selectedIndex
+        let versionBinding = $clipVersion
+        clipKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // 로컬 모니터는 메인 스레드에서 호출되므로 MainActor 격리로 수행한다
+            MainActor.assumeIsolated { () -> NSEvent? in
+                guard store.paletteMode == .clipboard else { return event }
+                let flags = event.modifierFlags
+                let history = ClipboardMonitor.shared.history
+                let clips: () -> [ClipboardEntry] = {
+                    history.search(searchBinding.wrappedValue).prefix(9).map { $0 }
+                }
+                let pasteEntry: (ClipboardEntry) -> Void = { entry in
+                    store.showPalette = false
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        history.paste(entry)
+                    }
+                }
+                // ⌥↩ — 복사만 (이벤트 삼켜 TextField submit 방지)
+                if event.keyCode == 36, flags.contains(.option), !flags.contains(.command) {
+                    let list = clips()
+                    if indexBinding.wrappedValue < list.count {
+                        let entry = list[indexBinding.wrappedValue]
+                        store.showPalette = false
+                        history.copy(entry)
+                    }
+                    return nil
+                }
+                guard flags.contains(.command), !flags.contains(.option) else { return event }
+                // ⌘1–9 — 순서대로 붙여넣기
+                if let chars = event.charactersIgnoringModifiers, chars.count == 1,
+                   let n = Int(chars), (1...9).contains(n) {
+                    let list = clips()
+                    if n <= list.count { pasteEntry(list[n - 1]) }
+                    return nil
+                }
+                // ⌘P — 고정 토글 (P keyCode 35)
+                if event.keyCode == 35 {
+                    let all = history.search(searchBinding.wrappedValue)
+                    if indexBinding.wrappedValue < all.count {
+                        let entry = all[indexBinding.wrappedValue]
+                        history.setPinned(entry.id, pinned: !entry.pinned)
+                        versionBinding.wrappedValue += 1
+                    }
+                    return nil
+                }
+                return event
+            }
+        }
+    }
+
+    private func removeClipKeyMonitor() {
+        if let m = clipKeyMonitor {
+            NSEvent.removeMonitor(m)
+            clipKeyMonitor = nil
         }
     }
 
@@ -354,11 +559,17 @@ struct CommandPaletteView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(theme.secondaryText)
-            TextField("palette.search.placeholder".localized, text: $searchText)
+            TextField(isClipboardMode ? "palette.clipboard.search".localized : "palette.search.placeholder".localized, text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .focused($isSearchFocused)
-                .onSubmit { runSelected() }
+                .onSubmit {
+                    if skipNextSubmit {
+                        skipNextSubmit = false
+                        return
+                    }
+                    runSelected()
+                }
             if !searchText.isEmpty {
                 Button { searchText = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -411,7 +622,116 @@ struct CommandPaletteView: View {
         case .command(let c): commandRow(c)
         case .binding(let b): bindingRow(b)
         case .stepHit(let h): stepHitRow(h)
+        case .clipboard(let e): clipRow(e)
         }
+    }
+
+    /// 클립보드 기록 행 — 텍스트 미리보기 / 이미지 썸네일 + 선택 시 확대.
+    @ViewBuilder
+    private func clipRow(_ entry: ClipboardEntry) -> some View {
+        let isSelected = selectedID == "clip-\(entry.id.uuidString)"
+        Button { runClip(entry) } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    clipIcon(entry)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Self.highlightedTitle(clipTitle(entry), query: searchText)
+                            .font(.system(size: 13))
+                            .lineLimit(1)
+                        Text(clipMeta(entry))
+                            .font(.caption)
+                            .foregroundColor(theme.secondaryText)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    if entry.pinned {
+                        Text("📌")
+                            .font(.caption)
+                    }
+                    if let n = clipNumber(entry) {
+                        Text("⌘\(n)")
+                            .font(.caption)
+                            .foregroundColor(theme.secondaryText.opacity(0.6))
+                    }
+                }
+                // 선택된 이미지 행은 확대 미리보기 (Quick Look 대신 인라인)
+                if isSelected, entry.kind == .image,
+                   let big = clipHistory.fullImage(for: entry) ?? clipHistory.thumbnail(for: entry) {
+                    Image(nsImage: big)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .padding(.leading, 28)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.accentColor.opacity(0.3))
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 6)
+    }
+
+    @ViewBuilder
+    private func clipIcon(_ entry: ClipboardEntry) -> some View {
+        switch entry.kind {
+        case .text:
+            Image(systemName: "doc.text")
+                .font(.system(size: 12))
+                .foregroundColor(theme.secondaryText)
+                .frame(width: 20)
+        case .image:
+            if let thumb = clipHistory.thumbnail(for: entry) {
+                Image(nsImage: thumb)
+                    .resizable()
+                    .frame(width: 20, height: 20)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                Image(systemName: "photo")
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.secondaryText)
+                    .frame(width: 20)
+            }
+        case .file:
+            Image(systemName: "doc")
+                .font(.system(size: 12))
+                .foregroundColor(theme.secondaryText)
+                .frame(width: 20)
+        }
+    }
+
+    private func clipTitle(_ entry: ClipboardEntry) -> String {
+        switch entry.kind {
+        case .text: return entry.text.components(separatedBy: .newlines).first ?? entry.text
+        case .image:
+            let size = entry.byteCount >= 1024 * 1024
+                ? String(format: "%.1fMB", Double(entry.byteCount) / 1048576.0)
+                : "\(entry.byteCount / 1024)KB"
+            return "palette.clipboard.image_fmt".localizedFormat(entry.dimensions, size)
+        case .file: return entry.text
+        }
+    }
+
+    private func clipMeta(_ entry: ClipboardEntry) -> String {
+        let ago = entry.createdAt.formatted(.relative(presentation: .named))
+        return entry.sourceApp.isEmpty ? ago : "\(entry.sourceApp) · \(ago)"
+    }
+
+    /// 표시 순서상 번호 (⌘1–9) — 현재 rows 기준.
+    private func clipNumber(_ entry: ClipboardEntry) -> Int? {
+        let clips = rows.compactMap { row -> ClipboardEntry? in
+            if case .clipboard(let e) = row { return e }
+            return nil
+        }
+        guard let i = clips.firstIndex(where: { $0.id == entry.id }), i < 9 else { return nil }
+        return i + 1
     }
 
     private func commandRow(_ cmd: PaletteCommand) -> some View {
@@ -637,16 +957,60 @@ struct CommandPaletteView: View {
         guard rows.indices.contains(selectedIndex) else { return }
         switch rows[selectedIndex] {
         case .command(let c): runCommand(c.id)
-        case .shortcut(let s): runShortcut(s)
+        case .shortcut(let s):
+            if store.paletteMode == .send { runSendShortcut(s) } else { runShortcut(s) }
         case .stepHit(let h): runStepHit(h)
         case .binding(let b): runBinding(b)
         case .app(let a): runApp(a)
+        case .clipboard(let e): runClip(e)
         }
+    }
+
+    /// Instant Send 전송 — 선택 워크플로우에 캡처 텍스트를 입력으로 실행.
+    private func runSendShortcut(_ shortcut: ShortcutItem) {
+        guard let payload = store.sendPayload else { return }
+        store.showPalette = false
+        store.sendPayload = nil
+        guard let current = store.shortcuts.first(where: { $0.id == shortcut.id }) else { return }
+        store.executeShortcutWithInput(current, input: .text(payload.text))
+    }
+
+    // MARK: - 클립보드 실행
+
+    /// ↩ — 되돌리고 활성 앱에 붙여넣기.
+    private func runClip(_ entry: ClipboardEntry) {
+        store.showPalette = false
+        DispatchQueue.global(qos: .userInitiated).async {
+            let ok = ClipboardMonitor.shared.history.paste(entry)
+            Logger.info("Palette", "클립보드 붙여넣기 \(ok ? "성공" : "실패"): \(entry.kind.rawValue)")
+        }
+    }
+
+    /// ⌫ — 삭제.
+    private func deleteSelectedClip() {
+        guard let entry = selectedClipEntry() else { return }
+        clipHistory.remove(entry.id)
+        clipVersion += 1
+        selectedIndex = max(0, min(selectedIndex, rows.count - 2))
+    }
+
+    private func selectedClipEntry() -> ClipboardEntry? {
+        guard rows.indices.contains(selectedIndex) else { return nil }
+        if case .clipboard(let e) = rows[selectedIndex] { return e }
+        return nil
     }
 
     private func runCommand(_ id: String) {
         Logger.info("Palette", "명령: \(id)")
         switch id {
+        case "clipboard":
+            // 커맨드 팔레트 안에서 클립보드 모드로 전환 (닫지 않음)
+            store.paletteMode = .clipboard
+            searchText = ""
+            selectedIndex = 0
+            ClipboardMonitor.shared.refresh()
+            lastClipCount = ClipboardMonitor.shared.history.all().count
+            return
         case "newShortcut":
             if let created = store.addShortcut(name: "palette.cmd.new_shortcut.name".localized) {
                 store.showPalette = false

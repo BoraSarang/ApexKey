@@ -7,7 +7,8 @@ import Combine
 @MainActor
 final class ConfigStore: ObservableObject {
     /// 설정 영속 대상 — 테스트에서는 전용 suite를 주입해 실제 설정을 오염시키지 않는다 (E-MAC-STORE-5009)
-    private let defaults: UserDefaults
+    /// extension(고정 pin 등)에서도 쓰므로 internal.
+    let defaults: UserDefaults
 
     @Published var apps: [AppItem] = []
     @Published var bindings: [HotKeyBinding] = []
@@ -22,6 +23,8 @@ final class ConfigStore: ObservableObject {
         }
     }
     @Published var showPalette = false
+    /// 팔레트 표시 모드 — ⌘⇧V면 클립보드 기록 모드로 열린다.
+    @Published var paletteMode: PaletteMode = .normal
     /// 매크로 녹화 상태
     @Published var isMacroRecording = false
     @Published var macroRecordedKeyCodes: [UInt32] = []
@@ -118,6 +121,21 @@ final class ConfigStore: ObservableObject {
     /// ⇧⌥S Menu HUD 전용 등록 ID (전면 앱 단축키 표시)
     let menuHUDID = UUID()
 
+    /// ⇧⌥D Instant Send 전용 등록 ID
+    let sendID = UUID()
+
+    /// ⇧⌥D Instant Send 핫키
+    var sendHotkey: HotKeyCombo
+
+    /// Instant Send 캡처 결과 — 팔레트 전송 모드의 입력.
+    @Published var sendPayload: InstantSend.Payload?
+
+    /// ⌘⇧V 클립보드 팔레트 전용 등록 ID
+    let clipboardID = UUID()
+
+    /// ⌘⇧V 클립보드 팔레트 핫키
+    var clipboardHotkey: HotKeyCombo
+
     /// 마지막으로 실행된 바인딩 ID (반복용)
     var lastExecutedBindingID: UUID?
 
@@ -173,6 +191,14 @@ final class ConfigStore: ObservableObject {
         self.toggleHotkey = Self.loadHotkey(forKey: PrefKeys.panelToggleHotkey, fallback: Self.defaultToggleHotkey, defaults: defaults)
         self.menuHUDHotkey = Self.loadHotkey(forKey: PrefKeys.menuHUDHotkey, fallback: Self.defaultMenuHUDHotkey, defaults: defaults)
         self.paletteHotkey = Self.loadHotkey(forKey: PrefKeys.paletteHotkey, fallback: Self.defaultPaletteHotkey, defaults: defaults)
+        self.clipboardHotkey = Self.loadHotkey(forKey: PrefKeys.clipboardHotkey, fallback: Self.defaultClipboardHotkey, defaults: defaults)
+        self.sendHotkey = Self.loadHotkey(forKey: PrefKeys.sendHotkey, fallback: Self.defaultSendHotkey, defaults: defaults)
+        // 구 기본값(⇧⌥D) 저장분은 신 기본값(⌃⌥D)으로 이관 — 사용자 기존 단축키와 충돌나기 때문.
+        // 사용자가 직접 바꾼 값은 keyCode/modifiers가 다르므로 건드리지 않는다.
+        if defaults.string(forKey: PrefKeys.sendHotkey) == "2:2560:⇧⌥D" {
+            defaults.removeObject(forKey: PrefKeys.sendHotkey)
+            self.sendHotkey = Self.defaultSendHotkey
+        }
         self.showNoShortcutItems = defaults.object(forKey: PrefKeys.showNoShortcutItems) == nil ? true : defaults.bool(forKey: PrefKeys.showNoShortcutItems)
         self.showSuccessToast = defaults.object(forKey: PrefKeys.showSuccessToast) == nil ? true : defaults.bool(forKey: PrefKeys.showSuccessToast)
         self.showSystemApps = defaults.object(forKey: PrefKeys.showSystemApps) == nil ? true : defaults.bool(forKey: PrefKeys.showSystemApps)
@@ -267,8 +293,21 @@ final class ConfigStore: ObservableObject {
                  }
                 if bindingID == self.paletteID {
                     // ⌘⌥K → 명령 팔레트 토글
+                    self.paletteMode = .normal
                     self.showPalette.toggle()
                     Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 토글")
+                    return
+                }
+                if bindingID == self.clipboardID {
+                    // ⌘⇧V → 클립보드 팔레트 토글
+                    self.paletteMode = .clipboard
+                    self.showPalette.toggle()
+                    Logger.info("ConfigStore", "[HOTKEY] 클립보드 팔레트 토글")
+                    return
+                }
+                if bindingID == self.sendID {
+                    // ⇧⌥D → Instant Send: 선택 캡처 후 전송 팔레트
+                    self.fireInstantSend()
                     return
                 }
                 if bindingID == self.menuHUDID {
@@ -295,6 +334,13 @@ final class ConfigStore: ObservableObject {
         // ⇧⌥S Menu HUD 핫키 등록
         _ = hotKeyService.register(menuHUDID, combo: menuHUDHotkey)
         Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 등록: \(menuHUDHotkey.displayString)")
+        // ⌘⇧V 클립보드 팔레트 핫키 등록 + 기록 감시 시작
+        _ = hotKeyService.register(clipboardID, combo: clipboardHotkey)
+        Logger.info("ConfigStore", "[HOTKEY] 클립보드 팔레트 핫키 등록: \(clipboardHotkey.displayString)")
+        ClipboardMonitor.shared.start()
+        // ⇧⌥D Instant Send 핫키 등록
+        _ = hotKeyService.register(sendID, combo: sendHotkey)
+        Logger.info("ConfigStore", "[HOTKEY] Instant Send 핫키 등록: \(sendHotkey.displayString)")
     }
 
     /// 저장소 → 메모리 복원

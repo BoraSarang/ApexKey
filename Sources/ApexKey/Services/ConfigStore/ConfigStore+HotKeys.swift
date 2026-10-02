@@ -91,16 +91,97 @@ extension ConfigStore {
         return .applied
     }
 
+    /// ⌘⇧V 클립보드 팔레트 핫키 변경 (재등록)
+    @discardableResult
+    func setClipboardHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
+        if isDuplicate(combo: combo, excluding: clipboardID) {
+            Logger.error("E-MAC-HTKEY-1002", "클립보드 핫키 중복으로 변경 거부: \(combo.displayString)")
+            return .duplicateCombo
+        }
+        hotKeyService.unregister(clipboardID)
+        clipboardHotkey = combo
+        Self.saveHotkey(combo, forKey: PrefKeys.clipboardHotkey)
+        guard hotKeyService.register(clipboardID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
+        Logger.info("ConfigStore", "[HOTKEY] 클립보드 핫키 변경: \(combo.displayString)")
+        return .applied
+    }
+
+    /// ⇧⌥D Instant Send 핫키 변경 (재등록)
+    @discardableResult
+    func setSendHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
+        if isDuplicate(combo: combo, excluding: sendID) {
+            Logger.error("E-MAC-HTKEY-1002", "Instant Send 핫키 중복으로 변경 거부: \(combo.displayString)")
+            return .duplicateCombo
+        }
+        hotKeyService.unregister(sendID)
+        sendHotkey = combo
+        Self.saveHotkey(combo, forKey: PrefKeys.sendHotkey)
+        guard hotKeyService.register(sendID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
+        Logger.info("ConfigStore", "[HOTKEY] Instant Send 핫키 변경: \(combo.displayString)")
+        return .applied
+    }
+
+    /// Instant Send 발화 — 선택 캡처(백그라운드) 후 전송 팔레트 표시.
+    /// 선택이 없으면 토스트로 안내하고 팔레트를 열지 않는다.
+    func fireInstantSend() {
+        runOffMainThread(
+            { InstantSend.capture() },
+            onFinish: { [weak self] payload in
+                guard let self else { return }
+                guard let payload else {
+                    self.notifyToast(title: "palette.send.empty".localized, result: (false, "palette.send.empty_hint".localized))
+                    return
+                }
+                self.sendPayload = payload
+                self.paletteMode = .send
+                self.showPalette = true
+                Logger.info("ConfigStore", "[SEND] 선택 캡처: \(payload.text.count)자 (\(payload.sourceApp))")
+            }
+        )
+    }
+
+    /// 워크플로우 실행 + 외부 입력 주입 (Instant Send 전송용).
+    func executeShortcutWithInput(_ shortcut: ShortcutItem, input: VariableValue) {
+        runOffMainThread(
+            { [actionExecutor] in actionExecutor.executeWithDetail(shortcut, input: input) },
+            onFinish: { [weak self] result in
+                guard let self else { return }
+                if result.success, let idx = self.shortcuts.firstIndex(where: { $0.id == shortcut.id }) {
+                    self.shortcuts[idx].lastRunAt = Date()
+                    self.shortcuts[idx].runCount += 1
+                    self.syncShortcut(self.shortcuts[idx])
+                }
+                self.notifyToast(title: shortcut.name, result: result)
+            }
+        )
+    }
+
     func registerAllBindings() {
-        // 등록 실패는 조용히 넘어가지 않고 집계 로그 (재부팅 후 타 앱 선점 등)
+        // 등록 실패는 조용히 넘어가지 않고 집계 로그 (재부팅 후 타 앱 선점 등).
+        // 같은 조합의 공유 항목은 첫 소유자만 Carbon 등록한다.
         var failed = 0
+        var seen = Set<String>()
         bindings.forEach {
-            if !hotKeyService.register($0.id, combo: $0.combo) { failed += 1 }
+            let key = HotKeyConflict.comboKey($0.combo)
+            guard !seen.contains(key) else { return }
+            if !hotKeyService.register($0.id, combo: $0.combo) { failed += 1 } else { seen.insert(key) }
         }
         shortcuts.forEach { shortcut in
-            if !shortcut.combo.isEmpty,
-               !hotKeyService.register(shortcut.id, combo: shortcut.combo) {
+            if shortcut.combo.isEmpty { return }
+            let key = HotKeyConflict.comboKey(shortcut.combo)
+            guard !seen.contains(key) else { return }
+            if !hotKeyService.register(shortcut.id, combo: shortcut.combo) {
                 failed += 1
+            } else {
+                seen.insert(key)
             }
         }
         if failed > 0 {
@@ -108,34 +189,64 @@ extension ConfigStore {
         }
     }
 
+    /// 소유자 ID로 조합을 찾아 공유 후보를 해결한다.
+    /// 1건이면 바로 실행, 여러 건이면 고정(pin)→바로 실행, 없으면 Conflict palette 표시.
     func handleHotKey(_ bindingID: UUID) {
-        // 동작(단축어) 실행 단축키 먼저 확인
-        if let shortcut = shortcuts.first(where: { $0.id == bindingID }) {
-            Logger.info("ConfigStore", "[HOTKEY] 동작 실행: \(shortcut.name)")
-            lastExecutedBindingID = bindingID
-            executeShortcutStats(shortcut)
-            return
-        }
-        guard let binding = bindings.first(where: { $0.id == bindingID }) else {
-            Logger.info("ConfigStore", "[HOTKEY] 미등록 binding 감지: \(bindingID.uuidString)")
-            return
-        }
-        lastExecutedBindingID = bindingID
-        let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        Logger.info("ConfigStore", "[HOTKEY] 핫키 감지: \(binding.combo.displayString) (\(binding.actionType.displayName))")
-        if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
-            // E-MAC-ACT-3006: 실행은 백그라운드. 스크립트·셸 단축키가 수십 초 걸려도
-            // 메뉴바·패널이 멈추지 않는다. 제목은 여기서 확정해 캡처한다 —
-            // 바인딩은 값 타입이라 실행 중 배열이 바뀌어도 안전하다.
-            let title = toastTitle(for: binding)
-            runOffMainThread(
-                { [actionExecutor] in actionExecutor.executeWithDetail(binding) },
-                onFinish: { [weak self] result in
-                    self?.notifyToast(title: title, result: result)
-                }
+        if let combo = comboForEntry(id: bindingID) {
+            let targets = HotKeyConflict.targets(matching: combo, shortcuts: shortcuts, bindings: bindings)
+            let resolution = HotKeyConflict.resolve(
+                targets: targets,
+                preferredID: HotKeyConflict.preferredID(for: combo, defaults: defaults)
             )
-        } else {
-            Logger.info("ConfigStore", "[HOTKEY] 실행 조건 미충족: activeApp=\(frontBundle ?? "nil")")
+            switch resolution {
+            case .run(let target):
+                runConflictTarget(target)
+                return
+            case .choose(let list):
+                Logger.info("ConfigStore", "[HOTKEY] 공유 단축키 \(list.count)건 — 선택 패널: \(combo.displayString)")
+                (NSApp.delegate as? AppDelegate)?.showConflictPanel(combo: combo, targets: list)
+                return
+            case .none:
+                break
+            }
+        }
+        Logger.info("ConfigStore", "[HOTKEY] 미등록 binding 감지: \(bindingID.uuidString)")
+    }
+
+    private func comboForEntry(id: UUID) -> HotKeyCombo? {
+        if let s = shortcuts.first(where: { $0.id == id }), !s.combo.isEmpty { return s.combo }
+        return bindings.first(where: { $0.id == id })?.combo
+    }
+
+    /// Conflict 선택지 실행 — 기존 handleHotKey 분기를 그대로 옮겼다.
+    func runConflictTarget(_ target: HotKeyConflict.Target) {
+        switch target.kind {
+        case .shortcut:
+            guard let shortcut = target.shortcut,
+                  let current = shortcuts.first(where: { $0.id == shortcut.id }) else { return }
+            Logger.info("ConfigStore", "[HOTKEY] 동작 실행: \(current.name)")
+            lastExecutedBindingID = current.id
+            executeShortcutStats(current)
+        case .binding:
+            guard let stub = target.binding,
+                  let binding = bindings.first(where: { $0.id == stub.id }) else { return }
+            lastExecutedBindingID = binding.id
+            let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            Logger.info("ConfigStore", "[HOTKEY] 핫키 감지: \(binding.combo.displayString) (\(binding.actionType.displayName))")
+            if actionExecutor.shouldExecute(binding, frontmostBundleID: frontBundle) {
+                // E-MAC-ACT-3006: 실행은 백그라운드. 스크립트·셸 단축키가 수십 초 걸려도
+                // 메뉴바·패널이 멈추지 않는다. 제목은 여기서 확정해 캡처한다 —
+                // 바인딩은 값 타입이라 실행 중 배열이 바뀌어도 안전하다.
+                let title = toastTitle(for: binding)
+                runOffMainThread(
+                    { [actionExecutor] in actionExecutor.executeWithDetail(binding) },
+                    onFinish: { [weak self] result in
+                        self?.notifyToast(title: title, result: result)
+                    }
+                )
+            } else {
+                Logger.info("ConfigStore", "[HOTKEY] 실행 조건 미충족: activeApp=\(frontBundle ?? "nil")")
+            }
         }
     }
 

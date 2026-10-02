@@ -69,6 +69,62 @@ extension AppDelegate {
         paletteWindow?.orderOut(nil)
     }
 
+    // MARK: - Conflict palette (공유 단축키 선택)
+
+    /// 같은 조합의 실행 후보가 여러 건이면 선택 패널 표시.
+    /// onPick/onPin은 ConfigStore 실행 경로로 그대로 위임한다.
+    func showConflictPanel(combo: HotKeyCombo, targets: [HotKeyConflict.Target]) {
+        guard let store else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let view = ConflictPaletteView(
+            comboDisplay: combo.displayString,
+            targets: targets,
+            onPick: { [weak self] target in
+                self?.conflictWindow?.orderOut(nil)
+                self?.store?.runConflictTarget(target)
+            },
+            onPin: { [weak self] target in
+                HotKeyConflict.setPreferred(target.id, for: combo)
+                self?.conflictWindow?.orderOut(nil)
+                self?.store?.runConflictTarget(target)
+                Logger.info("ConfigStore", "[HOTKEY] 공유 고정: \(combo.displayString) → \(target.title)")
+            }
+        )
+        let hosting = NSHostingController(rootView: ThemedRoot { view }.environmentObject(store))
+        conflictHosting = hosting
+        let win: NSPanel
+        if let existing = conflictWindow {
+            win = existing
+            win.contentViewController = hosting
+        } else {
+            let w = KeyCapablePanel(
+                contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
+                styleMask: [.borderless],
+                backing: .buffered,
+                defer: false
+            )
+            w.isFloatingPanel = true
+            w.level = NSWindow.Level(rawValue: 25)
+            w.hidesOnDeactivate = false
+            w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+            w.hasShadow = true
+            w.backgroundColor = .clear
+            w.isOpaque = false
+            w.contentViewController = hosting
+            w.delegate = self
+            conflictWindow = w
+            win = w
+        }
+        if let screen = Self.screen(for: win) {
+            let r = screen.visibleFrame
+            win.setFrameOrigin(NSPoint(
+                x: r.origin.x + (r.width - win.frame.width) / 2,
+                y: r.origin.y + (r.height - win.frame.height) / 2
+            ))
+        }
+        win.makeKeyAndOrderFront(nil)
+    }
+
     // MARK: - Menu HUD (전면 앱 단축키 표시)
 
     @objc func toggleMenuHUD() {
