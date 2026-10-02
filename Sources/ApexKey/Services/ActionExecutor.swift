@@ -290,7 +290,7 @@ final class ActionExecutor {
             Logger.error("E-MAC-ACT-3004", "빈 키 조합 — 전송 건너뜀")
             return false
         }
-        guard AXIsProcessTrusted() else {
+        guard KeySender.isTrusted() else {
             Logger.error("E-MAC-ACT-3007", "손쉬운 사용 권한 없음 — 키 전송 불가. 시스템 설정 > 개인 정보 보호 및 보안 > 손쉬운 사용에서 ApexKey 허용 필요")
             return false
         }
@@ -301,22 +301,10 @@ final class ActionExecutor {
         if combo.modifiers & KeyboardUtil.shiftMask != 0 { modifierKeyCodes.append(56); flags.insert(.maskShift) }
         if combo.modifiers & KeyboardUtil.optionMask != 0 { modifierKeyCodes.append(58); flags.insert(.maskAlternate) }
         if combo.modifiers & KeyboardUtil.controlMask != 0 { modifierKeyCodes.append(59); flags.insert(.maskControl) }
-        let source = CGEventSource(stateID: .hidSystemState)
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(combo.keyCode), keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(combo.keyCode), keyDown: false) else {
+        let ok = KeySender.postCombo(keyCode: CGKeyCode(combo.keyCode), flags: flags, modifierKeyCodes: modifierKeyCodes)
+        if !ok {
             Logger.error("E-MAC-ACT-3004", "키 이벤트 생성 실패: keyCode=\(combo.keyCode)")
             return false
-        }
-        for keyCode in modifierKeyCodes {
-            CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)?.post(tap: .cghidEventTap)
-        }
-        down.flags = flags
-        down.post(tap: .cghidEventTap)
-        Thread.sleep(forTimeInterval: 0.02)
-        up.flags = flags
-        up.post(tap: .cghidEventTap)
-        for keyCode in modifierKeyCodes.reversed() {
-            CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)?.post(tap: .cghidEventTap)
         }
         Logger.info("ActionExecutor", "키 조합 전송: \(KeyboardUtil.displayString(keyCode: combo.keyCode, modifiers: combo.modifiers))")
         return true
@@ -325,6 +313,10 @@ final class ActionExecutor {
     // MARK: - 붙여넣기
 
     private func runPaste(_ target: String) {
+        guard AXIsProcessTrusted() else {
+            Logger.error("E-MAC-ACT-3007", "손쉬운 사용 권한 없음 — 붙여넣기 불가")
+            return
+        }
         let pasteboard = NSPasteboard.general
 
         let text: String
@@ -362,6 +354,10 @@ final class ActionExecutor {
     // MARK: - 좌표 클릭
 
     private func runCoordinateClick(_ target: String) {
+        guard AXIsProcessTrusted() else {
+            Logger.error("E-MAC-ACT-3007", "손쉬운 사용 권한 없음 — 좌표 클릭 불가")
+            return
+        }
         let components = target.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         guard components.count == 2,
               let x = Double(components[0]),
@@ -486,6 +482,10 @@ final class ActionExecutor {
     // MARK: - 매크로
 
     private func runMacro(_ target: String) {
+        guard AXIsProcessTrusted() else {
+            Logger.error("E-MAC-ACT-3007", "손쉬운 사용 권한 없음 — 매크로 불가")
+            return
+        }
         let keyCodes = target.components(separatedBy: ",").compactMap { UInt32($0.trimmingCharacters(in: .whitespaces)) }
         guard !keyCodes.isEmpty else { return }
         Logger.info("ActionExecutor", "매크로 실행: \(keyCodes.count)개 키")
@@ -496,31 +496,16 @@ final class ActionExecutor {
     }
 
     private func simulateKeyCode(_ keyCode: UInt32) {
-        let cgKeyCode = CGKeyCode(keyCode)
-        let source = CGEventSource(stateID: .hidSystemState)
-        let down = CGEvent(keyboardEventSource: source, virtualKey: cgKeyCode, keyDown: true)
-        down?.post(tap: .cghidEventTap)
-        let up = CGEvent(keyboardEventSource: source, virtualKey: cgKeyCode, keyDown: false)
-        up?.post(tap: .cghidEventTap)
+        KeySender.postKey(keyCode: CGKeyCode(keyCode))
     }
 
-    // MARK: - CGEvent 헬퍼
+    // MARK: - CGEvent 헬퍼 (KeySender 위임 — 구 호출부 호환 유지)
 
     private func simulateKeyCombo(keyCode: CGKeyCode, modifiers: CGEventFlags) {
-        let source = CGEventSource(stateID: .hidSystemState)
-        let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
-        down?.flags = modifiers
-        down?.post(tap: .cghidEventTap)
-        let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
-        up?.flags = modifiers
-        up?.post(tap: .cghidEventTap)
+        KeySender.postKey(keyCode: keyCode, flags: modifiers)
     }
 
     private func simulateMouseClick(at point: CGPoint) {
-        let source = CGEventSource(stateID: .hidSystemState)
-        let down = CGEvent(mouseEventSource: source, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left)
-        down?.post(tap: .cghidEventTap)
-        let up = CGEvent(mouseEventSource: source, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left)
-        up?.post(tap: .cghidEventTap)
+        KeySender.click(at: point)
     }
 }

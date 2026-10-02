@@ -233,14 +233,10 @@ enum SystemActionExecutor {
 
     private static func toggleMute() -> Bool {
         let source = scriptSource(for: .mute)
-        guard let src = NSAppleScript(source: source) else {
-            Logger.error("E-MAC-SYS-8001", "음소거 스크립트 생성 실패")
-            return false
-        }
-        var error: NSDictionary?
-        src.executeAndReturnError(&error)
-        if let error {
-            Logger.error("E-MAC-SYS-8002", "음소거 실행 실패: \(error)")
+        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        let r = ScriptExecutor.runAppleScript(source)
+        if !r.success {
+            Logger.error("E-MAC-SYS-8002", "음소거 실행 실패: \(r.errorOutput.prefix(500))")
             return false
         }
         Logger.info("SystemActionExecutor", "음소거 토글")
@@ -248,14 +244,9 @@ enum SystemActionExecutor {
     }
 
     private static func runAppleScript(_ script: String, action: SystemActionType) -> Bool {
-        guard let src = NSAppleScript(source: script) else {
-            Logger.error("E-MAC-SYS-8001", "\(action.displayName) 스크립트 생성 실패")
-            return false
-        }
-        var error: NSDictionary?
-        src.executeAndReturnError(&error)
-        if let error {
-            Logger.error("E-MAC-SYS-8002", "\(action.displayName) 실행 실패: \(error)")
+        let r = ScriptExecutor.runAppleScript(script)
+        if !r.success {
+            Logger.error("E-MAC-SYS-8002", "\(action.displayName) 실행 실패: \(r.errorOutput.prefix(500))")
             return false
         }
         Logger.info("SystemActionExecutor", "\(action.displayName) 실행")

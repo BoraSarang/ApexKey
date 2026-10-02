@@ -605,7 +605,15 @@ final class ExecutionEngine {
         if Thread.isMainThread {
             presentMenu()
         } else {
-            DispatchQueue.main.sync { presentMenu() }
+            // main.sync 대신 async+세마포어 — 역방향 대기 시 영구 교착 대신 단계 실패로 처리하려 했으나
+            // 메뉴는 사용자 선택이 필수라 타임아웃을 둘 수 없다. 메인은 실행큐를 기다리지 않는
+            // 설계(runOffMainThread async)이므로 이 대기는 정상적으로 풀린다.
+            let sem = DispatchSemaphore(value: 0)
+            DispatchQueue.main.async {
+                presentMenu()
+                sem.signal()
+            }
+            sem.wait()
         }
         
         if cancelled {

@@ -24,21 +24,27 @@ enum Logger {
         let line = "[INFO] [\(tag)] \(message)"
         append(line)
         os_log("%{public}@", log: log, type: .info, line)
+        #if DEBUG
         print(line)
+        #endif
     }
 
     static func error(_ code: String, _ message: String) {
         let line = "[ERROR] [\(code)] \(message)"
         append(line)
         os_log("%{public}@", log: log, type: .error, line)
+        #if DEBUG
         print(line)
+        #endif
     }
 
     static func perf(_ message: String) {
         let line = "[PERF] [ApexKey] \(message)"
         append(line)
         os_log("%{public}@", log: log, type: .info, line)
+        #if DEBUG
         print(line)
+        #endif
     }
 
     // MARK: - 디버그 링버퍼

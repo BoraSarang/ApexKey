@@ -17,6 +17,7 @@ struct ShortcutEditorView: View {
     @State private var shortcutName: String
     @State private var shortcutDescription: String
     @State private var isShowingAutomationSettings = false
+    @State private var showingHotkeyRecorder = false
     @State private var shortcutAutomations: [AutomationTrigger]
     @State private var shortcutVariables: [Variable]
     
@@ -66,6 +67,8 @@ struct ShortcutEditorView: View {
             saveName()
             saveDescription()
             saveSteps()
+            saveAutomations()
+            saveVariables()
         }
         .sheet(isPresented: $showingActionDetail) {
             if let type = selectedActionType {
@@ -94,6 +97,37 @@ struct ShortcutEditorView: View {
             AutomationSettingsView(automations: $shortcutAutomations)
                 .onDisappear { saveAutomations() }
         }
+        .sheet(isPresented: $showingHotkeyRecorder) {
+            HotKeyRecorderView(
+                title: shortcutName,
+                subtitle: "ui.editor.steps_count".localizedFormat(steps.count),
+                excludedCombo: liveCombo.isEmpty ? nil : liveCombo,
+                onTest: { combo in
+                    let testShortcut = ShortcutItem(
+                        id: shortcut.id,
+                        name: shortcutName,
+                        steps: steps,
+                        combo: combo
+                    )
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        ActionExecutor.shared.execute(testShortcut)
+                    }
+                    return true
+                }
+            ) { combo in
+                store.setShortcutCombo(liveShortcut, combo: combo).errorMessage
+            }
+            .environmentObject(store)
+        }
+    }
+
+    /// 저장소 기준 최신 동작 — 콤보 지정 후 헤더 표시 즉시 반영용
+    private var liveShortcut: ShortcutItem {
+        store.shortcuts.first(where: { $0.id == shortcut.id }) ?? shortcut
+    }
+
+    private var liveCombo: HotKeyCombo {
+        liveShortcut.combo
     }
     
     // MARK: - 가운데 패널
@@ -177,16 +211,17 @@ struct ShortcutEditorView: View {
                 
                 // 단축키 지정
                 Button {
-                    // 단축키 지정 시트
+                    showingHotkeyRecorder = true
                 } label: {
-                    if shortcut.combo.isEmpty {
+                    if liveCombo.isEmpty {
                         Label("ui.hotkey".localized, systemImage: "keyboard")
                     } else {
-                        Text(shortcut.combo.displayString)
+                        Text(liveCombo.displayString)
                             .font(.system(.caption, design: .monospaced))
                     }
                 }
                 .buttonStyle(.bordered)
+                .help(liveCombo.isEmpty ? "ui.hotkey".localized : liveCombo.displayString)
                 
                 // 닫기
                 Button {
@@ -263,10 +298,6 @@ struct ShortcutEditorView: View {
             // 단계 관리 버튼들
             if isEditingMode && !steps.isEmpty {
                 Menu {
-                    Button("ui.editor.select_all".localized) {
-                        // 전체 선택 로직
-                    }
-                    Divider()
                     Button("ui.editor.toggle_all_skips".localized) {
                         toggleAllSkips()
                     }
@@ -488,6 +519,8 @@ struct ShortcutEditorView: View {
         saveName()
         saveDescription()
         saveSteps()
+        saveAutomations()
+        saveVariables()
         // 편집기는 이제 독립 창이므로 표준 닫기 동작으로 창을 닫는다
         NSApp.keyWindow?.performClose(nil)
     }
