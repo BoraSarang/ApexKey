@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var aboutWindow: NSWindow?
     var debugWindow: NSWindow?
     var paletteWindow: NSPanel?
+    var conflictWindow: NSPanel?
     var menuHUDWindow: NSPanel?
     var menuHUDOverlayWindow: NSPanel?
     var editorWindow: NSWindow?
@@ -33,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var aboutHosting: NSViewController?
     var debugHosting: NSViewController?
     var paletteHosting: NSViewController?
+    var conflictHosting: NSViewController?
     var menuHUDHosting: NSViewController?
     var menuHUDOverlayHosting: NSViewController?
     var editorHosting: NSViewController?

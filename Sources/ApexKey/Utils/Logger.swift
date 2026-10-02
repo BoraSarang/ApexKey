@@ -12,6 +12,14 @@ enum LogLevel: String {
 enum Logger {
     private static let subsystem = "com.borasarang.ApexKey"
     private static let log = OSLog(subsystem: subsystem, category: "ApexKey")
+    /// XCTest 실행 중에는 콘솔 print를 생략한다 — 수백 줄 로그가 터미널을 뒤덮어
+    /// 작업 방해가 된다. os_log + 링버퍼는 유지되므로 디버그 정보는 안 잃는다.
+    private static var isTestRun: Bool { NSClassFromString("XCTestCase") != nil }
+    private static func emit(_ line: String) {
+        #if DEBUG
+        if !isTestRun { print(line) }
+        #endif
+    }
 
     /// 디버그 패널용 링버퍼 (최대 2000줄)
     private static let maxBufferLines = 2000
@@ -24,27 +32,21 @@ enum Logger {
         let line = "[INFO] [\(tag)] \(message)"
         append(line)
         os_log("%{public}@", log: log, type: .info, line)
-        #if DEBUG
-        print(line)
-        #endif
+        emit(line)
     }
 
     static func error(_ code: String, _ message: String) {
         let line = "[ERROR] [\(code)] \(message)"
         append(line)
         os_log("%{public}@", log: log, type: .error, line)
-        #if DEBUG
-        print(line)
-        #endif
+        emit(line)
     }
 
     static func perf(_ message: String) {
         let line = "[PERF] [ApexKey] \(message)"
         append(line)
         os_log("%{public}@", log: log, type: .info, line)
-        #if DEBUG
-        print(line)
-        #endif
+        emit(line)
     }
 
     // MARK: - 디버그 링버퍼

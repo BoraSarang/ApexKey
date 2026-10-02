@@ -26,7 +26,17 @@ final class MenuActionPathTests: XCTestCase {
     ///   `AXIsProcessTrusted()` 대신 **실측 probe**를 쓴다. osascript는 우리
     ///   프로세스와 별개의 TCC 컨텍스트에서 실행되므로 우리 프로세스의 권한과
     ///   일치하지 않는다. "진짜 해볼 수 있는가"를 직접 물어야 한다.
+    /// 실제 Finder 메뉴를 건드리는 실기 테스트 게이트.
+    /// 기본 suite에서는 제외한다 — 메뉴 클릭 시도·Automation 권한 팝업이
+    /// 작업 중인 화면을 방해한다. 필요하면 APEXKEY_LIVE_UI_TESTS=1로 실행.
+    private func requireLiveUI(_ name: String) throws {
+        guard ProcessInfo.processInfo.environment["APEXKEY_LIVE_UI_TESTS"] == "1" else {
+            throw XCTSkip("\(name) — 실기 UI 테스트이므로 기본 제외 (APEXKEY_LIVE_UI_TESTS=1로 실행)")
+        }
+    }
+
     func testMissingMenuItemProduces1728() throws {
+        try requireLiveUI("testMissingMenuItemProduces1728")
         let probe = ProcessRunner.run(
             executable: "/usr/bin/osascript",
             arguments: ["-e", "tell application \"System Events\" to count menu bar items of process \"Finder\""],
@@ -65,7 +75,8 @@ final class MenuActionPathTests: XCTestCase {
 
     /// Finder가 실행 중이 아니어도 테스트는 오해를 만들지 않아야 한다.
     /// (없으면 -1728이 다른 형태로 올 수 있어 "코드 또는 -1728" 중 하나만 허용)
-    func testMissingMenuBarItemFailsWith1728OrTimeout() {
+    func testMissingMenuBarItemFailsWith1728OrTimeout() throws {
+        try requireLiveUI("testMissingMenuBarItemFailsWith1728OrTimeout")
         let run = ProcessRunner.run(
             executable: "/usr/bin/osascript",
             arguments: ["-e", "tell application \"System Events\" to tell process \"Finder\" to click menu bar item \"__nope__\" of menu bar 1"],

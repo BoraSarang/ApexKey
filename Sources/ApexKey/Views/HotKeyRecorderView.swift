@@ -17,6 +17,9 @@ struct HotKeyRecorderView: View {
     var subtitle: String?
     /// 교체 대상 기능이 현재 사용 중인 조합 (같은 조합 재지정 시 중복 판정 제외)
     var excludedCombo: HotKeyCombo?
+    /// 이미 쓰이는 항목 조합 목록 — 포함되면 Conflict palette 공유로 저장 허용.
+    /// 예약 핫키(패널/팔레트 등)는 호출부가 넣지 않으므로 여전히 거부된다.
+    var shareableCombos: () -> [HotKeyCombo] = { [] }
     /// 저장 처리 — **성공 여부를 반환해야 한다** (E-MAC-HTKEY-1003).
     /// 이전 시그니처는 `Void`라 스토어의 거부(중복/저장 실패/OS 등록 실패)를 표현할 수 없었고,
     /// 그럼에도 "적용되었습니다"를 표시해 사용자를 오도했다.
@@ -27,11 +30,13 @@ struct HotKeyRecorderView: View {
 
     init(title: String, subtitle: String? = nil, excludedCombo: HotKeyCombo? = nil,
          onTest: ((HotKeyCombo) -> Bool)? = nil,
+         shareableCombos: @escaping () -> [HotKeyCombo] = { [] },
          onRecord: @escaping (HotKeyCombo) -> String?) {
         self.title = title
         self.subtitle = subtitle
         self.excludedCombo = excludedCombo
         self.onTest = onTest
+        self.shareableCombos = shareableCombos
         self.onRecord = onRecord
     }
 
@@ -40,6 +45,7 @@ struct HotKeyRecorderView: View {
         case applying     // 적용 완료 — 곧 자동 닫힘
         case duplicate    // 중복
         case unavailable  // 사용 불가
+        case shared       // Conflict palette 공유로 저장됨 (안내 후 저장 가능)
         case testing      // 테스트 대기
         case testPassed   // 테스트 성공
         case testFailed   // 테스트 감지됨, 액션 실행 실패
@@ -51,6 +57,7 @@ struct HotKeyRecorderView: View {
         case ok
         case duplicate
         case unavailable
+        case shared
     }
 
     @State private var currentCombo: HotKeyCombo = .empty
@@ -146,6 +153,11 @@ struct HotKeyRecorderView: View {
                 .font(.caption)
                 .foregroundColor(theme.warningColor)
                 .transition(.opacity)
+        case .shared:
+            Label("ui.recorder.shared".localized, systemImage: "square.stack.3d.up")
+                .font(.caption)
+                .foregroundColor(theme.accentColor)
+                .transition(.opacity)
         case .unavailable:
             Label("ui.recorder.unavailable".localized, systemImage: "xmark.octagon.fill")
                 .font(.caption)
@@ -202,8 +214,9 @@ struct HotKeyRecorderView: View {
                 testID = nil
                 testTimer?.cancel()
             }
-            message = nil
             currentCombo = combo
+            // 공유 조합이면 안내 표시 (저장 가능)
+            message = availability(of: combo) == .shared ? .shared : nil
             return nil
         }
     }
@@ -219,7 +232,7 @@ struct HotKeyRecorderView: View {
     private func save() {
         guard !currentCombo.isEmpty else { return }
         switch availability(of: currentCombo) {
-        case .ok:
+        case .ok, .shared:
             hotKeyService.endTest()
             // E-MAC-HTKEY-1003: 저장 거부 사유를 그대로 사용자에게 보여준다.
             // 이전에는 반환값이 없어 무조건 "적용되었습니다"를 표시했다.
@@ -244,9 +257,13 @@ struct HotKeyRecorderView: View {
     }
 
     /// 테스트: 실제 등록 후 사용자가 그 조합을 누르면 성공 처리
+    /// 공유 조합은 이미 등록돼 있어 별도 테스트 등록이 불가하므로 저장 후 실동작으로 확인한다.
     private func startTest() {
         guard !currentCombo.isEmpty else { return }
         switch availability(of: currentCombo) {
+        case .shared:
+            message = .shared
+            return
         case .ok:
             guard let id = hotKeyService.beginTest(currentCombo) else {
                 feedback(.unavailable)
@@ -270,12 +287,18 @@ struct HotKeyRecorderView: View {
         }
     }
 
-    /// 조합 사용 가능 여부 판별
+    /// 조합 사용 가능 여부 판별.
+    /// 항목 간 중복은 Conflict palette 공유로 저장 허용한다 — 단, 우리 등록이
+    /// OS 프로브를 막으므로 내부 목록을 먼저 본다. 예약 핫키는 공유 대상이 아니다.
     private func availability(of combo: HotKeyCombo) -> Availability {
         guard !combo.isEmpty else { return .unavailable }
         // 교체 대상과 동일한 조합이면 그대로 허용 (재지정)
         if let excludedCombo, excludedCombo.matches(combo) {
             return .ok
+        }
+        // 이미 쓰이는 항목 조합이면 공유 저장 허용
+        if shareableCombos().contains(where: { $0.matches(combo) }) {
+            return .shared
         }
         // ApexKey 내부 다른 등록과 충돌 → 중복
         let hasOwnConflict = hotKeyService.registeredCombos(excluding: UUID())

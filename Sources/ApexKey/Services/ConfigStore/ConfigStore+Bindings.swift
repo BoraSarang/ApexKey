@@ -29,9 +29,10 @@ extension ConfigStore {
         guard !combo.isEmpty else { return .invalidCombo }
         guard let app = apps.first(where: { $0.id == appID }) else { return .appNotFound }
         let existing = launchBindings(for: appID).first
-        // 기존 항목은 자기 자신이므로 중복 검사에서 제외하고, 교체 전에 미리 검증한다.
-        if isDuplicate(combo: combo, excluding: existing?.id ?? UUID()) {
-            Logger.error("E-MAC-HTKEY-1003", "앱 실행 단축키 교체 실패 — 중복 조합: \(combo.displayString) (기존 핫키 유지)")
+        // 기존 항목은 자기 자신이므로 예약 충돌만 검사한다 (항목 간 공유 허용).
+        // 교체 전에 미리 검증한다.
+        if isReservedConflict(combo: combo, excluding: existing?.id ?? UUID()) {
+            Logger.error("E-MAC-HTKEY-1003", "앱 실행 단축키 교체 실패 — 예약 조합과 충돌: \(combo.displayString) (기존 핫키 유지)")
             return .duplicateCombo
         }
         if let first = existing {
@@ -57,9 +58,9 @@ extension ConfigStore {
 
     @discardableResult
     func addBinding(_ binding: HotKeyBinding) -> HotKeyApplyResult {
-        // 중복 조합 체크 — 조용히 무시하지 않고 호출부에 통지한다
-        if isDuplicate(combo: binding.combo, excluding: binding.id) {
-            Logger.error("E-MAC-HTKEY-1003", "중복 단축키 — 추가 거부: \(binding.combo.displayString)")
+        // 예약 핫키와 충돌하면 거부한다. 항목 간 중복은 Conflict palette 공유로 허용.
+        if isReservedConflict(combo: binding.combo, excluding: binding.id) {
+            Logger.error("E-MAC-HTKEY-1003", "예약 단축키와 충돌 — 추가 거부: \(binding.combo.displayString)")
             return .duplicateCombo
         }
         guard !binding.combo.isEmpty else {
@@ -73,6 +74,10 @@ extension ConfigStore {
         context.insert(PersistedBinding.from(binding))
         saveContext(context)
         bindings.append(binding)
+        if sharedComboUsers(combo: binding.combo, excluding: binding.id) {
+            Logger.info("ConfigStore", "[BINDING] 공유 단축키 추가 (Conflict palette): \(binding.combo.displayString)")
+            return .applied
+        }
         guard hotKeyService.register(binding.id, combo: binding.combo) else {
             // 저장은 됐지만 OS 등록이 실패한 상태 — 사용자에게 알려야 한다
             Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(binding.combo.displayString)")
@@ -83,7 +88,7 @@ extension ConfigStore {
 
     func removeBinding(_ binding: HotKeyBinding) {
         bindings.removeAll { $0.id == binding.id }
-        hotKeyService.unregister(binding.id)
+        releaseComboRegistration(binding.combo, removedID: binding.id)
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedBinding>(predicate: #Predicate { $0.id == binding.id })
         if let found = fetchContext(context, fetch).first {
@@ -92,20 +97,65 @@ extension ConfigStore {
         saveContext(context)
     }
 
-    /// 단축키 중복 감지 (다른 binding/단축어 + 예약 핫키와 충돌)
+    /// 단축키 중복 감지 (다른 binding/단축어 + 예약 핫키와 충돌).
+    /// 항목 간 중복은 Conflict palette 공유 대상이지만, 예약 변경 등 기존 호출부는
+    /// 거부를 유지하므로 이 함수는 그대로 둔다.
     func isDuplicate(combo: HotKeyCombo, excluding id: UUID) -> Bool {
         guard !combo.isEmpty else { return false }
         let bindingConflict = bindings.contains { $0.id != id && $0.combo.matches(combo) }
         if bindingConflict { return true }
         if shortcuts.contains(where: { $0.id != id && $0.combo.matches(combo) }) { return true }
-        // 예약 핫키 (패널 토글/팔레트/HUD/반복) 포함
+        return isReservedConflict(combo: combo, excluding: id)
+    }
+
+    /// 예약 핫키(패널 토글/팔레트/클립보드/HUD/반복)와만 충돌하는지.
+    /// 항목(binding/단축어) 간 중복은 Conflict palette 공유 대상이라 여기서 제외한다.
+    func isReservedConflict(combo: HotKeyCombo, excluding id: UUID) -> Bool {
+        guard !combo.isEmpty else { return false }
+        // 예약 핫키 (패널 토글/팔레트/클립보드/HUD/반복) 포함
         let reserved: [(UUID, HotKeyCombo)] = [
             (panelToggleID, toggleHotkey),
             (paletteID, paletteHotkey),
+            (clipboardID, clipboardHotkey),
+            (sendID, sendHotkey),
             (menuHUDID, menuHUDHotkey),
             (repeatLastID, Self.defaultRepeatHotkey),
         ]
         return reserved.contains { $0.0 != id && $0.1.matches(combo) }
+    }
+
+    /// 레코더 공유 판정용 — 이미 쓰이는 항목 조합 목록 (예약 제외).
+    func shareableCombos() -> [HotKeyCombo] {
+        (bindings.map(\.combo) + shortcuts.map(\.combo)).filter { !$0.isEmpty }
+    }
+
+    /// 다른 항목이 같은 조합을 쓰는지 (Carbon 공유 등록 판정용).
+    func sharedComboUsers(combo: HotKeyCombo, excluding id: UUID) -> Bool {
+        let key = HotKeyConflict.comboKey(combo)
+        if bindings.contains(where: { $0.id != id && !$0.combo.isEmpty && HotKeyConflict.comboKey($0.combo) == key }) {
+            return true
+        }
+        return shortcuts.contains(where: { $0.id != id && !$0.combo.isEmpty && HotKeyConflict.comboKey($0.combo) == key })
+    }
+
+    /// 조합 등록 해제 — 다른 공유자가 있으면 소유권 이전, 없으면 해제.
+    /// 고정(pin)이 해제된 항목을 가리키면 함께 정리한다.
+    func releaseComboRegistration(_ combo: HotKeyCombo, removedID: UUID) {
+        guard !combo.isEmpty else { return }
+        let key = HotKeyConflict.comboKey(combo)
+        hotKeyService.unregister(removedID)
+        let nextBinding = bindings.first { $0.id != removedID && !$0.combo.isEmpty && HotKeyConflict.comboKey($0.combo) == key }
+        let nextShortcut = shortcuts.first { $0.id != removedID && !$0.combo.isEmpty && HotKeyConflict.comboKey($0.combo) == key }
+        if let next = nextBinding {
+            _ = hotKeyService.register(next.id, combo: next.combo)
+            Logger.info("ConfigStore", "[HOTKEY] 공유 등록 이전: \(combo.displayString)")
+        } else if let next = nextShortcut {
+            _ = hotKeyService.register(next.id, combo: next.combo)
+            Logger.info("ConfigStore", "[HOTKEY] 공유 등록 이전: \(combo.displayString)")
+        }
+        if HotKeyConflict.preferredID(for: combo, defaults: defaults) == removedID {
+            HotKeyConflict.clearPreferred(for: combo, defaults: defaults)
+        }
     }
 
     /// 이름으로 바인딩 검색 (부분 매칭 + 한글 초성 매칭)

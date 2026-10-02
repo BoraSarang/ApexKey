@@ -33,9 +33,17 @@ final class ActionExecutor {
     }
 
     /// 단축어 실행 + 사용자용 결과 메시지. 토스트 표시용.
-    func executeWithDetail(_ shortcut: ShortcutItem) -> (success: Bool, message: String?) {
+    /// - Parameter input: Instant Send 등 외부 입력 (입력 변수·shortcutInput으로 주입).
+    func executeWithDetail(_ shortcut: ShortcutItem, input: VariableValue? = nil) -> (success: Bool, message: String?) {
         Logger.info("ActionExecutor", "동작 실행 시작: \(shortcut.name) (\(shortcut.steps.count)단계)")
         var context = UseModelExecutor.ExecutionContext()
+        if let input {
+            context.shortcutInput = input
+            // 입력 변수(00000000-...) 매직 ID에도 기록 — runAutomation과 동일 규칙
+            let inputID = UUID(uuidString: "00000000-0000-0000-0000-000000000000") ?? UUID()
+            context.setOutput(input, for: inputID)
+            context.variables[inputID] = input
+        }
         // 사용자 정의 변수의 기본값을 실행 컨텍스트에 주입
         for variable in shortcut.variables where variable.type == .manual {
             if let defaultValue = variable.defaultValue {

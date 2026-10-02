@@ -3,6 +3,39 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-02 macos — ① 클립보드 히스토리 + ② Conflict palette
+
+### ① 클립보드 히스토리 (⌘⇧V)
+* 기록 저장소 (`Services/ClipboardHistory.swift`) — 텍스트/이미지/파일 3종,
+  100건·30일·이미지 5MB·총 200MB 상한, 비번 앱 제외, 썸네일 분리 보관
+* 변경 감시 (`Services/ClipboardMonitor.swift`, 0.5초 폴링, 자기 쓰기 제외)
+* 팔레트 클립보드 모드 — 고정됨/최근 섹션, 이미지 인라인 확대 미리보기,
+  ↩ 붙여넣기·⌥↩ 복사만·⌘1–9·⌘P 고정·⌫ 삭제 (NSEvent 처리)
+* `⌘⇧V` 예약 등록 + 설정 변경 UI. 테스트 7건
+* 테스트 조용화 — XCTest 중 콘솔 print 생략 (`Logger.isTestRun`),
+  Finder 실클릭 2건은 `APEXKEY_LIVE_UI_TESTS=1`에서만 실행
+
+### ② Conflict palette (공유 단축키)
+* 항목 간 중복 허용 — Carbon 등록은 첫 소유자만, 나머지는 공유 항목
+  (`setShortcutCombo/addBinding/setLaunchBinding`, 해제 시 소유권 이전)
+* 발화 시 고정→1건→선택패널 순 해결 (`Services/HotKeyConflict.swift`),
+  선택 패널 + ⌘↩ 고정 (`Views/ConflictPaletteView.swift`)
+* 레코더에 공유 안내 상태 추가 (예약 핫키는 여전히 거부). 테스트 3건 + 기존 2건 새 계약 반영
+* 검증: unit 464건 0실패(스킵 3). 1회 flaky 실패 후 재실행 그린 (원인 미특정)
+
+## 2026-10-02 macos — ③ Instant Send 실동작 (⌃⌥D)
+
+* Safari 등에서도 되도록 ⌘C 캡처 방식 (저장→⌘C→대기→읽기→원복,
+  `Services/InstantSend.swift`). 파일 선택은 경로 합산 전달
+* `⌃⌥D` 예약 등록 + 설정 변경 UI, 전송 팔레트 모드(받은 내용 카드 + 대상 목록)
+  (최초 기본값 ⇧⌥D는 기존 단축키와 충돌나 ⌃⌥D로 변경, 저장분 자동 이관)
+* 워크플로우에 외부 입력 주입 (`executeWithDetail(input:)` + `executeShortcutWithInput`)
+* 검증: unit 464건 0실패(스킵 4)
+* 참고: `testVerifyAndroidMirrorNoDeviceFailsGracefully`가 무선 ADB 도달 시
+  간헐 실패 — 기존 환경 의존 flake이며 본 변경과 무관 (재실행 그린)
+* 수정: Instant Send 클립보드 원본 보관에서 `NSPasteboardItem.copy()` 크래시
+  (NSCopying 미준수) → 타입별 Data 저장/복원으로 변경
+
 ## 2026-10-02 macos — 커맨드 팔레트 개편 (중앙 표시 + 기본 섹션 + 앱 기록)
 
 * 열 때마다 화면 중앙 배치 + 행 수에 맞춰 창 높이 조절 (`AppDelegate+PaletteHUD`)
