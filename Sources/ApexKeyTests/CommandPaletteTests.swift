@@ -103,4 +103,41 @@ final class CommandPaletteTests: XCTestCase {
         let big = ShortcutItem(name: "대량", steps: many)
         XCTAssertEqual(CommandPaletteFilter.filterSteps([big], query: "공통검색어").count, 8)
     }
+
+    // MARK: - 자주 사용 / 최근 숨김 (2026-10-02 팔레트 개편)
+
+    private func isolatedDefaults() -> UserDefaults {
+        let d = UserDefaults(suiteName: "test.palette.\(UUID().uuidString)")!
+        d.removePersistentDomain(forName: "test.palette")
+        return d
+    }
+
+    func testAppRecentsRecordSortAndClear() {
+        let d = isolatedDefaults()
+        PaletteAppRecents.record(bundleID: "com.a", name: "A", path: "/A", defaults: d)
+        PaletteAppRecents.record(bundleID: "com.b", name: "B", path: "/B", defaults: d)
+        PaletteAppRecents.record(bundleID: "com.a", name: "A", path: "/A", defaults: d)
+        XCTAssertEqual(PaletteAppRecents.recents(defaults: d).map(\.bundleID), ["com.a", "com.b"])
+        // 2회 이상만 자주 사용
+        XCTAssertEqual(PaletteAppRecents.frequent(defaults: d).map(\.bundleID), ["com.a"])
+        PaletteAppRecents.clear(defaults: d)
+        XCTAssertTrue(PaletteAppRecents.recents(defaults: d).isEmpty)
+    }
+
+    func testFrequentWorkflowsExcludeRecents() {
+        let now = Date()
+        let hot = ShortcutItem(name: "자주", lastRunAt: now, runCount: 10)
+        let recent = ShortcutItem(name: "최근", lastRunAt: now, runCount: 99)
+        let never = ShortcutItem(name: "미실행", runCount: 0)
+        let out = PaletteWorkflowRank.frequent(from: [hot, recent, never], excluding: [recent.id])
+        XCTAssertEqual(out.map(\.name), ["자주"])
+    }
+
+    func testVisibleRecentsHidesClearedOnes() {
+        let now = Date()
+        let old = ShortcutItem(name: "이전", lastRunAt: now.addingTimeInterval(-100))
+        let fresh = ShortcutItem(name: "신규", lastRunAt: now.addingTimeInterval(100))
+        let out = PaletteWorkflowRank.visibleRecents(from: [old, fresh], clearedAt: now)
+        XCTAssertEqual(out.map(\.name), ["신규"])
+    }
 }

@@ -15,10 +15,12 @@ extension AppDelegate {
     func showPalettePanel() {
         if paletteWindow == nil {
             // KeyCapablePanel 필수: borderless NSPanel은 canBecomeKey=false라
-            // TextField에 포커스가 안 잡혀 입력이 안 됨 (Menu HUD와 동일 패턴)
+            // TextField에 포커스가 안 잡혀 입력이 안 됨 (Menu HUD와 동일 패턴).
+            // 처음부터 borderless로 생성 — titled로 만들었다가 바꾸면 frame/content
+            // 매핑이 어긋나 내용이 잘린다.
             let win = KeyCapablePanel(
-                contentRect: NSRect(x: 0, y: 0, width: 560, height: 380),
-                styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+                contentRect: NSRect(x: 0, y: 0, width: 560, height: 400),
+                styleMask: [.borderless],
                 backing: .buffered,
                 defer: false
             )
@@ -32,27 +34,35 @@ extension AppDelegate {
             win.hasShadow = true
             win.backgroundColor = .clear
             win.isOpaque = false
-            win.styleMask = [.borderless]
 
             guard let store else { return }
             let hosting = NSHostingController(rootView: ThemedRoot { CommandPaletteView() }.environmentObject(store))
             paletteHosting = hosting
             win.contentViewController = hosting
-
-            if let screen = Self.screen(for: win) {
-                let r = screen.visibleFrame
-                let x = r.midX - win.frame.width / 2
-                let y = r.midY - win.frame.height / 2
-                win.setFrameOrigin(NSPoint(x: x, y: y))
-            }
+            win.setContentSize(NSSize(width: 560, height: 400))
 
             win.delegate = self
             paletteWindow = win
         }
         guard let win = paletteWindow else { return }
+        // 고정 크기 복원 (이전 동적 리사이즈 잔재 제거) 후 매번 화면 중앙 배치
+        win.setContentSize(NSSize(width: 560, height: 400))
+        centerPaletteWindow(win)
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         win.level = NSWindow.Level(rawValue: 25)
+    }
+
+    /// 팔레트 중앙 배치 — 열 때마다 화면 중앙으로 (위치 기억 안 함).
+    /// visibleFrame 기준이라 메뉴바/Dock에 가리지 않는다.
+    private func centerPaletteWindow(_ win: NSPanel) {
+        let screen = win.screen ?? Self.screen(for: nil) ?? NSScreen.main
+        guard let screen else { return }
+        let r = screen.visibleFrame
+        win.setFrameOrigin(NSPoint(
+            x: r.origin.x + (r.width - win.frame.width) / 2,
+            y: r.origin.y + (r.height - win.frame.height) / 2
+        ))
     }
 
     func hidePalettePanel() {

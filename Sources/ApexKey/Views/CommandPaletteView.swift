@@ -24,7 +24,7 @@ enum PaletteRow: Identifiable, Hashable {
         case .shortcut(let s): return "shortcut-\(s.id.uuidString)"
         case .stepHit(let h): return "hit-\(h.id)"
         case .binding(let b): return "binding-\(b.id.uuidString)"
-        case .app(let a): return "app-\(a.id.uuidString)"
+        case .app(let a): return "app-\(a.bundleID)"
         }
     }
 }
@@ -137,6 +137,8 @@ struct CommandPaletteView: View {
     @State private var searchText = ""
     @State private var selectedIndex = 0
     @State private var allApps: [AppItem] = []
+    /// 앱 기록 변경 시 섹션 갱신용 버전 (record/clear 후 증가)
+    @State private var appRecentsVersion = 0
 
     private var isEmptyQuery: Bool {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -156,13 +158,55 @@ struct CommandPaletteView: View {
 
     private var recentShortcuts: [ShortcutItem] {
         guard isEmptyQuery else { return [] }
-        return CommandPaletteFilter.recents(from: store.shortcuts)
+        let all = CommandPaletteFilter.recents(from: store.shortcuts)
+        return PaletteWorkflowRank.visibleRecents(
+            from: all,
+            clearedAt: PaletteAppRecents.clearedAt()
+        )
+    }
+
+    /// 최근 사용 혼합 (워크플로우 + 앱, 시각 내림차순, 최대 6) — 빈 입력 기본 화면용.
+    private var mixedRecents: [PaletteRow] {
+        guard isEmptyQuery else { return [] }
+        _ = appRecentsVersion
+        let appEntries = PaletteAppRecents.recents()
+        var timed: [(Date, PaletteRow)] = recentShortcuts.map {
+            (($0.lastRunAt ?? .distantPast), .shortcut($0))
+        }
+        for e in appEntries {
+            timed.append((e.lastUsed, .app(AppItem(name: e.name, bundleID: e.bundleID, path: e.path))))
+        }
+        return timed.sorted { $0.0 > $1.0 }.prefix(6).map { $0.1 }
+    }
+
+    /// 자주 쓰는 워크플로우 (runCount 순, 최근과 중복 제외) — 빈 입력 기본 화면용.
+    private var frequentWorkflows: [ShortcutItem] {
+        guard isEmptyQuery else { return [] }
+        let recentIDs = Set(recentShortcuts.map(\.id))
+        return PaletteWorkflowRank.frequent(from: store.shortcuts, excluding: recentIDs)
+    }
+
+    /// 자주 쓰는 앱 (2회 이상 실행, 최근과 중복 제외) — 빈 입력 기본 화면용.
+    private var frequentApps: [AppItem] {
+        guard isEmptyQuery else { return [] }
+        _ = appRecentsVersion
+        let recentIDs = Set(PaletteAppRecents.recents().map(\.bundleID))
+        return PaletteAppRecents.frequent()
+            .filter { !recentIDs.contains($0.bundleID) }
+            .prefix(5)
+            .map { AppItem(name: $0.name, bundleID: $0.bundleID, path: $0.path) }
     }
 
     /// 빈 입력 + 실행 기록 없음 → 고정 6종 폴백 (레퍼런스 fallback, 패널이 비어 보이지 않게).
     private var fallbackCommands: [PaletteCommand] {
         guard isEmptyQuery else { return [] }
         return CommandPaletteFilter.fallbackCommands(all: commands, recents: recentShortcuts)
+    }
+
+    /// 빈 입력 기본 화면의 명령 섹션 — 항상 표시 (LiteRT식 기본 메뉴).
+    private var emptyCommands: [PaletteCommand] {
+        guard isEmptyQuery else { return [] }
+        return commands
     }
 
     /// 명령 행 (폴백 + 매칭 합산).
@@ -190,10 +234,15 @@ struct CommandPaletteView: View {
         CommandPaletteFilter.filterSteps(store.shortcuts, query: searchText)
     }
 
-    /// 단일 선택 공간 (표시 순서: 최근 실행/명령/동작/단계내용/단축키/앱).
+    /// 단일 선택 공간 (표시 순서: 최근 혼합/자주 쓰는 워크플로우/자주 쓰는 앱/명령/동작/단계내용/단축키/앱).
     private var rows: [PaletteRow] {
-        recentShortcuts.map(PaletteRow.shortcut)
-            + commandRows.map(PaletteRow.command)
+        if isEmptyQuery {
+            return mixedRecents
+                + frequentWorkflows.map(PaletteRow.shortcut)
+                + frequentApps.map(PaletteRow.app)
+                + emptyCommands.map(PaletteRow.command)
+        }
+        return commandRows.map(PaletteRow.command)
             + matchedShortcuts.map(PaletteRow.shortcut)
             + matchedSteps.map(PaletteRow.stepHit)
             + matchedBindings.map(PaletteRow.binding)
@@ -210,40 +259,61 @@ struct CommandPaletteView: View {
             Divider()
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    if !recentShortcuts.isEmpty {
-                        sectionLabel("palette.section.recent".localized)
-                        ForEach(recentShortcuts) { shortcut in
-                            shortcutRow(shortcut, showRecency: true)
+                    if isEmptyQuery {
+                        if !mixedRecents.isEmpty {
+                            recentHeader
+                            ForEach(mixedRecents, id: \.id) { row in
+                                paletteRow(row, showRecency: true)
+                            }
                         }
-                    }
-                    if !commandRows.isEmpty {
-                        sectionLabel("palette.section.commands".localized)
-                        ForEach(commandRows) { cmd in
-                            commandRow(cmd)
+                        if !frequentWorkflows.isEmpty {
+                            sectionLabel("palette.section.frequent_shortcuts".localized)
+                            ForEach(frequentWorkflows) { shortcut in
+                                shortcutRow(shortcut)
+                            }
                         }
-                    }
-                    if !matchedShortcuts.isEmpty {
-                        sectionLabel("palette.section.shortcuts".localized)
-                        ForEach(matchedShortcuts) { shortcut in
-                            shortcutRow(shortcut)
+                        if !frequentApps.isEmpty {
+                            sectionLabel("palette.section.frequent_apps".localized)
+                            ForEach(frequentApps) { app in
+                                appRow(app)
+                            }
                         }
-                    }
-                    if !matchedSteps.isEmpty {
-                        sectionLabel("palette.section.steps".localized)
-                        ForEach(matchedSteps) { hit in
-                            stepHitRow(hit)
+                        if !emptyCommands.isEmpty {
+                            sectionLabel("palette.section.commands".localized)
+                            ForEach(emptyCommands) { cmd in
+                                commandRow(cmd)
+                            }
                         }
-                    }
-                    if !matchedBindings.isEmpty {
-                        sectionLabel("palette.section.bindings".localized)
-                        ForEach(matchedBindings) { binding in
-                            bindingRow(binding)
+                    } else {
+                        if !commandRows.isEmpty {
+                            sectionLabel("palette.section.commands".localized)
+                            ForEach(commandRows) { cmd in
+                                commandRow(cmd)
+                            }
                         }
-                    }
-                    if !matchedApps.isEmpty {
-                        sectionLabel("palette.section.apps".localized)
-                        ForEach(matchedApps) { app in
-                            appRow(app)
+                        if !matchedShortcuts.isEmpty {
+                            sectionLabel("palette.section.shortcuts".localized)
+                            ForEach(matchedShortcuts) { shortcut in
+                                shortcutRow(shortcut)
+                            }
+                        }
+                        if !matchedSteps.isEmpty {
+                            sectionLabel("palette.section.steps".localized)
+                            ForEach(matchedSteps) { hit in
+                                stepHitRow(hit)
+                            }
+                        }
+                        if !matchedBindings.isEmpty {
+                            sectionLabel("palette.section.bindings".localized)
+                            ForEach(matchedBindings) { binding in
+                                bindingRow(binding)
+                            }
+                        }
+                        if !matchedApps.isEmpty {
+                            sectionLabel("palette.section.apps".localized)
+                            ForEach(matchedApps) { app in
+                                appRow(app)
+                            }
                         }
                     }
                     if rows.isEmpty {
@@ -255,7 +325,7 @@ struct CommandPaletteView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .frame(maxHeight: 320)
+            .frame(maxHeight: 340)
         }
         .frame(width: 560)
         .background(theme.primaryBackground)
@@ -311,6 +381,37 @@ struct CommandPaletteView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
+    }
+
+    /// 최근 사용 헤더 + 지우기 (LiteRT식).
+    private var recentHeader: some View {
+        HStack {
+            Text("palette.section.recent".localized)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(theme.secondaryText)
+            Spacer()
+            Button("palette.clear".localized) {
+                PaletteAppRecents.clear()
+                appRecentsVersion += 1
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 11))
+            .foregroundColor(theme.secondaryText)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+    }
+
+    /// 혼합 최근 행 렌더러.
+    @ViewBuilder
+    private func paletteRow(_ row: PaletteRow, showRecency: Bool = false) -> some View {
+        switch row {
+        case .shortcut(let s): shortcutRow(s, showRecency: showRecency)
+        case .app(let a): appRow(a)
+        case .command(let c): commandRow(c)
+        case .binding(let b): bindingRow(b)
+        case .stepHit(let h): stepHitRow(h)
+        }
     }
 
     private func commandRow(_ cmd: PaletteCommand) -> some View {
@@ -459,10 +560,18 @@ struct CommandPaletteView: View {
     private func appRow(_ app: AppItem) -> some View {
         Button { runApp(app) } label: {
             HStack(spacing: 8) {
-                Image(systemName: "app.badge")
-                    .font(.system(size: 12))
-                    .foregroundColor(theme.secondaryText)
-                    .frame(width: 20)
+                Group {
+                    if let nsImg = AppIconCache.icon(for: app) {
+                        Image(nsImage: nsImg)
+                            .resizable()
+                            .frame(width: 16, height: 16)
+                    } else {
+                        Image(systemName: "app.badge")
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.secondaryText)
+                    }
+                }
+                .frame(width: 20)
                 Self.highlightedTitle(app.name, query: searchText)
                     .font(.system(size: 13))
                     .lineLimit(1)
@@ -476,7 +585,7 @@ struct CommandPaletteView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background {
-                if selectedID == "app-\(app.id.uuidString)" {
+                if selectedID == "app-\(app.bundleID)" {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.accentColor.opacity(0.3))
                 }
@@ -581,6 +690,7 @@ struct CommandPaletteView: View {
 
     private func runApp(_ app: AppItem) {
         store.showPalette = false
+        PaletteAppRecents.record(bundleID: app.bundleID, name: app.name, path: app.path)
         AppSwitcher.activate(bundleID: app.bundleID, path: app.path)
     }
 }
