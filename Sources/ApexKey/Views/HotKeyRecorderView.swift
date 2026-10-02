@@ -182,6 +182,7 @@ struct HotKeyRecorderView: View {
     // MARK: - 로직
 
     private func installMonitor() {
+        removeMonitor()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // Esc면 취소
             if event.keyCode == 53 {
@@ -224,8 +225,9 @@ struct HotKeyRecorderView: View {
             // 이전에는 반환값이 없어 무조건 "적용되었습니다"를 표시했다.
             if let reason = onRecord(currentCombo) {
                 message = .saveRejected(reason: reason)
-                // 거부되었으므로 자동 닫지 않는다 — 다른 조합을 고를 수 있게 유지
-                removeMonitor()
+                // 거부되었으므로 자동 닫지 않는다 — 모니터 유지해 다른 조합을 고를 수 있게 한다
+                currentCombo = .empty
+                installMonitor()
                 return
             }
             message = .applying
