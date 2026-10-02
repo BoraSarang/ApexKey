@@ -109,16 +109,15 @@ final class ConfigStoreMutationTests: XCTestCase {
         XCTAssertEqual(persisted.first?.toBinding().title, "Safari")
     }
 
-    func testAddBindingRejectsDuplicateCombo() {
-        // E-MAC-HTKEY-1003: 중복 조합은 조용히 무시되지 않고 거부돼야 한다
+    func testAddBindingSharesDuplicateCombo() {
+        // Conflict palette: 항목 간 중복은 거부 대신 공유 저장된다 (예약 충돌만 거부).
         let store = makeStore()
         let shared = combo(105, "⌘F13")
         _ = store.addBinding(HotKeyBinding(combo: shared, actionType: .launchApp, target: "com.apple.Safari", title: "A"))
         let result = store.addBinding(HotKeyBinding(combo: shared, actionType: .launchApp, target: "com.apple.TextEdit", title: "B"))
 
-        XCTAssertEqual(result, .duplicateCombo, "중복 조합이 거부되지 않음")
-        XCTAssertEqual(store.bindings.count, 1, "중복이 저장됨")
-        XCTAssertEqual(store.bindings.first?.title, "A", "기존 바인딩이 덮어써짐")
+        XCTAssertEqual(result, .applied, "항목 간 공유가 거부됨")
+        XCTAssertEqual(store.bindings.count, 2, "공유 항목이 저장되지 않음")
     }
 
     func testAddBindingRejectsEmptyCombo() {
@@ -161,17 +160,10 @@ final class ConfigStoreMutationTests: XCTestCase {
         XCTAssertEqual(persisted.first?.toBinding().combo.keyCode, 106)
     }
 
-    func testSetLaunchBindingRejectsDuplicateAndKeepsOld() {
-        // E-MAC-HTKEY-1003 회귀 — **자기 바인딩을 교체**하는 경우여야 한다.
-        //
-        // 이전 버그의 정확한 재현 조건: 앱 A가 ⌘F13을 쓰고 있고, 사용자가 A를
-        // (앱 B가 이미 쓰는) ⌘F14로 바꾸려 한다. 이전 구현은
-        //   1) removeBinding(A)  → A의 핫키가 사라짐
-        //   2) addBinding(⌘F14)  → B와 중복 → 조용히 return
-        // 결과를 **A의 단축키만 사라진 상태**로 남겼다.
-        //
-        // B를 대상으로 *추가*하면 removeBinding이 애초에 호출되지 않아 이 테스트가
-        // 통과해 버린다 — 실제로 처음 그렇게 작성했다가 통과하는 걸 확인했다.
+    func testSetLaunchBindingSharesDuplicateAndKeepsBoth() {
+        // Conflict palette: 다른 앱이 쓰는 조합으로 바꿔도 공유 저장된다.
+        // 파괴-후-검증 회귀 방지는 유지된다 — 예약 충돌이면 변경 전 검증에서 거부된다.
+        // (testAddBindingRejectsReservedHotkey 참조)
         let store = makeStore()
         let safari = makeApp("Safari", bundleID: "com.apple.Safari")
         let notes = makeApp("Notes", bundleID: "com.apple.Notes")
@@ -182,20 +174,15 @@ final class ConfigStoreMutationTests: XCTestCase {
         _ = store.setLaunchBinding(for: notes.id, combo: combo(106, "⌘F14"))
         XCTAssertEqual(store.bindings.count, 2)
 
-        // Safari의 ⌘F13을 Notes가 이미 쓰는 ⌘F14로 바꾸려 한다 → 거부돼야 한다
+        // Safari의 ⌘F13을 Notes가 쓰는 ⌘F14로 바꾼다 → 공유 저장
         let result = store.setLaunchBinding(for: safari.id, combo: combo(106, "⌘F14"))
 
-        XCTAssertEqual(result, .duplicateCombo)
-        XCTAssertEqual(store.bindings.count, 2, "거부했는데 항목이 사라짐")
+        XCTAssertEqual(result, .applied)
+        XCTAssertEqual(store.bindings.count, 2, "공유 저장인데 항목이 사라짐")
         let safariBinding = store.bindings.first { $0.target == safari.bundleID }
-        XCTAssertNotNil(safariBinding, "거부했는데 기존 바인딩이 사라짐 — 사용자의 핫키가 조용히 죽었다")
-        XCTAssertEqual(safariBinding?.combo.keyCode, 105, "거부했는데 조합이 바뀌었다")
+        XCTAssertEqual(safariBinding?.combo.keyCode, 106, "공유 조합으로 바뀌지 않음")
         let persisted = (try? store.container!.mainContext.fetch(FetchDescriptor<PersistedBinding>())) ?? []
-        XCTAssertEqual(persisted.count, 2, "거부했는데 store에서 삭제됨")
-        XCTAssertEqual(
-            persisted.first { $0.toBinding().target == safari.bundleID }?.toBinding().combo.keyCode,
-            105
-        )
+        XCTAssertEqual(persisted.count, 2, "store에서 항목이 사라짐")
     }
 
     func testSetLaunchBindingRejectsEmptyCombo() {
