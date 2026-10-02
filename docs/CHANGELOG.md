@@ -3,6 +3,73 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-02 macos — 커맨드 팔레트 개편 (중앙 표시 + 기본 섹션 + 앱 기록)
+
+* 열 때마다 화면 중앙 배치 + 행 수에 맞춰 창 높이 조절 (`AppDelegate+PaletteHUD`)
+* 빈 입력 기본 화면: 최근 사용(워크플로우+앱 혼합, 지우기 포함) / 자주 쓰는 워크플로우
+  (`runCount` 순) / 자주 쓰는 앱 / 명령 섹션 (`CommandPaletteView`)
+* 앱 실행 기록 신규 (`Services/PaletteAppRecents.swift`, UserDefaults 영속).
+  앱行 ID를 `bundleID` 기준으로 고정해 선택 하이라이트 안정화
+* 지우기는 앱 기록 삭제 + 워크플로우 최근 표시 기준시각 갱신 (통계 `lastRunAt` 유지,
+  이후 실행분부터 재노출)
+* i18n `palette.section.frequent_shortcuts/frequent_apps` (ko/en)
+* 검증: unit 454건 0실패(스킵 2, 신규 3건 포함)
+
+## 2026-10-02 macos — 팔레트 창 깨짐 수정 (고정 크기 + 중앙 배치)
+
+* 동적 높이 계산이 섹션 헤더를 빼먹어 아래 행이 잘리던 문제 → 560x400 고정,
+  목록은 내부 스크롤. 입력 중 창이 움직이지 않음
+* 창 생성 시 titled→borderless 마스크 교체로 frame/content가 어긋나 오른쪽이
+  잘리던 문제 → 처음부터 borderless로 생성
+* 열 때마다 `visibleFrame` 정중앙 배치 (메뉴바/Dock 제외 기준)
+* 앱 행에 실제 앱 아이콘 표시 (`Utils/AppIconCache.swift`, bundleID 캐시, 없으면 기존 심볼 폴백)
+
+## 2026-10-02 macos — 편집기 단축키 버튼 무응답 + 전수 결함 수정
+
+* `ShortcutEditorView.swift` 단축키 버튼 빈 액션 → `HotKeyRecorderView` 시트 연결.
+  미지정 상태에서 눌러도 설정 화면이 안 뜨던 문제 해소. 저장 후 헤더 표시 즉시 반영
+  (`liveCombo`). 빌드·설치·재시작 완료
+* `ActionExecutor.swift` 권한 가드 통일 — `runPaste/runMacro/runCoordinateClick`에
+  `AXIsProcessTrusted()` 추가. 전송 본체는 신규 `Services/KeySender.swift`로 단일화
+  (`sendKeyPress/simulate*` 모두 위임, 기존 시그니처 유지)
+* `ShortcutEditorView.swift` 빈 전체선택 메뉴 삭제(단일선택 구조), `saveAndClose`/
+  `onDisappear`에 `saveAutomations/saveVariables` 추가
+* `HotKeyRecorderView.swift` 저장 거부 시 모니터 유지 + 재설치(거부 후 재입력 가능)
+* `ConfigStore+Automation.swift` `main.sync` → async+5초 타임아웃(조회 실패는 단계 실패)
+* `ExecutionEngine.swift` 메뉴 `main.sync` → async+세마포어
+* `ScriptExecutor.swift` JXA 60초 타임아웃. `SystemActionExecutor.swift` 직접
+  `NSAppleScript` 호출 → `ScriptExecutor` 경유로 통합
+* `ConfigSchema.swift` `preconditionFailure` → 빈 스키마 폴백+로그
+* `Logger.swift` `print`를 `#if DEBUG`로 (릴리스 중복 I/O 제거)
+* 검증: 빌드 성공 + unit 451건 0실패(스킵 2)
+* 미착수(회귀 위험): `ActionExecutor`/`ExecutionEngine` 분기 완전 통합(`StepRunner`),
+  거대 파일 분리, `ActionDetailView` 통합, `planned 90종` 정리
+
+## 2026-09-29 macos — PR #7 병합 (v0.4~v0.27, 59커밋)
+
+`fix/macos-audit-p0` → `main`. **60커밋**(T-184 포함). 병합 커밋 `3664d99`.
+
+기존 PR #6(`feat/macos-p0-critical-fixes`, 20커밋)의 커밋을 전부 포함하고 있어
+GitHub이 #6도 자동 MERGED 처리했다.
+
+**병합 방식**: `Merge pull request #7` 병합 커밋 — main의 기존 관례를 따랐다.
+squash하지 않은 이유는 **각 커밋에 회귀 테스트가 붙어 있어** 커밋 단위로 읽어야
+무엇을 막았는지 보이기 때문이다.
+
+### 배포는 되지 않는다
+
+`release.yml`은 **태그 트리거**라 main 병합으로 배포되지 않는다. `pages.yml`도
+`website/**` 변경 시에만 도는데 이번 변경은 그 경로를 건드리지 않는다.
+CI만 돌았다 — PR에서 한 번, main push에서 한 번, **둘 다 통과.**
+
+### CI가 실제로 한 일
+
+PR의 첫 CI에서 1건이 실패해 병합하지 않았다 (T-184).
+`MenuActionPathTests.testMissingMenuItemProduces1728`은 접근성 권한이 없는 러너에서
+-1728이 아니라 권한 오류를 받는다 — 앱의 분류 로직이 아니라 **러너의 권한 상태**를
+측정하는 테스트였다. 실측 probe로 게이팅해 수정했고, 로컬에서 probe가 성공하는 것을
+확인해 커버리지를 잃지 않았다.
+
 ## 2026-09-29 macos — CI 실패 1건 수정: 호스트 권한에 의존하던 테스트 (T-184)
 
 > PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건이 실패했다.

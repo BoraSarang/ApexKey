@@ -31,6 +31,12 @@
 [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서에는 없다 — 두 목록의 경계를
 섞지 않는 것이 이 구조의 목적이다.
 
+### 미착수(2026-10-02 확인, 회귀 위험으로 보류)
+
+`ActionExecutor`/`ExecutionEngine` 분기 완전 통합(`StepRunner`), 거대 파일 분리
+(`ExecutionEngine`/`Shortcut`/`ShortcutEditorView`), `ActionDetailView` 통합,
+`planned 90종` 정리. 상세는 `docs/CHANGELOG.md` 2026-10-02 항목.
+
 ### 무효화된 항목 `[~]` 3건 (2026-09-29 정리)
 
 `[x]`도 `[ ]`도 아니다. **구현하지 않는 게 의도**이며 되살리면 안 된다.
