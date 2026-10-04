@@ -578,3 +578,15 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 - [x] **P1 순수 로직 11종** — **T-171로 완료**(2026-09-29). `text`·`combineText`·`splitText`·`trimWhitespace`·`replaceText`·`regex`·`matchText`·`count`·`formatNumber`·`getClipboard`·`setClipboard` 11종 구현 + 전용 설정 UI + 테스트 40건
 - [~] 오프라인/큐 — **비해당.** 로컬 앱이다
 - [ ] macOS 14 런타임 실기 검증 (v0.3.2로 SwiftUI 빈 윈도우 근본 제거, macOS 26에서 검증 완료) — 배포 타깃 14 컴파일만 보장
+
+## 2026-10-05 — 사용자 요청 대응 (⌘⌥L 이관·자동화 핫키·에디터 크래시)
+
+- [x] **구 바인딩 `다운로드 ⌘⌥L` → `파인더 - 다운로드` 동작으로 이관** (2026-10-05).
+  바인딩 삭제 + 콤보 `37:2304`·`file` 단계(`/Users/lee/Downloads`) 설정. 사용자 DB 직접 수정
+  (앱 종료 상태·백업 후). 콤보와 자동화는 독립 필드라 트리거 삭제만으로 핫키가 안 없어진다
+- [x] **자동화 카드에 실행 단축키 관리 추가** (2026-10-05, `AutomationBrowserView.swift`).
+  콤보 표시 + 지정/변경(`HotKeyRecorderView`) + 해제 + 동작 삭제(콤보·자동화 함께 해제).
+  자동화 화면에서 핫키 고아가 생기지 않는다
+- [x] **`stepBinding` stale index 크래시 수정** (2026-10-05, `ShortcutEditorView.swift:327`).
+  02:20 리포트 `EXC_BREAKPOINT` — 설정 창 열린 채 단계 삭제·이동 후 텍스트 편집 종료 시
+  Array OOB trap. 인덱스 캡처 제거 → 매번 id 재조회, 소실 시 읽기 스냅샷·쓰기 무시

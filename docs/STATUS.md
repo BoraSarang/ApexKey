@@ -1,6 +1,6 @@
 # ApexKey — 현황 (STATUS)
 
-> 최종 갱신: **2026-10-02**
+> 최종 갱신: **2026-10-05**
 > 이 문서가 "지금 어디까지 왔고, 무엇이 막혔고, 무엇을 안 했는지"의 단일 출처다.
 > 작업 목록은 [`TODO.md`](TODO.md), 문서 색인은 [`README.md`](README.md).
 
@@ -18,7 +18,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **464건 0실패** (4 skip, 2026-10-02 재확인) | `./build_and_run.sh test macos unit` |
+| 테스트 | **464건 중 1실패**(3 skip, 2026-10-05) — `testVerifyAndroidMirrorNoDeviceFailsGracefully`는 clean tree에서도 실패하는 기존 환경 문제 | `./build_and_run.sh test macos unit` |
 | 스모크 | 69건 0실패 | `test macos smoke` |
 | 빌드 | **클린 빌드 경고 0** | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. T-183으로 13건 제거 |
 | 액션 구현 | **59 / 162** (스텁 4, 미구현 100) | `ActionType.implementationCounts()` |
