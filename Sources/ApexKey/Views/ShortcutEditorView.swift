@@ -324,12 +324,18 @@ struct ShortcutEditorView: View {
     }
     
     private func stepBinding(for step: ShortcutStep) -> Binding<ShortcutStep> {
-        guard let index = steps.firstIndex(where: { $0.id == step.id }) else {
-            return Binding.constant(step)
-        }
-        return Binding(
-            get: { steps[index] },
-            set: { steps[index] = $0 }
+        // 인덱스 캡처 금지 — 설정 창이 열린 채로 단계가 삭제·이동되면 stale index로
+        // Array OOB trap(SIGTRAP)이 난다. 매번 id로 재조회하고, 없으면 읽기는
+        // 스냅샷·쓰기는 무시로 받아낸다.
+        Binding(
+            get: {
+                guard let i = steps.firstIndex(where: { $0.id == step.id }) else { return step }
+                return steps[i]
+            },
+            set: {
+                guard let i = steps.firstIndex(where: { $0.id == step.id }) else { return }
+                steps[i] = $0
+            }
         )
     }
     

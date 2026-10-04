@@ -7,6 +7,8 @@ struct AutomationBrowserView: View {
 
     @State private var editingShortcut: ShortcutItem?
     @State private var showingWorkflowPicker = false
+    @State private var recordingComboFor: ShortcutItem?
+    @State private var pendingShortcutDeletion: ShortcutItem?
 
     /// 자동화 트리거가 등록된 워크플로우 목록
     private var automatedShortcuts: [ShortcutItem] {
@@ -34,6 +36,31 @@ struct AutomationBrowserView: View {
         .sheet(isPresented: $showingWorkflowPicker) {
             workflowPickerSheet
                 .environmentObject(store)
+        }
+        // 실행 단축키 지정/변경 — 콤보는 트리거와 별개 필드라 여기서도 관리해야
+        // "자동화 지웠는데 핫키가 남는다"는 고아가 생기지 않는다
+        .sheet(item: $recordingComboFor) { target in
+            HotKeyRecorderView(
+                title: "ui.station.hotkey_title".localizedFormat(target.name),
+                subtitle: "ui.station.hotkey_subtitle".localizedFormat(target.steps.count),
+                excludedCombo: target.combo.isEmpty ? nil : target.combo,
+                onTest: { combo in
+                    let testShortcut = ShortcutItem(
+                        id: target.id,
+                        name: target.name,
+                        steps: target.steps,
+                        combo: combo
+                    )
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        ActionExecutor.shared.execute(testShortcut)
+                    }
+                    return true
+                },
+                shareableCombos: { store.shareableCombos() }
+            ) { combo in
+                store.setShortcutCombo(target, combo: combo).errorMessage
+            }
+            .environmentObject(store)
         }
     }
 
@@ -81,16 +108,20 @@ struct AutomationBrowserView: View {
     }
 
     private func automationCard(_ shortcut: ShortcutItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // 저장소 기준 최신값 — 콤보 지정/해제 후 카드 표시 즉시 반영용.
+        // 콤보(실행 단축키)는 automations와 별개 필드라 트리거만 지우면 핫키가
+        // 그대로 살아남는다. 카드에 함께 보여주고 여기서 해제·삭제하게 한다.
+        let live = store.shortcuts.first(where: { $0.id == shortcut.id }) ?? shortcut
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Image(systemName: "square.stack.3d.up")
                     .foregroundColor(theme.accentColor)
-                Text(shortcut.name)
+                Text(live.name)
                     .font(.body)
                     .fontWeight(.medium)
                 Spacer()
                 Button("ui.automation.edit".localized) {
-                    editingShortcut = shortcut
+                    editingShortcut = live
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -98,7 +129,7 @@ struct AutomationBrowserView: View {
 
             Divider()
 
-            ForEach(shortcut.automations) { trigger in
+            ForEach(live.automations) { trigger in
                 HStack(spacing: 8) {
                     Image(systemName: trigger.systemImage)
                         .frame(width: 18)
@@ -109,6 +140,66 @@ struct AutomationBrowserView: View {
                     Text(trigger.category.displayName + " · " + trigger.minimumOSVersion)
                         .font(.caption2)
                         .foregroundColor(theme.secondaryText)
+                }
+            }
+
+            Divider()
+
+            HStack(spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "keyboard")
+                        .foregroundColor(theme.secondaryText)
+                    if live.combo.isEmpty {
+                        Button("ui.station.assign_hotkey".localized) {
+                            recordingComboFor = live
+                        }
+                        .buttonStyle(.borderless)
+                        .help("ui.station.assign_hotkey_help".localized)
+                    } else {
+                        Text(live.combo.displayString)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(theme.accentColor)
+                        Button("ui.appdetail.change_hotkey".localized) {
+                            recordingComboFor = live
+                        }
+                        .buttonStyle(.borderless)
+                        Button {
+                            store.clearShortcutCombo(live)
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                                .foregroundColor(theme.secondaryText)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("ui.delete".localized)
+                    }
+                }
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    pendingShortcutDeletion = live
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("ui.delete".localized)
+                .confirmationDialog(
+                    "ui.station.delete_alert_title".localizedFormat(live.name),
+                    isPresented: Binding(
+                        get: { pendingShortcutDeletion?.id == live.id },
+                        set: { if !$0 { pendingShortcutDeletion = nil } }
+                    ),
+                    titleVisibility: .visible
+                ) {
+                    Button("ui.delete".localized, role: .destructive) {
+                        if let s = pendingShortcutDeletion {
+                            store.removeShortcut(s)
+                        }
+                        pendingShortcutDeletion = nil
+                    }
+                    Button("ui.cancel".localized, role: .cancel) { pendingShortcutDeletion = nil }
+                } message: {
+                    Text("ui.station.delete_alert_message".localizedFormat(live.steps.count))
                 }
             }
         }
