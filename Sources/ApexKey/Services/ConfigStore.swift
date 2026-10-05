@@ -432,7 +432,7 @@ final class ConfigStore: ObservableObject {
     }
 
     /// 설치 시 기본 제공되는 고정 동작 프리셋 — 현재 없음.
-    /// Android 미러는 시스템 탭(`SystemActionType.androidMirror`)으로 이관됨.
+    /// 과거 테스트(`BuiltInShortcutPresets.all`) 호환을 위해 빈 목록을 유지한다.
     func ensureBuiltInShortcuts() {
         removeLegacyAndroidShortcutsIfNeeded()
     }
@@ -551,7 +551,6 @@ final class ConfigStore: ObservableObject {
 }
 
 /// 설치 시 기본 제공되는 고정 동작 프리셋 — 현재 없음 (호환용 스텁).
-/// Android 미러는 시스템 탭(`SystemActionType.androidMirror`)으로 이관됨.
 /// 과거 테스트(`BuiltInShortcutPresets.all`) 호환을 위해 빈 목록을 유지한다.
 enum BuiltInShortcutPresets {
     static let all: [ShortcutItem] = []

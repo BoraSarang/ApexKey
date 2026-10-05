@@ -43,14 +43,8 @@ final class ApexKeyScriptTests: XCTestCase {
     }
 
     func testBuiltInPresetsAreFixedWithoutHotkeys() {
-        // 고정 프리셋은 시스템 탭으로 이관됨 — 동작 탭 프리셋 목록은 비어 있음
+        // 고정 프리셋은 워크플로우 안 System 카테고리(단계 설정 피커)로 제공 — 동작 탭 프리셋 목록은 비어 있음
         XCTAssertTrue(BuiltInShortcutPresets.all.isEmpty)
-        // 시스템 탭에 Android 미러 고정 액션이 있음 (외부 스크립트 파일 단일 소스)
-        XCTAssertTrue(SystemActionType.allCases.contains(.androidMirror))
-        XCTAssertTrue(
-            FileManager.default.fileExists(atPath: SystemActionExecutor.androidMirrorScriptPath),
-            "scrcpy_run.sh 없음: \(SystemActionExecutor.androidMirrorScriptPath)"
-        )
     }
 
     func testEngineReportsUnimplementedActionFailure() {

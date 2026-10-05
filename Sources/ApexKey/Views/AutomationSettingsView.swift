@@ -8,7 +8,10 @@ struct AutomationSettingsView: View {
     
     @State private var newTriggerType: TriggerCategory = .time
     
-    private let categories: [TriggerCategory] = TriggerCategory.allCases
+    /// 감시자가 설치되는 카테고리만 노출 — 미지원 8종(파일·외장드라이브·디스플레이·
+    /// 와이파이·블루투스·앱·집중모드·스테이지매니저)은 숨기고 추후 확장.
+    /// "쓸모있는 몇 개"만 보인다 (사용자 결정).
+    private let categories: [TriggerCategory] = [.time, .filesystem, .power]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -215,10 +218,6 @@ struct AutomationSettingsView: View {
             case .filesystem:
                 addTriggerButton(title: "ui.automation.folder".localized, icon: "folder") {
                     add(.folder(FolderTrigger(folderPath: "")))
-                }
-                // 단일 파일 트리거는 감시자 미구현 — 추가 버튼 비활성 (P1)
-                addTriggerButton(title: "ui.automation.file".localized, icon: "doc", enabled: false) {
-                    add(.file(FileTrigger(filePath: "")))
                 }
             case .power:
                 addTriggerButton(title: "ui.automation.battery".localized, icon: "battery.100") {

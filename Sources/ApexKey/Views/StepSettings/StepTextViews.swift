@@ -317,13 +317,7 @@ struct TextActionSettingsView: View {
             .font(.caption)
             .foregroundColor(theme.secondaryText)
         if isMultiline {
-            TextEditor(text: text)
-                .frame(height: 90)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(theme.secondaryText.opacity(0.3))
-                )
-                .scrollContentBackground(.hidden)
+            GrowingTextEditor(text: text, font: monospaced ? .system(.body, design: .monospaced) : .body, minHeight: 90, maxHeight: 200)
         } else {
             TextField(label, text: text)
                 .font(monospaced ? .system(.body, design: .monospaced) : .body)

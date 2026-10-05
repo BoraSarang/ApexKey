@@ -111,33 +111,15 @@ final class ApexKeyActionVerifyTests: XCTestCase {
         XCTAssertFalse(r.success)
     }
 
-    // MARK: - SYSTEM (시스템 탭)
+    // MARK: - SYSTEM (시스템 프리셋)
 
-    /// V-SYS-01: Android 미러 — 기기 없음 → 조용히 실패(false), 크래시 없음.
-    /// 기기가 연결되어 있으면 scrcpy가 뜨므로 스킵 (수동 행에서 확인).
-    func testVerifyAndroidMirrorNoDeviceFailsGracefully() throws {
-        guard !hasAdbDevice() else {
-            throw XCTSkip("ADB 기기 연결됨 — 실기 미러는 수동 행에서 확인")
-        }
-        XCTAssertFalse(SystemActionExecutor.execute(.androidMirror))
-    }
-
-    /// V-SYS-01b: 미러 스크립트 파일이 단일 소스로 존재함
-    func testVerifyAndroidMirrorScriptFileExists() {
-        XCTAssertTrue(
-            FileManager.default.fileExists(atPath: SystemActionExecutor.androidMirrorScriptPath),
-            "scrcpy_run.sh 없음: \(SystemActionExecutor.androidMirrorScriptPath)"
-        )
-    }
-
-    /// V-SYS-02: 시스템 액션 9종이 타입·이름·아이콘을 모두 갖춤 (목록 누락 방지)
+    /// V-SYS-02: 시스템 액션 8종이 타입·이름·아이콘을 모두 갖춤 (목록 누락 방지)
     func testVerifySystemActionCatalogComplete() {
-        XCTAssertEqual(SystemActionType.allCases.count, 9)
+        XCTAssertEqual(SystemActionType.allCases.count, 8)
         for type in SystemActionType.allCases {
             XCTAssertFalse(type.displayName.isEmpty, "\(type.rawValue) 이름 누락")
             XCTAssertFalse(type.systemImage.isEmpty, "\(type.rawValue) 아이콘 누락")
         }
-        XCTAssertFalse(SystemActionExecutor.androidMirrorScriptPath.isEmpty)
     }
 
     // MARK: - KEYCOMBO (부작용 없는 범위만)
@@ -210,12 +192,4 @@ final class ApexKeyActionVerifyTests: XCTestCase {
         XCTAssertFalse((r.message ?? "").isEmpty)
     }
 
-    private func hasAdbDevice() -> Bool {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        task.arguments = ["-c", ShellEnvironment.pathExport + "; adb devices | tail -n +2 | grep -q device"]
-        try? task.run()
-        task.waitUntilExit()
-        return task.terminationStatus == 0
-    }
 }

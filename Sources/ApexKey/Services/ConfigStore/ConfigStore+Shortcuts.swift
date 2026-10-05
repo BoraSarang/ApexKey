@@ -7,26 +7,6 @@ import Combine
 extension ConfigStore {
     // MARK: - 동작(단축어) 관리
 
-    /// 시스템 프리셋을 1단계 워크플로우로 생성 (같은 이름 프리셋이 이미 있으면 건너뜀)
-    func addPresetShortcuts(_ types: [SystemActionType]) {
-        guard !types.isEmpty, let context = container?.mainContext else { return }
-        var created: [ShortcutItem] = []
-        for type in types {
-            guard !shortcuts.contains(where: { $0.name == type.displayName }) else { continue }
-            let shortcut = ShortcutItem(
-                name: type.displayName,
-                steps: [ShortcutStep(type: .system, target: type.rawValue, title: type.displayName)],
-                icon: .sfSymbol(name: type.systemImage)
-            )
-            context.insert(PersistedShortcut.from(shortcut))
-            created.append(shortcut)
-        }
-        guard !created.isEmpty else { return }
-        saveContext(context)
-        shortcuts.append(contentsOf: created)
-        Logger.info("ConfigStore", "[SHORTCUT] 프리셋 워크플로우 \(created.count)개 추가")
-    }
-
     /// 새 동작 생성 (빈 단계)
     @discardableResult
     func addShortcut(name: String) -> ShortcutItem? {

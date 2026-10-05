@@ -11,7 +11,6 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
     case screenSaver
     case dockRestart
     case finderRestart
-    case androidMirror
 
     var id: String { rawValue }
 
@@ -25,7 +24,6 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .screenSaver:  return "system.action.screen_saver".localized
         case .dockRestart:  return "system.action.dock_restart".localized
         case .finderRestart: return "system.action.finder_restart".localized
-        case .androidMirror: return "system.action.android_mirror".localized
         }
     }
 
@@ -39,13 +37,12 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .screenSaver:  return "sparkles.tv"
         case .dockRestart:  return "dock.rectangle"
         case .finderRestart: return "folder"
-        case .androidMirror: return "apps.iphone"
         }
     }
 }
 
 enum SystemActionExecutor {
-    /// 기본 AppleScript (8종) — 수정분은 UserDefaults 오버라이드로 저장되어 재시작 후에도 유지된다.
+    /// 기본 AppleScript (8종) — 고정 프리셋. 수정 불가 (프리셋 선택지만 제공한다).
     private static let defaultAppleScripts: [SystemActionType: String] = [
         .lock: "tell application \"System Events\" to keystroke \"q\" using {control down, command down}",
         .mute: """
@@ -64,156 +61,6 @@ enum SystemActionExecutor {
         .finderRestart: "do shell script \"killall Finder\""
     ]
 
-    /// Android Remote Mirror (scrcpy) — 외부 스크립트 파일이 단일 소스.
-    /// 파일 수정이 앱에 즉시 반영된다 (재빌드 불필요).
-    ///
-    /// E-MAC-SYS-8006: 이전에는 개발 머신 절대경로(`/Users/lee/...`)를 `preferred`로
-    /// 하드코딩해 첫 번째 후보로 검사했다. 그래서 앱이 **앱 밖의 임의 파일을 실행**했고,
-    /// 사용자가 스크립트를 편집해 저장하면 그 파일을 덮어썼다. 세션 로그의
-    /// "절대경로 금지" 규칙도 위반이었다.
-    /// → Application Support 경로만 사용한다. 번들/소스 리소스에서 시드하고,
-    ///   없으면 최소 대체 스크립트를 쓴다.
-
-    static var androidMirrorScriptPath: String {
-        ensurePortableMirrorScriptPath()
-    }
-
-    /// 번들/소스 리소스에서 Application Support로 스크립트를 시드하고 경로를 반환한다.
-    private static func ensurePortableMirrorScriptPath() -> String {
-        let fm = FileManager.default
-        let dir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ApexKey", isDirectory: true)
-            .appendingPathComponent("Scripts", isDirectory: true)
-        let path = dir.appendingPathComponent("scrcpy_run.sh").path
-        if !fm.fileExists(atPath: path) {
-            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-            let source = seedMirrorScriptSource()
-            try? source.write(toFile: path, atomically: true, encoding: .utf8)
-            try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
-            Logger.info("SystemActionExecutor", "미러 스크립트 시드 → \(path)")
-        }
-        return path
-    }
-
-    /// 번들 리소스 → 소스트리 Resources/ → 최소 대체 스크립트 순으로 찾는다.
-    private static func seedMirrorScriptSource() -> String {
-        if let url = Bundle.main.url(forResource: "scrcpy_run", withExtension: "sh"),
-           let s = try? String(contentsOf: url, encoding: .utf8) {
-            return s
-        }
-        let sourceURL = URL(fileURLWithPath: #file)
-            .deletingLastPathComponent() // Services
-            .deletingLastPathComponent() // ApexKey
-            .deletingLastPathComponent() // Sources
-            .deletingLastPathComponent() // project root
-            .appendingPathComponent("Resources/scrcpy_run.sh")
-        if let s = try? String(contentsOf: sourceURL, encoding: .utf8) {
-            return s
-        }
-        return """
-        #!/bin/bash
-        echo "scrcpy_run.sh missing" >&2
-        exit 1
-        """
-    }
-
-    // MARK: - 스크립트 조회/저장 (시스템 탭 편집 UI용)
-
-    /// 파일 기반 항목인가 (androidMirror만 해당 — 나머지는 AppleScript 내장).
-    static func isFileBacked(_ type: SystemActionType) -> Bool {
-        type == .androidMirror
-    }
-
-    /// 편집 UI에 표시할 스크립트 언어 라벨.
-    static func scriptLanguage(_ type: SystemActionType) -> String {
-        type == .androidMirror ? "Shell (bash)" : "AppleScript"
-    }
-
-    private static func overrideKey(for type: SystemActionType) -> String {
-        "SystemScriptOverride.\(type.rawValue)"
-    }
-
-    /// 현재 스크립트 소스 — 동작 탭의 단계 target처럼 보기/편집/테스트의 기준.
-    /// - androidMirror: 외부 .sh 파일 내용 (없으면 빈 문자열)
-    /// - 그 외: UserDefaults 수정분, 없으면 기본 AppleScript
-    static func scriptSource(for type: SystemActionType) -> String {
-        if type == .androidMirror {
-            return (try? String(contentsOfFile: androidMirrorScriptPath, encoding: .utf8)) ?? ""
-        }
-        if let override = UserDefaults.standard.string(forKey: overrideKey(for: type)) {
-            return override
-        }
-        return defaultAppleScripts[type] ?? ""
-    }
-
-    /// 기본 스크립트 (되돌리기 기준). 파일 기반은 디스크 현재 내용.
-    static func defaultScriptSource(for type: SystemActionType) -> String {
-        if type == .androidMirror {
-            return (try? String(contentsOfFile: androidMirrorScriptPath, encoding: .utf8)) ?? ""
-        }
-        return defaultAppleScripts[type] ?? ""
-    }
-
-    /// 사용자 수정분이 있는가 (AppleScript 8종만 해당).
-    static func hasCustomScript(for type: SystemActionType) -> Bool {
-        guard !isFileBacked(type) else { return false }
-        return UserDefaults.standard.string(forKey: overrideKey(for: type)) != nil
-    }
-
-    /// 스크립트 저장 — 동작 탭의 단계 저장처럼 즉시 실행에 반영된다.
-    /// - androidMirror: 외부 .sh 파일에 직접 기록
-    /// - 그 외: UserDefaults 오버라이드로 저장
-    /// - returns: 성공 여부
-    @discardableResult
-    static func saveScript(_ source: String, for type: SystemActionType) -> Bool {
-        if type == .androidMirror {
-            do {
-                try source.write(toFile: androidMirrorScriptPath, atomically: true, encoding: .utf8)
-                Logger.info("SystemActionExecutor", "Android 미러 스크립트 파일 저장 (\(source.count)자): \(androidMirrorScriptPath)")
-                return true
-            } catch {
-                Logger.error("E-MAC-SYS-8004", "미러 스크립트 파일 저장 실패: \(error.localizedDescription)")
-                return false
-            }
-        }
-        UserDefaults.standard.set(source, forKey: overrideKey(for: type))
-        Logger.info("SystemActionExecutor", "\(type.displayName) 스크립트 수정 저장 (\(source.count)자)")
-        return true
-    }
-
-    /// 수정분을 버리고 기본으로 되돌린다 (AppleScript 8종만 해당).
-    static func resetScript(for type: SystemActionType) {
-        guard !isFileBacked(type) else { return }
-        UserDefaults.standard.removeObject(forKey: overrideKey(for: type))
-        Logger.info("SystemActionExecutor", "\(type.displayName) 스크립트 기본값으로 복원")
-    }
-
-    /// 테스트 실행 상세 결과 — 동작 탭 하단 테스트 푸터(StepTestFooter)와 같은 형태.
-    static func runTestDetailed(_ type: SystemActionType, source: String? = nil)
-    -> (success: Bool, output: String, errorOutput: String, exitCode: Int32) {
-        if type == .androidMirror {
-            // 미리보기용 임시 소스가 있으면 파일 대신 /tmp 복사본으로 실행해
-            // 저장 전 테스트가 디스크 파일을 오염시키지 않게 한다.
-            if let source {
-                let tmp = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("apexkey-mirror-test-\(UUID().uuidString).sh").path
-                do {
-                    try source.write(toFile: tmp, atomically: true, encoding: .utf8)
-                    let r = ActionExecutor.shared.runScriptFileResult(tmp)
-                    try? FileManager.default.removeItem(atPath: tmp)
-                    return (r.success, r.output, r.errorOutput, r.exitCode)
-                } catch {
-                    return (false, "", error.localizedDescription, -1)
-                }
-            }
-            let r = ActionExecutor.shared.runScriptFileResult(androidMirrorScriptPath)
-            return (r.success, r.output, r.errorOutput, r.exitCode)
-        }
-        let script = source ?? scriptSource(for: type)
-        let r = ScriptExecutor.runAppleScript(script)
-        return (r.success, r.output, r.errorOutput, r.success ? 0 : 1)
-    }
-
     /// 시스템 동작 실행. 성공 여부 반환.
     @discardableResult
     static func execute(_ type: SystemActionType) -> Bool {
@@ -221,18 +68,13 @@ enum SystemActionExecutor {
             // AppleScript 없는 순수 볼륨 토글
             return toggleMute()
         }
-        if type == .androidMirror {
-            let result = ActionExecutor.shared.runScriptFileResult(androidMirrorScriptPath)
-            Logger.info("SystemActionExecutor", "Android Remote Mirror (scrcpy) 실행 (success=\(result.success))")
-            return result.success
-        }
-        let script = scriptSource(for: type)
+        let script = defaultAppleScripts[type] ?? "" 
         guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         return runAppleScript(script, action: type)
     }
 
     private static func toggleMute() -> Bool {
-        let source = scriptSource(for: .mute)
+        let source = defaultAppleScripts[.mute] ?? ""
         guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         let r = ScriptExecutor.runAppleScript(source)
         if !r.success {

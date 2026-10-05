@@ -3,6 +3,22 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-05 macos — v1.3.0 단계 설정·시스템 프리셋 재설계
+
+* 입력칸이 창 하단을 채우고 입력칸만 스크롤 (창 480×680 고정, 이중 스크롤 제거).
+  `GrowingTextEditor` 채우기 모드 + 스크립트 4종 fill 레이아웃 (`Views/StepSettings/`)
+* 시스템 단계 = 프리셋 8종 선택지 (`SystemPresetPickerView`). 스크립트 표시·수정·
+  UserDefaults 오버라이드 삭제, lock 기본값 폐지, 미선택 시 테스트 비활성화
+* 카탈로그에서 시스템 프리셋 8종 개별 추가 (System 단독 행 제거, 검색 지원)
+* 바깥 "시스템 프리셋 추가" 다이얼로그 + `addPresetShortcuts` 삭제,
+  Android 미러 완전 삭제 (enum·실행·scrcpy 리소스·테스트·문자열),
+  죽은 `ActionDetailView` + `SystemScriptEditorView` 삭제
+* 변수 이름 지정, 파일 찾아보기 부활. 자동화는 시간·폴더·배터리·충전기만 노출
+* 새 단계 테스트 버튼 즉시 활성화 (로컬 드래프트 + write-through),
+  XCTest 중 합성 이벤트 전송 차단 (입력창 오염 회귀 테스트 포함)
+* 제품 정의 README에 명문화 (AI 액션 미제공)
+* 검증: 현지화·버전 가드 통과, unit 전수 통과
+
 ## 2026-10-02 macos — ① 클립보드 히스토리 + ② Conflict palette
 
 ### ① 클립보드 히스토리 (⌘⇧V)

@@ -3,6 +3,9 @@ import SwiftUI
 /// iOS Shortcuts 스타일 액션 카탈로그 뷰
 struct ActionCatalogView: View {
     @Binding var selectedActionType: ActionType?
+    /// 시스템 프리셋 직접 추가 — System 카테고리에서 8종을 개별 아이템으로 노출.
+    /// 설정 창의 피커와 같은 값(target=프리셋 ID)을 넣으므로 정체성이 깨지지 않는다.
+    @Binding var selectedSystemPreset: SystemActionType?
     @Environment(\.theme) private var theme
     @State private var searchText = ""
     @State private var selectedCategory: ActionCategory?
@@ -89,7 +92,7 @@ struct ActionCatalogView: View {
                     if let category = selectedCategory {
                         // 특정 카테고리의 액션 표시
                         ForEach(filteredActions(for: category)) { actionType in
-                            actionRow(actionType)
+                            catalogRows(for: actionType)
                         }
                     } else if searchText.isEmpty {
                         // 모든 카테고리별로 표시
@@ -98,14 +101,15 @@ struct ActionCatalogView: View {
                             if !actions.isEmpty {
                                 categoryHeader(category)
                                 ForEach(actions) { actionType in
-                                    actionRow(actionType)
+                                    catalogRows(for: actionType)
                                 }
                             }
                         }
                     } else {
-                        // 검색 결과
+                        // 검색 결과 (프리셋명 검색도 지원)
                         let results = allFilteredActions
-                        if results.isEmpty {
+                        let presetResults = matchingPresets
+                        if results.isEmpty && presetResults.isEmpty {
                             VStack(spacing: 12) {
                                 Image(systemName: "magnifyingglass")
                                     .font(.title2)
@@ -118,7 +122,13 @@ struct ActionCatalogView: View {
                             .padding(.vertical, 30)
                         } else {
                             ForEach(results) { actionType in
-                                actionRow(actionType)
+                                // .system 단독 행은 노출하지 않는다 — 프리셋 8종으로 대체
+                                if actionType != .system {
+                                    actionRow(actionType)
+                                }
+                            }
+                            ForEach(presetResults) { type in
+                                systemPresetRow(type)
                             }
                         }
                     }
@@ -212,6 +222,63 @@ struct ActionCatalogView: View {
         .disabled(!selectable)
     }
 
+    // MARK: - 시스템 프리셋 행
+
+    /// .system 단독 행 대신 프리셋 8종을 개별 아이템으로 노출.
+    /// 고르면 설정 창 피커와 같은 값(target=프리셋 ID)이 들어가므로 정체성이 깨지지 않는다.
+    @ViewBuilder
+    private func catalogRows(for actionType: ActionType) -> some View {
+        if actionType == .system {
+            ForEach(SystemActionType.allCases) { type in
+                systemPresetRow(type)
+            }
+        } else {
+            actionRow(actionType)
+        }
+    }
+
+    private func systemPresetRow(_ type: SystemActionType) -> some View {
+        Button {
+            selectedSystemPreset = type
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: type.systemImage)
+                    .font(.body)
+                    .foregroundColor(theme.accentColor)
+                    .frame(width: 24)
+
+                Text(type.displayName)
+                    .font(.body)
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                Image(systemName: "plus.circle")
+                    .font(.caption)
+                    .foregroundColor(theme.accentColor)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 검색어와 매칭되는 프리셋 — "System" 자체가 매칭되면 전체를 보여준다
+    private var matchingPresets: [SystemActionType] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return [] }
+        if ActionType.system.displayName.localizedCaseInsensitiveContains(q)
+            || "system".localizedCaseInsensitiveContains(q) {
+            return SystemActionType.allCases
+        }
+        let matched = SystemActionType.allCases.filter {
+            $0.displayName.localizedCaseInsensitiveContains(q)
+                || $0.rawValue.localizedCaseInsensitiveContains(q)
+        }
+        return matched
+    }
+
     /// 구현되지 않은 액션 수 (토글 문구용)
     private var unavailableCount: Int {
         ActionType.allCases.count { $0.implementation != .implemented }
@@ -246,232 +313,6 @@ struct ActionCatalogView: View {
         return base.filter {
             $0.displayName.localizedCaseInsensitiveContains(searchText) ||
             $0.rawValue.localizedCaseInsensitiveContains(searchText)
-        }
-    }
-}
-
-// MARK: - 액션 상세 설정 시트
-
-/// 액션별 상세 설정 뷰
-struct ActionDetailView: View {
-    let actionType: ActionType
-    @Binding var target: String
-    @Binding var title: String
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.theme) private var theme
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: actionType.systemImage)
-                    .font(.title2)
-                    .foregroundColor(theme.accentColor)
-                Text(actionType.displayName)
-                    .font(.headline)
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(theme.secondaryText)
-                }
-                .buttonStyle(.borderless)
-            }
-            
-            Divider()
-            
-            switch actionType {
-            case .launchApp:
-                appPicker
-            case .script:
-                scriptEditor
-            case .url:
-                urlEditor
-            case .file:
-                fileEditor
-            case .system:
-                systemPicker
-            case .paste:
-                pasteEditor
-            case .wait:
-                waitEditor
-            case .menuCommand:
-                menuCommandInfo
-            case .coordinateClick:
-                coordinateEditor
-            case .macro:
-                macroEditor
-            case .pauseUntilInput:
-                pauseInfo
-            default:
-                genericEditor
-            }
-            
-            Spacer()
-            
-            HStack {
-                Spacer()
-                Button("ui.done".localized) {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-        }
-        .padding(20)
-        .frame(width: 400, height: 350)
-    }
-    
-    // MARK: - 액션별 편집기
-    
-    private var appPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.run_app_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            // 실제 구현에서는 AppPicker 뷰 사용
-            TextField("ui.app_detail.bundle_id".localized, text: $target)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-    
-    private var scriptEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.shell_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            TextEditor(text: $target)
-                .font(.system(.body, design: .monospaced))
-                .frame(minHeight: 100)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(theme.secondaryBorder)
-                )
-        }
-    }
-    
-    private var urlEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.url_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            TextField("https://example.com", text: $target)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-    
-    private var fileEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.file_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            HStack {
-                TextField("ui.path".localized, text: $target)
-                    .textFieldStyle(.roundedBorder)
-                Button("ui.browse".localized) {
-                    let panel = NSOpenPanel()
-                    panel.allowsMultipleSelection = false
-                    panel.canChooseDirectories = true
-                    panel.canChooseFiles = true
-                    if panel.runModal() == .OK, let url = panel.url {
-                        target = url.path
-                        title = url.lastPathComponent
-                    }
-                }
-            }
-        }
-    }
-    
-    private var systemPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.select_system".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            ForEach(SystemActionType.allCases) { type in
-                Button {
-                    target = type.rawValue
-                    title = type.displayName
-                } label: {
-                    HStack {
-                        Text(type.displayName)
-                        Spacer()
-                        if target == type.rawValue {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(theme.accentColor)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-    
-    private var pasteEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.clipboard_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            TextField("ui.text".localized, text: $target)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-    
-    private var waitEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.wait_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            TextField("1.0", text: $target)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-    
-    private var menuCommandInfo: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.menu_note".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-        }
-    }
-    
-    private var coordinateEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.coordinate_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            TextField("500,400", text: $target)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-    
-    private var macroEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.keycode_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            TextField("36,36", text: $target)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-    
-    private var pauseInfo: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.wait_until".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            Text("ui.app_detail.no_settings".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-        }
-    }
-    
-    private var genericEditor: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ui.app_detail.target_prompt".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
-            TextField("ui.target".localized, text: $target)
-                .textFieldStyle(.roundedBorder)
         }
     }
 }

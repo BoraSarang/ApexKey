@@ -229,6 +229,10 @@ extension AppDelegate {
             )
             w.title = "ui.menu.step_settings".localized
             w.isReleasedWhenClosed = false
+            // 창 크기 고정 — 리사이즈로 외곽 스크롤이 생기면 입력칸 스크롤과
+            // 이중 스크롤이 된다. 스크롤은 textarea 내부에서만 (M-SCRIPT-01).
+            w.minSize = NSSize(width: 480, height: 680)
+            w.maxSize = NSSize(width: 480, height: 680)
             w.delegate = self
             stepSettingsWindow = w
             win = w

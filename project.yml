@@ -15,8 +15,6 @@ targets:
     sources:
       - Sources/ApexKey
       - Resources/Assets.xcassets
-      - path: Resources/scrcpy_run.sh
-        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.borasarang.ApexKey

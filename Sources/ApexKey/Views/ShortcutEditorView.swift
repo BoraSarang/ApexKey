@@ -12,7 +12,7 @@ struct ShortcutEditorView: View {
     @State private var selectedStepID: UUID?
     @State private var isEditingMode = true
     @State private var selectedActionType: ActionType?
-    @State private var showingActionDetail = false
+    @State private var selectedSystemPreset: SystemActionType?
     @State private var searchText = ""
     @State private var shortcutName: String
     @State private var shortcutDescription: String
@@ -34,8 +34,11 @@ struct ShortcutEditorView: View {
     var body: some View {
         HStack(spacing: 0) {
             // 왼쪽: 액션 카탈로그
-            ActionCatalogView(selectedActionType: $selectedActionType)
-                .background(theme.primaryBackground)
+            ActionCatalogView(
+                selectedActionType: $selectedActionType,
+                selectedSystemPreset: $selectedSystemPreset
+            )
+            .background(theme.primaryBackground)
             
             Divider()
             
@@ -58,6 +61,12 @@ struct ShortcutEditorView: View {
                 selectedActionType = nil
             }
         }
+        .onChange(of: selectedSystemPreset) { _, newPreset in
+            if let preset = newPreset {
+                addSystemPresetStep(preset)
+                selectedSystemPreset = nil
+            }
+        }
         .onChange(of: steps) { _, _ in
             // 독립 단계 설정 창에서 Binding으로 수정된 내용 자동 저장
             saveSteps()
@@ -69,29 +78,6 @@ struct ShortcutEditorView: View {
             saveSteps()
             saveAutomations()
             saveVariables()
-        }
-        .sheet(isPresented: $showingActionDetail) {
-            if let type = selectedActionType {
-                ActionDetailView(
-                    actionType: type,
-                    target: Binding(
-                        get: { steps.last?.target ?? "" },
-                        set: { newValue in
-                            if let lastIndex = steps.indices.last {
-                                steps[lastIndex].target = newValue
-                            }
-                        }
-                    ),
-                    title: Binding(
-                        get: { steps.last?.title ?? "" },
-                        set: { newValue in
-                            if let lastIndex = steps.indices.last {
-                                steps[lastIndex].title = newValue
-                            }
-                        }
-                    )
-                )
-            }
         }
         .sheet(isPresented: $isShowingAutomationSettings) {
             AutomationSettingsView(automations: $shortcutAutomations)
@@ -361,6 +347,13 @@ struct ShortcutEditorView: View {
         steps.append(newStep)
         saveSteps()
     }
+
+    /// 시스템 프리셋 직접 추가 — 카탈로그의 개별 아이템에서 들어온다.
+    /// 설정 창 피커와 같은 값(target=프리셋 ID, title=프리셋명)을 넣는다.
+    private func addSystemPresetStep(_ preset: SystemActionType) {
+        steps.append(ShortcutStep(type: .system, target: preset.rawValue, title: preset.displayName))
+        saveSteps()
+    }
     
     private func createDefaultStep(for type: ActionType) -> ShortcutStep {
         switch type {
@@ -371,7 +364,8 @@ struct ShortcutEditorView: View {
         case .keyCombo:
             return ShortcutStep(type: .keyCombo, target: "", title: "ui.editor.step_keypress".localized)
         case .system:
-            return ShortcutStep(type: .system, target: "lock", title: "ui.editor.step_lock".localized)
+            // 프리셋 미선택 상태로 시작 — 설정 창의 피커에서 고른다 (lock 고정 폐지)
+            return ShortcutStep(type: .system, target: "", title: "")
         case .script:
             return ShortcutStep(type: .script, target: "", title: "ui.editor.step_script".localized)
         case .appleScript:
