@@ -25,6 +25,17 @@ ApexKey sits in your **menu bar** and lets you trigger any app's **menu command*
 - **Menu Shortcut HUD** — see every shortcut of the frontmost app at a glance
 - 8 built-in themes + Light/Dark/System auto-switching
 
+## Definition
+
+**ApexKey is a menu-bar command deck for macOS — run anything with a global hotkey.**
+
+- **App control** — launch/toggle apps, trigger any app's menu command from anywhere
+- **Workflows** — chain steps (scripts, keys, clicks, conditions, variables) into one shortcut
+- **Menu HUD** — every shortcut of the frontmost app at a glance
+- **Automation** — time/folder/battery/charger triggers run workflows for you
+
+Supporting: system presets, command palette, clipboard history, URL scheme, themes. AI actions are not on the table.
+
 ## Features
 
 | Area | Description |

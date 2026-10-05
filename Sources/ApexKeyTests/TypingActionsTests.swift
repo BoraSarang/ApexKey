@@ -107,4 +107,15 @@ final class TypingActionsTests: XCTestCase {
         // 빈 입력은 "실패"가 아니다 — 아무것도 하지 않으면 된다
         XCTAssertTrue(TypingActions.typeText(""))
     }
+
+    func testPublishIsSuppressedUnderXCTest() {
+        // 회귀 가드: XCTest 중에는 실제 키 입력을 절대 보내지 않는다.
+        // 개발 머신은 손쉬운 사용 권한이 있어 가드 없이는 "1,234" 같은 검증 입력이
+        // 포커스된 창에 그대로 타이핑됐다 ("1234.03.14..." 오염).
+        XCTAssertTrue(KeySender.suppressesPublish, "XCTest에서 게시 억제가 꺼져 있다")
+        XCTAssertFalse(KeySender.postKey(keyCode: 0))
+        XCTAssertFalse(KeySender.click(at: .zero))
+        // 검증은 그대로 동작해야 한다 — 전송만 건너뛰고 성공 값을 돌려준다
+        XCTAssertEqual(TypingActions.typeNumber("1,234", decimals: 2), .success("1234.0"))
+    }
 }

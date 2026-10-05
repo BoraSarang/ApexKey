@@ -62,6 +62,10 @@ enum TypingActions {
     @discardableResult
     static func typeText(_ input: String, interval: TimeInterval = 0.01) -> Bool {
         guard !input.isEmpty else { return true }          // 빈 입력은 성공(노-op)
+        // XCTest 중에는 CGEvent를 절대 post하지 않는다 — 개발 머신은 권한이 있어
+        // 실제 키 입력이 포커스된 창에 찍힌다. 검증(파싱)은 typeNumber가 하고,
+        // 여기는 전송만 건너뛰고 성공으로 본다.
+        if KeySender.suppressesPublish { return true }
         guard AXIsProcessTrusted() else {
             Logger.error("E-MAC-TEXT-6004", "손쉬운 사용 권한 없음 — 텍스트 입력 불가. 시스템 설정 > 손쉬운 사용에서 ApexKey 허용 필요")
             return false

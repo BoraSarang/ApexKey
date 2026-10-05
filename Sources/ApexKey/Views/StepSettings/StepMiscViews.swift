@@ -6,15 +6,45 @@ import SwiftUI
 struct VariableStepSettingsView: View {
     @Environment(\.theme) private var theme
     @Binding var step: ShortcutStep
-    
+
+    /// 출력 변수 이름 — 실행은 outputVariables[0]을 쓰는데 UI에 편집이 없어
+    /// "새 변수"로 고정됐다. 이름 지정을 노출한다.
+    private var outputName: Binding<String> {
+        Binding(
+            get: { step.outputVariables?.first?.name ?? "" },
+            set: {
+                var s = step
+                if s.outputVariables?.isEmpty ?? true {
+                    s.outputVariables = [Variable(name: $0, type: .manual, valueType: .text)]
+                } else {
+                    s.outputVariables?[0].name = $0
+                }
+                step = s
+            }
+        )
+    }
+
+    private var isSetVariable: Bool { step.type == .setVariable }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(LocalizedStringKey("action.setVariable"))
+            Text(LocalizedStringKey(isSetVariable ? "action.setVariable" : "action.outputToVariable"))
                 .font(.headline)
-            
-            TextField("ui.step_settings.variable_value".localized, text: $step.target)
+
+            Text("ui.step_settings.variable_name".localized)
+                .font(.caption)
+                .foregroundColor(theme.secondaryText)
+            TextField("ui.step_settings.variable_name".localized, text: outputName)
                 .textFieldStyle(.roundedBorder)
-            
+
+            if isSetVariable {
+                Text("ui.step_settings.variable_value".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                TextField("ui.step_settings.variable_value".localized, text: $step.target)
+                    .textFieldStyle(.roundedBorder)
+            }
+
             Text("ui.step_settings.variable_hint".localized)
                 .font(.caption2)
                 .foregroundColor(theme.secondaryText)
@@ -34,14 +64,14 @@ struct CommentSettingsView: View {
             Text(LocalizedStringKey("action.comment"))
                 .font(.headline)
             
-            TextEditor(text: Binding(
-                get: { step.note ?? "" },
-                set: { step.note = $0 }
-            ))
-            .frame(height: 120)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(theme.secondaryText.opacity(0.3))
+            GrowingTextEditor(
+                text: Binding(
+                    get: { step.note ?? "" },
+                    set: { step.note = $0 }
+                ),
+                font: .body,
+                minHeight: 100,
+                maxHeight: 220
             )
         }
         .sectionCard()
@@ -82,17 +112,27 @@ struct DefaultSettingsView: View {
                 Text(scriptPromptKey.localized)
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)
-                // 고정 높이 + 내부 스크롤 (창 전체 스크롤 아님).
-                // TextEditor 자체가 내부 스크롤을 제공하므로 높이를 고정한다.
-                TextEditor(text: $step.target)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(height: 180)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(theme.secondaryText.opacity(0.3))
-                    )
-                    .scrollContentBackground(.hidden)
+                // 남은 공간을 채우고 상한 없이 입력칸만 스크롤 (창 전체 스크롤 없음)
+                GrowingTextEditor(text: $step.target, maxHeight: 320, fillAvailable: true)
                 // 테스트 실행은 하단 고정 푸터(StepTestFooter)에서 수행
+            } else if step.type == .file {
+                Text("ui.step_settings.target_value".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                HStack {
+                    TextField("ui.path".localized, text: $step.target)
+                        .textFieldStyle(.roundedBorder)
+                    Button("ui.browse".localized) {
+                        let panel = NSOpenPanel()
+                        panel.allowsMultipleSelection = false
+                        panel.canChooseDirectories = true
+                        panel.canChooseFiles = true
+                        if panel.runModal() == .OK, let url = panel.url {
+                            step.target = url.path
+                            if step.title.isEmpty { step.title = url.lastPathComponent }
+                        }
+                    }
+                }
             } else {
                 Text("ui.step_settings.target_value".localized)
                     .font(.caption)

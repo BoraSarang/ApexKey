@@ -61,6 +61,9 @@ struct StepTestFooter: View {
         switch step.type {
         case .script, .appleScript, .javaScriptForAutomation, .runScriptInShell:
             return !step.target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .system:
+            // 프리셋 미선택 상태에서는 테스트 불가
+            return SystemActionType(rawValue: step.target) != nil
         case .keyCombo:
             if let press = step.keyPress, !press.isEmpty { return true }
             return !step.target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
