@@ -83,7 +83,9 @@ struct AboutView: View {
                 .font(.caption)
                 .foregroundColor(theme.secondaryText)
 
-            Text("© \(Calendar.current.component(.year, from: Date())) BoRaSaRang")
+            // LocalizedStringKey 보간은 숫자에 자릿수 구분자를 넣는다 ("2,026").
+            // 연도는 verbatim으로 고정한다.
+            Text(verbatim: "© \(Calendar.current.component(.year, from: Date())) BoRaSaRang")
                 .font(.caption2)
                 .foregroundStyle(theme.tertiaryText)
         }

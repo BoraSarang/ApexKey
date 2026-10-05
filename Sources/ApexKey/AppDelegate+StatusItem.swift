@@ -15,7 +15,9 @@ extension AppDelegate {
     func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
-            let image = NSImage(systemSymbolName: "command.square.fill", accessibilityDescription: "ApexKey")
+            // 커스텀 메뉴바 아이콘 (라이트/다크 자동 대응 템플릿). 없으면 SF Symbol 폴백.
+            let image = NSImage(named: "MenuBarIcon")
+                ?? NSImage(systemSymbolName: "command.square.fill", accessibilityDescription: "ApexKey")
             image?.isTemplate = true // 메뉴바 단색 템플릿
             button.image = image
 
