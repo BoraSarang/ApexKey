@@ -174,6 +174,9 @@ extension AppDelegate {
     }
 
     @objc func showDebugPanel(_ sender: Any?) {
+        // 디버그 패널은 개발 빌드 전용 — 릴리스(DMG)에는 포함하지 않는다.
+        // (게이팅 없이 두면 스토어 외부 배포본에 내부 로그 UI가 노출된다.)
+        #if DEBUG
         Logger.info("AppDelegate", "[DEBUG] 디버그 로그 창 요청")
         NSApp.activate(ignoringOtherApps: true)
         if debugWindow == nil {
@@ -199,6 +202,9 @@ extension AppDelegate {
             win.contentView?.layoutSubtreeIfNeeded()
             win.makeKeyAndOrderFront(nil)
         }
+        #else
+        Logger.info("AppDelegate", "[DEBUG] 릴리스 빌드에서는 디버그 패널 미지원")
+        #endif
     }
 
     @objc func terminateApp(_ sender: Any?) {
@@ -334,7 +340,9 @@ extension AppDelegate {
         let hosting = NSHostingController(rootView: ThemedRoot { [weak self] in
             ToastView(payload: payload) { [weak self] in
                 self?.hideToast()
+                #if DEBUG
                 self?.openDebugLog()
+                #endif
             }
         })
         toastHosting = hosting

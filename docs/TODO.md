@@ -604,3 +604,13 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 
 - [x] 기능별 8탭 (일반/패널/명령 팔레트/클립보드/Instant Send/Menu HUD/메뉴바 아이콘/테마) + 탭별 도움말 카드(뭐고·언제·이렇게). 단축키 기록 시트 6→1 통합, `showNoShortcutItems` 토글 오버레이 헤더→HUD 탭 이관, 창 700x480. 죽은 키 15개 삭제 + 신규 33키(ko/en 953 일치). `SettingsTabsTests` 3건
 - [x] 설정 GroupBox 레이아웃 + 직접 실행 (2026-10-06) — 그룹별 카드(GroupBox) 구분, 토글 라벨 좌·컨트롤 우·설명 들여쓰기. 단축키 행에 ▶ 직접 실행(slot.test 재사용). 신규 4키(ko/en 957 일치)
+
+## v1.4.0 릴리스 (2026-10-06)
+
+- [x] 제품 방향 문서화 (`STATUS.md` §2 — 신규 기능 동결, 버그+마찰만, 가벼움=기능)
+- [x] README en/ko + 랜딩 en/ko 현행화 (그리드·HUD 드릴인·가이드·안전장치, AI 과장 삭제, 162종)
+- [x] `release-notes/v1.4.0.md` + MARKETING_VERSION 1.4.0 + 커밋 `0eb144e` + 태그 푸시 → `release.yml`이 DMG+Release 생성, `pages.yml`이 랜딩 배포
+
+## v1.4.1 릴리스 (2026-10-06)
+
+- [x] 디버그 패널 릴리스 노출 수정 — 우클릭 메뉴 + 실패 토스트 탭을 `#if DEBUG` 게이트. Debug/Release 양쪽 컴파일 확인

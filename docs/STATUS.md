@@ -31,7 +31,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | 빌드 | **클린 빌드 경고 0** | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. T-183으로 13건 제거 |
 | 액션 구현 | **59 / 162** (스텁 4, 미구현 100) | `ActionType.implementationCounts()` |
 | i18n | ko/en **957키 일치** | `*.lproj/Localizable.strings` |
-| 버전 | 1.3.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
+| 버전 | 1.4.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
 | 미해결 작업 | **7건** (+ 무효화 5건) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **61건** (8-1~8-10) | `FUNCTIONAL_CHECKLIST.md` §8 |

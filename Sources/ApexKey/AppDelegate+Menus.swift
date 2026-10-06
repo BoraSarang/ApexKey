@@ -90,13 +90,17 @@ extension AppDelegate {
         let infoItem = Self.makeItem(title: "ui.info".localized, action: #selector(showAboutPanel(_:)), key: "", target: self)
         let settingsItem = Self.makeItem(title: "ui.main.settings".localized, action: #selector(showSettingsPanel(_:)), key: ",", target: self)
         let updateItem = Self.makeItem(title: "menu.check_update".localized, action: #selector(checkForUpdateAction(_:)), key: "", target: self)
+        #if DEBUG
         let debugItem = Self.makeItem(title: "ui.menu.debug_log".localized, action: #selector(showDebugPanel(_:)), key: "", target: self)
+        #endif
         menu.addItem(openItem)
         menu.addItem(iconsItem)
         menu.addItem(infoItem)
         menu.addItem(settingsItem)
         menu.addItem(updateItem)
+        #if DEBUG
         menu.addItem(debugItem)
+        #endif
         menu.addItem(.separator())
         menu.addItem(Self.makeItem(title: "ui.quit".localized, action: #selector(terminateApp(_:)), key: "q", target: nil))
         return menu
