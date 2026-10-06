@@ -23,6 +23,7 @@ ApexKey sits in your **menu bar** and lets you trigger any app's **menu command*
 - **Enumerates menus** of running apps and lets you assign **global hotkeys** to any command
 - App launch/toggle, **URL scheme**, custom **Shortcut Station** actions, **system actions**, and script execution
 - **Menu Shortcut HUD** — see every shortcut of the frontmost app at a glance
+- **Menu Bar Icons** — every status icon in one grid, even notch-hidden ones
 - 8 built-in themes + Light/Dark/System auto-switching
 
 ## Definition
@@ -40,19 +41,24 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 
 | Area | Description |
 |------|-------------|
-| **Menu command shortcuts** | Assign a global shortcut to a menu item of a running app → execute from anywhere |
+| **Menu command shortcuts** | Assign a global shortcut to any menu item of a running app → execute from anywhere; failures toast the reason |
 | **App launch / toggle** | Shortcut to launch, focus, or toggle a specific app |
 | **URL scheme** | Shortcut to open `scheme://` |
-| **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action |
+| **Command palette** | Keyboard-first launcher for workflows, apps, and commands (`⌘⌥K`) |
+| **Clipboard history** | `⌘⇧V` — last 100 clips / 30 days, with image previews |
+| **Instant Send** | `⌃⌥D` — selected text straight into a workflow as input |
+| **Shared hotkeys** | One combo, many targets — a picker with pinning when combos collide |
+| **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action (59 of 162 catalog actions fully wired; the rest read "Coming soon") |
 | **Flow control** | If / repeat / menu choice, variables, output-to-variable |
-| **Automation** | Time, folder, battery and charger triggers (file, display, wifi, bluetooth, app: coming soon) |
-| **AI actions** | Use model, writing tool, image playground steps |
-| **System actions** | Lock, volume, dark mode, and more |
+| **Automation** | Time, folder, battery and charger triggers (display, wifi, bluetooth, app: planned) |
+| **AI actions** | Use model / writing tool / image playground — **not wired yet**: they fail gracefully instead of fake success (FoundationModels work is open) |
+| **System actions** | Lock, mute, dark mode, and more via built-in presets |
 | **Menu HUD** | Fullscreen / floating view of the current app's shortcuts, with in-place submenu drill-in + breadcrumb |
 | **Menu Bar Icons** | Grid of every status icon (even notch-hidden ones) — `⌥⌘]` to open, click the real icon |
 | **First-launch guide** | 2-minute setup: permissions + shortcut review with instant try-it |
-| **Shortcut safety** | Warns on macOS system-shortcut conflicts (move / register anyway / cancel); failed runs toast the reason |
-| **Themes** | 8 built-in presets (Light, Dark, Neon, Nord, Paper, Terminal, Osaurus) + font scaling |
+| **Shortcut safety** | Warns on macOS system-shortcut conflicts (move / register anyway / cancel); recorder has a live test button |
+| **Settings** | 8 feature tabs, each with a what/when/how help card and a ▶ Try-it button |
+| **Themes** | 8 built-in presets (Light, Dark, Neon, Nord, Paper, Terminal, Osaurus ×2) + font scaling |
 
 ## Installation
 
