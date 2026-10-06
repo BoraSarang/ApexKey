@@ -31,6 +31,7 @@ EXCLUDED_FILES = {
     "ConfigStore.swift",  # 레거시 마이그레이션 키 + 빌트인 프리셋 (시드)
     "ConfigStore+Shortcuts.swift",  # 시드 데이터 (사용자 결정: 유지)
     "SystemActionExecutor.swift",  # androidMirror 내장 스크립트의 터미널 출력 메시지
+    "MenuBarIconEnumerator.swift",  # 시스템 아이콘 설명 키워드 매칭 (표시 아님, AppFinder와 동급)
 }
 
 # 라인 단위로 제외할 패턴 (리터럴 내용 기준)

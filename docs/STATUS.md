@@ -12,17 +12,25 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 **배포 서명이 없어 릴리스 사용자가 버전업마다 권한을 재승인해야 하고**,
 카탈로그 162종 중 103종은 아직 "준비 중"이다.
 
+## 2. 제품 방향 (2026-10-06 확정 — v1.4 이후)
+
+> **신규 기능 동결. 버그 수정 + 실사용 마찰 개선만.**
+> "맥을 키보드+트랙패드로 빠르게"에서 벗어나는 탭급 기능은 받지 않는다.
+> 메뉴바 상주 가벼움 유지는 기능과 동급 (리소스 회귀 = 버그).
+> 진입장벽 낮추기(온보딩·도움말·가이드)는 새 기능이 아니라 이 방향 안의 일이다.
+> 유료화 전제 조건: Developer ID 서명·공증 (TODO 미해결 1번).
+
 ---
 
 ## 2. 수치
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **464건 중 1실패**(3 skip, 2026-10-05) — `testVerifyAndroidMirrorNoDeviceFailsGracefully`는 clean tree에서도 실패하는 기존 환경 문제 | `./build_and_run.sh test macos unit` |
+| 테스트 | **515건 0실패**(3 skip, 2026-10-06) | `./build_and_run.sh test macos unit` |
 | 스모크 | 69건 0실패 | `test macos smoke` |
 | 빌드 | **클린 빌드 경고 0** | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. T-183으로 13건 제거 |
 | 액션 구현 | **59 / 162** (스텁 4, 미구현 100) | `ActionType.implementationCounts()` |
-| i18n | ko/en **891키 일치** | `*.lproj/Localizable.strings` |
+| i18n | ko/en **957키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.3.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
 | 미해결 작업 | **7건** (+ 무효화 5건) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |

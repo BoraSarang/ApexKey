@@ -17,12 +17,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var panel: NSPanel?
     var settingsWindow: NSWindow?
+    var onboardingWindow: NSWindow?
+    var onboardingHosting: NSViewController?
     var aboutWindow: NSWindow?
     var debugWindow: NSWindow?
     var paletteWindow: NSPanel?
     var conflictWindow: NSPanel?
     var menuHUDWindow: NSPanel?
     var menuHUDOverlayWindow: NSPanel?
+    var menuBarIconsWindow: NSPanel?
     var editorWindow: NSWindow?
     var stepSettingsWindow: NSWindow?
     var stepTestResultWindow: NSWindow?
@@ -37,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var conflictHosting: NSViewController?
     var menuHUDHosting: NSViewController?
     var menuHUDOverlayHosting: NSViewController?
+    var menuBarIconsHosting: NSViewController?
     var editorHosting: NSViewController?
     var stepSettingsHosting: NSViewController?
     var stepTestResultHosting: NSViewController?
@@ -60,6 +64,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPanel(with: store)
         observe(store)
 
+        // 첫 실행 가이드 — 미완료 설치에서만 1회 (M-06)
+        if !OnboardingState.isCompleted() {
+            showOnboardingGuide()
+        }
+
+        // 메뉴바 아이콘 캐시 예열 — 첫 ⌥⌘]가 즉시 뜨게 (M-03). 실패해도 조용.
+        MenuBarIconEnumerator.shared.prewarm()
+        // 앱 실행/종료 시 아이콘 캐시 무효화 — 다음 열기에 새로고침 (조회는 그때)
+        let center = NSWorkspace.shared.notificationCenter
+        center.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { _ in
+            MenuBarIconEnumerator.shared.invalidateCache()
+        }
+        center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { _ in
+            MenuBarIconEnumerator.shared.invalidateCache()
+        }
+
         // 툴바 설정 버튼 → 설정 창 (Combine으로 MainActor 격리 보장)
         NotificationCenter.default.publisher(for: .openSettings)
             .receive(on: RunLoop.main)
@@ -81,6 +101,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.toggleMenuHUD()
+            }
+            .store(in: &cancellables)
+
+        // ⌥⌘] → 메뉴바 아이콘 그리드 토글
+        NotificationCenter.default.publisher(for: .toggleMenuBarIcons)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.toggleMenuBarIcons()
             }
             .store(in: &cancellables)
 
@@ -192,5 +220,9 @@ extension AppDelegate: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         // 설정/정보 창은 닫혀도 참조를 유지(숨김) → 다음 열람 시 재사용(makeKeyAndOrderFront).
         // 이렇게 하면 창 dealloc이 발생하지 않아 닫기 애니메이션(_NSWindowTransformAnimation) 크래시와 dangling 참조를 모두 방지.
+        // 온보딩도 동일: 빨간 X로 닫아도 완료만 기록하고 참조는 유지한다 (M-06 수정 — nil 해제가 좀비 크래시를 냈다).
+        if let win = notification.object as? NSWindow, win === onboardingWindow {
+            OnboardingState.markCompleted()
+        }
     }
 }

@@ -49,6 +49,8 @@ struct HotKeyRecorderView: View {
         case testing      // 테스트 대기
         case testPassed   // 테스트 성공
         case testFailed   // 테스트 감지됨, 액션 실행 실패
+        /// 시스템 단축키 겹침 경고 (M-04) — 저장을 다시 누르면 강행, 다른 키를 누르면 이동
+        case systemConflict
         /// 저장 자체가 거부됨 (중복/저장 실패/OS 등록 실패) — 사유 문구 표시 후 입력 유지
         case saveRejected(reason: String)
     }
@@ -58,6 +60,8 @@ struct HotKeyRecorderView: View {
         case duplicate
         case unavailable
         case shared
+        /// OS 프로브는 통과했지만 켜진 macOS 시스템 단축키와 겹침 — 경고 후 강행 가능
+        case systemConflict
     }
 
     @State private var currentCombo: HotKeyCombo = .empty
@@ -66,6 +70,8 @@ struct HotKeyRecorderView: View {
     @State private var message: Message?
     @State private var testID: UUID?
     @State private var testTimer: DispatchWorkItem?
+    /// 시스템 겹침 경고를 확인한 조합 — 같은 조합의 다음 저장은 강행으로 처리 (M-04)
+    @State private var systemOverrideCombo: HotKeyCombo?
 
     private let hotKeyService = HotKeyService.shared
 
@@ -126,6 +132,7 @@ struct HotKeyRecorderView: View {
     private var keyForeground: Color {
         switch message {
         case .duplicate, .unavailable, .testFailed, .saveRejected: return theme.errorColor
+        case .systemConflict: return theme.warningColor
         case .testPassed: return theme.successColor
         case .applying: return theme.successColor
         default: return theme.primaryText
@@ -135,6 +142,7 @@ struct HotKeyRecorderView: View {
     private var keyBackground: Color {
         switch message {
         case .duplicate, .unavailable, .testFailed, .saveRejected: return theme.errorColor.opacity(0.15)
+        case .systemConflict: return theme.warningColor.opacity(0.15)
         case .testPassed, .applying: return theme.successColor.opacity(0.12)
         default: return theme.tertiaryBackground.opacity(0.5)
         }
@@ -178,6 +186,16 @@ struct HotKeyRecorderView: View {
                 .font(.caption)
                 .foregroundColor(theme.warningColor)
                 .transition(.opacity)
+        case .systemConflict:
+            VStack(spacing: 2) {
+                Label("ui.recorder.system_conflict".localized, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundColor(theme.warningColor)
+                Text("ui.recorder.system_hint".localized)
+                    .font(.caption2)
+                    .foregroundColor(theme.secondaryText)
+            }
+            .transition(.opacity)
         case .saveRejected(let reason):
             Label(reason, systemImage: "xmark.octagon.fill")
                 .font(.caption)
@@ -215,6 +233,8 @@ struct HotKeyRecorderView: View {
                 testTimer?.cancel()
             }
             currentCombo = combo
+            // 새 조합 입력 시 시스템 강행 플래그 초기화
+            systemOverrideCombo = nil
             // 공유 조합이면 안내 표시 (저장 가능)
             message = availability(of: combo) == .shared ? .shared : nil
             return nil
@@ -233,26 +253,41 @@ struct HotKeyRecorderView: View {
         guard !currentCombo.isEmpty else { return }
         switch availability(of: currentCombo) {
         case .ok, .shared:
-            hotKeyService.endTest()
-            // E-MAC-HTKEY-1003: 저장 거부 사유를 그대로 사용자에게 보여준다.
-            // 이전에는 반환값이 없어 무조건 "적용되었습니다"를 표시했다.
-            if let reason = onRecord(currentCombo) {
-                message = .saveRejected(reason: reason)
-                // 거부되었으므로 자동 닫지 않는다 — 모니터 유지해 다른 조합을 고를 수 있게 한다
-                currentCombo = .empty
-                installMonitor()
-                return
-            }
-            message = .applying
-            removeMonitor()
-            // 3초 후 자동 닫힘
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                dismiss()
+            applyRecord()
+        case .systemConflict:
+            // 첫 경고면 안내만 하고 유지 — 저장을 다시 누르면 강행 (MenuDart 3지선다)
+            if systemOverrideCombo?.matches(currentCombo) == true {
+                applyRecord()
+            } else {
+                systemOverrideCombo = currentCombo
+                hotKeyService.endTest()
+                message = .systemConflict
             }
         case .duplicate:
             feedback(.duplicate)
         case .unavailable:
             feedback(.unavailable)
+        }
+    }
+
+    /// 실제 저장 + 적용 완료 처리 (save의 .ok 경로)
+    private func applyRecord() {
+        hotKeyService.endTest()
+        // E-MAC-HTKEY-1003: 저장 거부 사유를 그대로 사용자에게 보여준다.
+        // 이전에는 반환값이 없어 무조건 "적용되었습니다"를 표시했다.
+        if let reason = onRecord(currentCombo) {
+            message = .saveRejected(reason: reason)
+            // 거부되었으므로 자동 닫지 않는다 — 모니터 유지해 다른 조합을 고를 수 있게 한다
+            currentCombo = .empty
+            systemOverrideCombo = nil
+            installMonitor()
+            return
+        }
+        message = .applying
+        removeMonitor()
+        // 3초 후 자동 닫힘
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            dismiss()
         }
     }
 
@@ -264,7 +299,7 @@ struct HotKeyRecorderView: View {
         case .shared:
             message = .shared
             return
-        case .ok:
+        case .ok, .systemConflict:
             guard let id = hotKeyService.beginTest(currentCombo) else {
                 feedback(.unavailable)
                 return
@@ -307,7 +342,16 @@ struct HotKeyRecorderView: View {
             return .duplicate
         }
         // 시스템/다른 앱이 점유 중이면 사용 불가
-        return hotKeyService.isComboAvailable(combo) ? .ok : .unavailable
+        guard hotKeyService.isComboAvailable(combo) else {
+            return .unavailable
+        }
+        // OS 프로브 통과 + 켜진 macOS 시스템 단축키와 겹치면 경고 후 강행 가능 (M-04).
+        // 강행 확인된 조합은 그대로 통과. 검사 실패(plist 부재 등)는 빈 집합으로 통과.
+        if systemOverrideCombo?.matches(combo) != true,
+           SystemHotkeyInspector.claims(combo, in: SystemHotkeyInspector.cachedClaimedCombos()) {
+            return .systemConflict
+        }
+        return .ok
     }
 
     /// 실패 안내 후 재입력 대기 상태로

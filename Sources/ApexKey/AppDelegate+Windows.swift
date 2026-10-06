@@ -75,6 +75,41 @@ extension AppDelegate {
 
     // MARK: - 설정 / 정보 창
 
+    /// 첫 실행 가이드 (M-06) — 미완료 설치에서만 1회 표시. 기본값은 그대로 두고
+    /// 가이드 안에서 변경 가능, "그대로 시작"·빨간 X 모두 완료로 기록한다.
+    func showOnboardingGuide() {
+        guard let store else { return }
+        Logger.info("AppDelegate", "[ONBOARDING] 첫 실행 가이드 표시")
+        NSApp.activate(ignoringOtherApps: true)
+        if onboardingWindow == nil {
+            let win = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 480, height: 460),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            win.title = "onboarding.title".localized
+            win.styleMask.remove(.resizable)
+            win.isReleasedWhenClosed = false // 설정 창과 동일 — 닫기 애니메이션 크래시 방지
+            let hosting = NSHostingController(rootView:
+                ThemedRoot { [weak self] in OnboardingGuideView { [weak self] in
+                    OnboardingState.markCompleted()
+                    self?.onboardingWindow?.orderOut(nil)
+                } }.environmentObject(store)
+            )
+            onboardingHosting = hosting
+            win.contentViewController = hosting
+            win.setContentSize(NSSize(width: 480, height: 460))
+            win.delegate = self
+            onboardingWindow = win
+        }
+        if let win = onboardingWindow {
+            win.center()
+            win.contentView?.layoutSubtreeIfNeeded()
+            win.makeKeyAndOrderFront(nil)
+        }
+    }
+
     @objc func showSettingsPanel(_ sender: Any?) {
         guard let store else { return }
         Logger.info("AppDelegate", "[SETTINGS] 설정 창 요청")
@@ -82,13 +117,13 @@ extension AppDelegate {
         NSApp.activate(ignoringOtherApps: true)
         if settingsWindow == nil {
             let win = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 580, height: 420),
+                contentRect: NSRect(x: 0, y: 0, width: 700, height: 480),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
             )
             win.title = "ui.window.settings".localized
-            win.minSize = NSSize(width: 560, height: 400)
+            win.minSize = NSSize(width: 680, height: 460)
             win.isReleasedWhenClosed = false // 재사용되는 동안 dealloc 방지
             let hosting = NSHostingController(rootView:
                 ThemedRoot { SettingsView() }.environmentObject(store)
@@ -97,7 +132,7 @@ extension AppDelegate {
             win.contentViewController = hosting
             // contentViewController 설정 시 윈도우가 컨트롤러 크기로 자동 리사이즈됨.
             // 호스팅 fitting 크기가 어긋나면 빈 창이 되므로 생성 직후 명시적으로 재적용.
-            win.setContentSize(NSSize(width: 580, height: 420))
+            win.setContentSize(NSSize(width: 700, height: 480))
             win.delegate = self
             settingsWindow = win
         }

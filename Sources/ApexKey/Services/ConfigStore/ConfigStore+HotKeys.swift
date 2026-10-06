@@ -129,6 +129,25 @@ extension ConfigStore {
         return .applied
     }
 
+    /// ⌥⌘] 메뉴바 아이콘 그리드 핫키 변경 (재등록)
+    @discardableResult
+    func setMenuBarIconsHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
+        guard !combo.isEmpty else { return .invalidCombo }
+        if isDuplicate(combo: combo, excluding: menuBarIconsID) {
+            Logger.error("E-MAC-HTKEY-1002", "메뉴바 아이콘 핫키 중복으로 변경 거부: \(combo.displayString)")
+            return .duplicateCombo
+        }
+        hotKeyService.unregister(menuBarIconsID)
+        menuBarIconsHotkey = combo
+        Self.saveHotkey(combo, forKey: PrefKeys.menuBarIconsHotkey)
+        guard hotKeyService.register(menuBarIconsID, combo: combo) else {
+            Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
+            return .hotKeyRegistrationFailed
+        }
+        Logger.info("ConfigStore", "[HOTKEY] 메뉴바 아이콘 핫키 변경: \(combo.displayString)")
+        return .applied
+    }
+
     /// Instant Send 발화 — 선택 캡처(백그라운드) 후 전송 팔레트 표시.
     /// 선택이 없으면 토스트로 안내하고 팔레트를 열지 않는다.
     func fireInstantSend() {

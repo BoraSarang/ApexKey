@@ -31,6 +31,23 @@ final class ConfigStore: ObservableObject {
     @Published var menuHUDHotkey: HotKeyCombo
     @Published var toggleHotkey: HotKeyCombo
     @Published var paletteHotkey: HotKeyCombo
+    /// ⌥⌘] 메뉴바 아이콘 그리드 핫키
+    var menuBarIconsHotkey: HotKeyCombo
+    /// 그리드 행당 아이콘 수 (1...16, MenuDart 범위 차용)
+    @Published var menuBarIconsPerRow: Int = 8 {
+        didSet {
+            // didSet 내부 대입은 옵저버를 재발동하지 않으므로 보정 후 영속해도 안전
+            let clamped = min(max(menuBarIconsPerRow, 1), 16)
+            if clamped != menuBarIconsPerRow {
+                menuBarIconsPerRow = clamped
+            }
+            defaults.set(min(max(menuBarIconsPerRow, 1), 16), forKey: PrefKeys.menuBarIconsPerRow)
+        }
+    }
+    /// Space/Return 클릭 매핑 뒤바꿈 (기본 Space=좌클릭, Return=우클릭)
+    @Published var menuBarIconsSwapClicks: Bool = false {
+        didSet { defaults.set(menuBarIconsSwapClicks, forKey: PrefKeys.menuBarIconsSwapClicks) }
+    }
     @Published var alwaysOnTop = false {
         didSet { defaults.set(alwaysOnTop, forKey: PrefKeys.alwaysOnTop) }
     }
@@ -136,6 +153,9 @@ final class ConfigStore: ObservableObject {
     /// ⌘⇧V 클립보드 팔레트 핫키
     var clipboardHotkey: HotKeyCombo
 
+    /// ⌥⌘] 메뉴바 아이콘 그리드 전용 등록 ID
+    let menuBarIconsID = UUID()
+
     /// 마지막으로 실행된 바인딩 ID (반복용)
     var lastExecutedBindingID: UUID?
 
@@ -193,6 +213,9 @@ final class ConfigStore: ObservableObject {
         self.paletteHotkey = Self.loadHotkey(forKey: PrefKeys.paletteHotkey, fallback: Self.defaultPaletteHotkey, defaults: defaults)
         self.clipboardHotkey = Self.loadHotkey(forKey: PrefKeys.clipboardHotkey, fallback: Self.defaultClipboardHotkey, defaults: defaults)
         self.sendHotkey = Self.loadHotkey(forKey: PrefKeys.sendHotkey, fallback: Self.defaultSendHotkey, defaults: defaults)
+        self.menuBarIconsHotkey = Self.loadHotkey(forKey: PrefKeys.menuBarIconsHotkey, fallback: Self.defaultMenuBarIconsHotkey, defaults: defaults)
+        self.menuBarIconsPerRow = min(max(defaults.object(forKey: PrefKeys.menuBarIconsPerRow) == nil ? 8 : defaults.integer(forKey: PrefKeys.menuBarIconsPerRow), 1), 16)
+        self.menuBarIconsSwapClicks = defaults.bool(forKey: PrefKeys.menuBarIconsSwapClicks)
         // 구 기본값(⇧⌥D) 저장분은 신 기본값(⌃⌥D)으로 이관 — 사용자 기존 단축키와 충돌나기 때문.
         // 사용자가 직접 바꾼 값은 keyCode/modifiers가 다르므로 건드리지 않는다.
         if defaults.string(forKey: PrefKeys.sendHotkey) == "2:2560:⇧⌥D" {
@@ -316,6 +339,12 @@ final class ConfigStore: ObservableObject {
                     NotificationCenter.default.post(name: .toggleMenuHUD, object: nil)
                     return
                 }
+                if bindingID == self.menuBarIconsID {
+                    // ⌥⌘] → 메뉴바 아이콘 그리드 토글
+                    Logger.info("ConfigStore", "[HOTKEY] 메뉴바 아이콘 그리드 토글")
+                    NotificationCenter.default.post(name: .toggleMenuBarIcons, object: nil)
+                    return
+                }
                 self.handleHotKey(bindingID)
             }
             .store(in: &cancellables)
@@ -341,6 +370,9 @@ final class ConfigStore: ObservableObject {
         // ⇧⌥D Instant Send 핫키 등록
         _ = hotKeyService.register(sendID, combo: sendHotkey)
         Logger.info("ConfigStore", "[HOTKEY] Instant Send 핫키 등록: \(sendHotkey.displayString)")
+        // ⌥⌘] 메뉴바 아이콘 그리드 핫키 등록
+        _ = hotKeyService.register(menuBarIconsID, combo: menuBarIconsHotkey)
+        Logger.info("ConfigStore", "[HOTKEY] 메뉴바 아이콘 그리드 핫키 등록: \(menuBarIconsHotkey.displayString)")
     }
 
     /// 저장소 → 메모리 복원

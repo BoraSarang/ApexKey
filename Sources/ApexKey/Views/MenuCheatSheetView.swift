@@ -18,6 +18,8 @@ struct MenuCheatSheetView: View {
     @State private var searchText = ""
     @State private var selectedIndex = 0
     @FocusState private var isSearchFocused: Bool
+    /// breadcrumb 드릴인 경로 (M-01) — 서브메뉴 탭 진입, 경로 탭 복귀
+    @State private var browse = MenuBrowsePath()
 
     var totalCount: Int {
         visibleGroups.reduce(0) { $0 + $1.items.count }
@@ -56,6 +58,8 @@ struct MenuCheatSheetView: View {
                 emptyState
             } else if isSearching {
                 resultList
+            } else if browse.isBrowsing {
+                browseView
             } else {
                 groupList
             }
@@ -93,6 +97,13 @@ struct MenuCheatSheetView: View {
         .onKeyPress(.upArrow) {
             moveSelection(-1)
             return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            if browse.isBrowsing {
+                browse.back()
+                return .handled
+            }
+            return .ignored
         }
     }
 
@@ -205,9 +216,55 @@ struct MenuCheatSheetView: View {
             trailingSlot(item)
         }
         .contentShape(Rectangle())
-        .onTapGesture { run(item) }
+        .onTapGesture {
+            // 서브메뉴 탭은 제자리 드릴인 (M-01), 잎 항목은 실행
+            if !browse.drill(into: item) {
+                run(item)
+            }
+        }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
+    }
+
+    /// breadcrumb 드릴인 뷰 (M-01) — 경로 바 + 현재 레벨 자식 목록
+    private var browseView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    Button(appName) { browse.reset() }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(theme.accentColor)
+                    ForEach(Array(browse.stack.enumerated()), id: \.element.id) { index, item in
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(theme.secondaryText)
+                        Button(item.title) { browse.jump(to: index) }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                            .fontWeight(index == browse.stack.count - 1 ? .semibold : .regular)
+                            .foregroundColor(index == browse.stack.count - 1 ? theme.primaryText : theme.accentColor)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+            }
+            Divider()
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(browse.currentChildren ?? []) { child in
+                        if child.isSeparator {
+                            Divider().padding(.vertical, 2)
+                        } else {
+                            row(child)
+                        }
+                    }
+                }
+                .padding(8)
+            }
+        }
     }
 
     private func selectableRow(_ item: MenuItem, isSelected: Bool) -> some View {

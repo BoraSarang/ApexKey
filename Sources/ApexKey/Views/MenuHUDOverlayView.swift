@@ -17,6 +17,8 @@ struct MenuHUDOverlayView: View {
     @State private var searchText = ""
     @State private var selectedIndex = 0
     @FocusState private var isSearchFocused: Bool
+    /// breadcrumb 드릴인 경로 (M-01)
+    @State private var browse = MenuBrowsePath()
 
     var totalCount: Int {
         visibleGroups.reduce(0) { $0 + $1.items.count }
@@ -63,6 +65,10 @@ struct MenuHUDOverlayView: View {
         }
         .onKeyPress(.downArrow) { moveSelection(1); return .handled }
         .onKeyPress(.upArrow) { moveSelection(-1); return .handled }
+        .onKeyPress(.leftArrow) {
+            if browse.isBrowsing { browse.back(); return .handled }
+            return .ignored
+        }
     }
 
     private var panel: some View {
@@ -73,6 +79,8 @@ struct MenuHUDOverlayView: View {
                 emptyState
             } else if isSearching {
                 resultList
+            } else if browse.isBrowsing {
+                browseView
             } else {
                 grid
             }
@@ -113,13 +121,6 @@ struct MenuHUDOverlayView: View {
                 Text("ui.hud.key_legend".localized)
                     .font(.system(size: 11))
                     .foregroundColor(theme.tertiaryText)
-                Toggle("ui.hud.show_no_shortcut".localized, isOn: Binding(
-                    get: { store.showNoShortcutItems },
-                    set: { store.showNoShortcutItems = $0 }
-                ))
-                .toggleStyle(.checkbox)
-                .font(.system(size: 11))
-                .foregroundColor(theme.secondaryText)
             }
         }
         .padding(.horizontal, 20)
@@ -225,8 +226,55 @@ struct MenuHUDOverlayView: View {
             trailingSlot(item)
         }
         .contentShape(Rectangle())
-        .onTapGesture { if !item.isSubmenu { onRun(item) } }
+        .onTapGesture {
+            if !browse.drill(into: item) {
+                if !item.isSubmenu { onRun(item) }
+            }
+        }
         .padding(.vertical, 2)
+    }
+
+    /// breadcrumb 드릴인 뷰 (M-01)
+    private var browseView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    Button(appName) { browse.reset() }
+                        .buttonStyle(.borderless)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(theme.accentColor)
+                    ForEach(Array(browse.stack.enumerated()), id: \.element.id) { index, item in
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(theme.tertiaryText)
+                        Button(item.title) { browse.jump(to: index) }
+                            .buttonStyle(.borderless)
+                            .font(.system(size: 13, weight: index == browse.stack.count - 1 ? .semibold : .regular))
+                            .foregroundColor(index == browse.stack.count - 1 ? theme.primaryText : theme.accentColor)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+            }
+            Divider().overlay(theme.secondaryBorder)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(browse.currentChildren ?? []) { child in
+                        if child.isSeparator {
+                            Rectangle()
+                                .fill(theme.secondaryBorder.opacity(0.5))
+                                .frame(height: 1)
+                                .padding(.vertical, 2)
+                        } else {
+                            row(child)
+                        }
+                    }
+                }
+                .padding(14)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
     }
 
     private func selectableRow(_ item: MenuItem, isSelected: Bool) -> some View {

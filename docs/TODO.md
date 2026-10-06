@@ -590,3 +590,17 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 - [x] **`stepBinding` stale index 크래시 수정** (2026-10-05, `ShortcutEditorView.swift:327`).
   02:20 리포트 `EXC_BREAKPOINT` — 설정 창 열린 채 단계 삭제·이동 후 텍스트 편집 종료 시
   Array OOB trap. 인덱스 캡처 제거 → 매번 id 재조회, 소실 시 읽기 스냅샷·쓰기 무시
+
+## v0.29 — MenuDart 확장 6종 (2026-10-06, PLAN_v0.29)
+
+- [x] M-02 Option 대체항목 중복 제거 — AX 실측 결과 마커 없음 → "직전 형제+같은 키+Option만 추가" 휴리스틱. HUD 표시만 적용(할당 UI 원본 유지). `MenuAlternateDedupTests` 9건
+- [x] M-05 클릭 무반응 토스트 — `runMenuItem` 실패 시 `MenuActionResult.description` 토스트. `MenuHUDFeedbackTests` 3건
+- [x] M-04 시스템 단축키 충돌 검사 — symbolic hotkeys 읽기 + 레코더 3지선다(경고→저장 강행/다른 키/취소). `SystemHotkeyInspectorTests` 11건 + i18n 2키
+- [x] M-01 포인터 옆 팝업 + breadcrumb — `placeMenuHUD` 앵커 배치(플로팅 전용) + 양쪽 HUD 드릴인/← 복귀. `MenuHUDAnchorTests` 8건
+- [x] M-03 게이트 PASS + 서비스 + 그리드 UI (2026-10-06) — MenuBarAgent AXGroup 아래 시스템 아이콘 + 앱별 extras 확인. `MenuBarIconEnumerator`(열거/AXPress/포인터 워프/앱아이콘 폴백) + `MenuBarIconsGridView`(키보드 이동/Space·Return/Esc) + `⌥⌘]` 예약 핫키 + 메뉴바 메뉴 진입점 + 설정(행당 개수·클릭 뒤바꿈) + 온보딩 6행. `MenuBarIconsGridTests` 10건 + i18n 15키. 성능 수정: 동기 전수 열거가 Safari WebContent AX IPC(개당 ~1.5초)에 메인 스레드 블로킹 → `enumerateAsync`(병렬) + 캐시 + 실행 시 예열. 2차: `.prohibited` 44개 스킵 + stale-while-revalidate(낡아도 즉시 표시 후 갱신) + 앱 실행/종료 시 무효화
+- [x] M-06 온보딩 (A안 변형) — 첫 실행 2단계 가이드(권한+단축키 확인/수정, Settings와 동일 저장 경로). 닫으면 완료 기록. `OnboardingStateTests` 3건 + i18n 11키
+
+## v0.30 — 설정 탭 개편 (2026-10-06)
+
+- [x] 기능별 8탭 (일반/패널/명령 팔레트/클립보드/Instant Send/Menu HUD/메뉴바 아이콘/테마) + 탭별 도움말 카드(뭐고·언제·이렇게). 단축키 기록 시트 6→1 통합, `showNoShortcutItems` 토글 오버레이 헤더→HUD 탭 이관, 창 700x480. 죽은 키 15개 삭제 + 신규 33키(ko/en 953 일치). `SettingsTabsTests` 3건
+- [x] 설정 GroupBox 레이아웃 + 직접 실행 (2026-10-06) — 그룹별 카드(GroupBox) 구분, 토글 라벨 좌·컨트롤 우·설명 들여쓰기. 단축키 행에 ▶ 직접 실행(slot.test 재사용). 신규 4키(ko/en 957 일치)

@@ -86,11 +86,13 @@ extension AppDelegate {
     func buildMenu() -> NSMenu {
         let menu = NSMenu()
         let openItem = Self.makeItem(title: "ui.open".localized, action: #selector(togglePanelAction(_:)), key: "o", target: self)
+        let iconsItem = Self.makeItem(title: "menubar.icons.title".localized, action: #selector(toggleMenuBarIcons), key: "", target: self)
         let infoItem = Self.makeItem(title: "ui.info".localized, action: #selector(showAboutPanel(_:)), key: "", target: self)
         let settingsItem = Self.makeItem(title: "ui.main.settings".localized, action: #selector(showSettingsPanel(_:)), key: ",", target: self)
         let updateItem = Self.makeItem(title: "menu.check_update".localized, action: #selector(checkForUpdateAction(_:)), key: "", target: self)
         let debugItem = Self.makeItem(title: "ui.menu.debug_log".localized, action: #selector(showDebugPanel(_:)), key: "", target: self)
         menu.addItem(openItem)
+        menu.addItem(iconsItem)
         menu.addItem(infoItem)
         menu.addItem(settingsItem)
         menu.addItem(updateItem)

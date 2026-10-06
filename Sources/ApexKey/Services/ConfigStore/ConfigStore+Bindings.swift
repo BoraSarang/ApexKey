@@ -119,6 +119,7 @@ extension ConfigStore {
             (clipboardID, clipboardHotkey),
             (sendID, sendHotkey),
             (menuHUDID, menuHUDHotkey),
+            (menuBarIconsID, menuBarIconsHotkey),
             (repeatLastID, Self.defaultRepeatHotkey),
         ]
         return reserved.contains { $0.0 != id && $0.1.matches(combo) }

@@ -103,6 +103,42 @@ final class MenuEnumerator {
         return result
     }
 
+    /// Option 대체항목 중복 제거 (M-02) — HUD 표시용.
+    ///
+    /// **실측 근거** (2026-10-06, Finder AX 덤프): 진짜 대체항목(Close All, Show Inspector,
+    /// Deselect All)과 일반 Option 단축키(Hide Others)는 AX 속성 집합이 **완전히 동일**하다.
+    /// `AXMenuItemPrimaryUIElement`는 양쪽 다 자기 자신을 가리키고, enabled/frame으로도
+    /// 구분 불가. 즉 AX만으로 "진짜 대체"를 특정할 수 없다.
+    /// → 보수적 휴리스틱: 같은 형제 목록에서, Option 포함 단축키 항목의 **직전 형제**가
+    /// 같은 키 + Option만 빠진 동일 수식키이면 대체 쌍으로 보고 Option 쪽을 숨긴다.
+    /// (Close Window ⌘W → Close All ⌥⌘W 등. Hide Finder → Hide Others 쌍도 함께 숨겨진다 —
+    ///  AX로는 구분이 불가능하므로 의도된 절충. 단축키 할당 UI(AppDetail 트리)에는 적용하지
+    ///  않아 실제 명령 지정은 그대로 가능하다.)
+    /// 체인(A, A+⌥, A+⌥⇧)은 첫 쌍만 처리하고 나머지는 남긴다(과삭제 방지).
+    func removingAlternateDuplicates(in items: [MenuItem]) -> [MenuItem] {
+        var result: [MenuItem] = []
+        result.reserveCapacity(items.count)
+        for item in items {
+            var kept = item
+            kept.children = removingAlternateDuplicates(in: item.children)
+            if Self.isAlternate(of: result.last, candidate: kept) {
+                continue
+            }
+            result.append(kept)
+        }
+        return result
+    }
+
+    /// 직전 형제(prev)에 대한 대체항목 후보 판정. prev가 nil이면 false.
+    private static func isAlternate(of prev: MenuItem?, candidate: MenuItem) -> Bool {
+        guard let prev else { return false }
+        guard !candidate.isSeparator, !candidate.commandChar.isEmpty else { return false }
+        guard candidate.commandModifiers & KeyboardUtil.optionMask != 0 else { return false }
+        guard prev.commandModifiers & KeyboardUtil.optionMask == 0 else { return false }
+        guard prev.commandChar.uppercased() == candidate.commandChar.uppercased() else { return false }
+        return prev.commandModifiers == candidate.commandModifiers & ~KeyboardUtil.optionMask
+    }
+
     /// 메뉴 항목 실행 (글로벌 핫키로 트리거)
     /// 대상 앱을 전면으로 가져온 뒤, 저장된 경로(menuPath)를 따라
     /// System Events AppleScript 메뉴 클릭으로 실행한다.

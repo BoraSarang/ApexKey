@@ -50,4 +50,11 @@ extension ConfigStore {
         modifiers: KeyboardUtil.controlMask | KeyboardUtil.optionMask,
         displayString: "⌃⌥D"
     )
+
+    /// 메뉴바 아이콘 그리드 기본값 — ⌥⌘] (MenuDart와 같은 손 위치)
+    static let defaultMenuBarIconsHotkey = HotKeyCombo(
+        keyCode: 30, // ]
+        modifiers: KeyboardUtil.cmdMask | KeyboardUtil.optionMask,
+        displayString: "⌥⌘]"
+    )
 }

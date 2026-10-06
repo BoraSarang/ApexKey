@@ -48,7 +48,10 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 | **Automation** | Time, folder, battery and charger triggers (file, display, wifi, bluetooth, app: coming soon) |
 | **AI actions** | Use model, writing tool, image playground steps |
 | **System actions** | Lock, volume, dark mode, and more |
-| **Menu HUD** | Fullscreen / floating view of the current app's shortcuts |
+| **Menu HUD** | Fullscreen / floating view of the current app's shortcuts, with in-place submenu drill-in + breadcrumb |
+| **Menu Bar Icons** | Grid of every status icon (even notch-hidden ones) — `⌥⌘]` to open, click the real icon |
+| **First-launch guide** | 2-minute setup: permissions + shortcut review with instant try-it |
+| **Shortcut safety** | Warns on macOS system-shortcut conflicts (move / register anyway / cancel); failed runs toast the reason |
 | **Themes** | 8 built-in presets (Light, Dark, Neon, Nord, Paper, Terminal, Osaurus) + font scaling |
 
 ## Installation
@@ -84,7 +87,9 @@ Developer ID certificate removes it.
 - Open the panel via the ApexKey menu bar icon (default `⇧⌥A`)
 - In an app's detail view, press **`+`** on any menu command to record a global shortcut
 - Press **Menu Shortcut HUD** (`⇧⌥S`) to view the frontmost app's shortcuts
+- Press **Menu Bar Icons** (`⌥⌘]`) to click any status icon, even notch-hidden ones
 - Use the **Shortcuts** tab to combine multiple steps into your own action
+- Every feature tab in Settings has a **▶ Try it** button — see what a shortcut does before memorizing it
 
 ## Build (for developers)
 
