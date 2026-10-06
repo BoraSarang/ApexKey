@@ -13,7 +13,7 @@
   [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서(TODO)에는 없다
 - 진행 현황 전체는 [`STATUS.md`](STATUS.md), 문서 색인은 [`README.md`](README.md)
 
-## 현재 미해결 8건 (2026-09-29)
+## 현재 미해결 7건 (2026-10-06)
 
 | # | 분류 | 항목 | 상태 |
 |:-:|---|---|:-:|
@@ -21,11 +21,13 @@
 | 2 | **저장** | `saveContext` → `Bool` 반환 | 🟡 **검증 수단 없음** (`PLAN_v0.24`에 근거) |
 | 3 | **기능** | T-036 — 동작의 메뉴 명령 단계 실행 불가 + 앱/메뉴 선택 UI | 🟡 규모 큼 |
 | 4 | **기능** | 단축키 프로필 / 빠른 전환 | 🟢 착수 가능 |
-| 5 | **기능** | Choose from Menu / Use Model 단계 설정값 UI 다듬기 | 🟢 착수 가능 |
-| 6 | **기능** | AI 3종 실제 FoundationModels 연동 | 🟡 **리서치 필요.** 현재는 정직한 실패 |
-| 7 | **검증** | macOS 14 런타임 실기 검증 (macOS 26에서만 확인됨) | 🟡 환경 부족 |
+| 5 | **기능** | Choose from Menu 단계 설정값 UI 다듬기 (Use Model 제외 — AI 미연동 확정) | 🟢 착수 가능 |
+| 6 | **검증** | macOS 14 런타임 실기 검증 (macOS 26에서만 확인됨) | 🟡 환경 부족 |
 
 | 9 | **조사** | `StoreBlobRecoveryTests` 격리 기전 특정 | 🟢 픽스처 격리로 우회함 — 원인은 미특정 |
+
+> 2026-10-06 변경: 기존 6번(AI 3종 FoundationModels 연동)은 미해결이 아니라
+> **[~] 무효화**로 이관 (아래 무효화 목록 참조). "사용자 실동작 52건"은 61건이 맞다(§8-9·8-10 누락).
 
 **에이전트가 대신할 수 없는 것**(사용자 실동작 52건·PR·macOS 14 실기)은
 [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서에는 없다 — 두 목록의 경계를
@@ -37,7 +39,7 @@
 (`ExecutionEngine`/`Shortcut`/`ShortcutEditorView`), `ActionDetailView` 통합,
 `planned 90종` 정리. 상세는 `docs/CHANGELOG.md` 2026-10-02 항목.
 
-### 무효화된 항목 `[~]` 3건 (2026-09-29 정리)
+### 무효화된 항목 `[~]` 6건 (2026-09-29 정리 + 2026-10-06 AI 추가)
 
 `[x]`도 `[ ]`도 아니다. **구현하지 않는 게 의도**이며 되살리면 안 된다.
 - **T-132** `ADB Wi-Fi` 샘플 동작 자동 생성 → Android 미러가 `SystemActionType`으로
@@ -47,6 +49,10 @@
 - **L-09** "키 N 전수 존재" 주장 → **`check-localizable.py`에 키 존재 검사 로직이 없다.**
   2026-09-29에 재확인했다. 누락 키는 게이트를 통과하고 UI에 원문 키로 노출된다.
   키 수는 계속 늘므로 문서에 고정하지 않고 결함으로만 기록한다
+- **AI-3종 FoundationModels 연동** (2026-10-06 무효화 — 기존 6번 미해결 항목 폐기).
+  `useModel`/`writingTool`/`imagePlayground`는 정직한 실패 스텁으로 유지하고 연동하지 않는다.
+  이유: Apple Intelligence 가용성·리서치 부담이 제품 방향("신규 기능 동결") 밖이다.
+  스텁 거짓 성공 금지는 `AIStubHonestyTests`로 고정돼 있으므로 회귀 걱정 없이 방치한다
 
 ### 미구현 액션 100종의 성격
 
@@ -573,8 +579,8 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   조사 결과 엔진은 정상이었고 **설정 UI가 없었다**(`DefaultSettingsView`로 떨어짐) —
   사용자가 UUID를 직접 입력해야 했다. 전용 피커를 추가했다. `ThemedRoot`가
   `store`를 주입하지 않아 `@EnvironmentObject` 크래시가 날 뻔한 건을 함께 막았다
-- [ ] Choose from Menu/Use Model 등 단계 저장값(actionParameters) UI 연동 세부 다듬기
-- [ ] **AI 3종 실제 FoundationModels 연동** — A-03은 "정직한 실패"로 전환하는 것. 실제 구현은 별도 과제(리서치 필요)
+- [ ] Choose from Menu 단계 저장값(actionParameters) UI 연동 세부 다듬기 (Use Model 제외 — AI 미연동 확정)
+- [~] **AI 3종 실제 FoundationModels 연동** — **2026-10-06 무효화.** 정직한 실패 스텁으로 유지하고 연동하지 않는다 (제품 방향: 신규 기능 동결)
 - [x] **P1 순수 로직 11종** — **T-171로 완료**(2026-09-29). `text`·`combineText`·`splitText`·`trimWhitespace`·`replaceText`·`regex`·`matchText`·`count`·`formatNumber`·`getClipboard`·`setClipboard` 11종 구현 + 전용 설정 UI + 테스트 40건
 - [~] 오프라인/큐 — **비해당.** 로컬 앱이다
 - [ ] macOS 14 런타임 실기 검증 (v0.3.2로 SwiftUI 빈 윈도우 근본 제거, macOS 26에서 검증 완료) — 배포 타깃 14 컴파일만 보장

@@ -51,7 +51,7 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 | **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action (59 of 162 catalog actions fully wired; the rest read "Coming soon") |
 | **Flow control** | If / repeat / menu choice, variables, output-to-variable |
 | **Automation** | Time, folder, battery and charger triggers (display, wifi, bluetooth, app: planned) |
-| **AI actions** | Use model / writing tool / image playground — **not wired yet**: they fail gracefully instead of fake success (FoundationModels work is open) |
+| **AI actions** | Use model / writing tool / image playground — **not planned**: they fail gracefully by design (see docs: AI is out of scope) |
 | **System actions** | Lock, mute, dark mode, and more via built-in presets |
 | **Menu HUD** | Fullscreen / floating view of the current app's shortcuts, with in-place submenu drill-in + breadcrumb |
 | **Menu Bar Icons** | Grid of every status icon (even notch-hidden ones) — `⌥⌘]` to open, click the real icon |

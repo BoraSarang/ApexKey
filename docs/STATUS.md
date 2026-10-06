@@ -32,7 +32,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | 액션 구현 | **59 / 162** (스텁 4, 미구현 100) | `ActionType.implementationCounts()` |
 | i18n | ko/en **957키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.4.1 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
-| 미해결 작업 | **7건** (+ 무효화 5건) | `TODO.md` |
+| 미해결 작업 | **7건** (+ 무효화 6건) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **61건** (8-1~8-10) | `FUNCTIONAL_CHECKLIST.md` §8 |
 | 브랜치 | `fix/macos-audit-p0` — **main에 병합됨**(PR #7, `3664d99`) | — |
@@ -111,7 +111,6 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 |---|---|---|
 | **Developer ID 서명 + notarization** | Apple Developer Program(연 $99) 가입이 선행 | 사용자 가입. 코드(`release.yml`)는 그 다음 |
 | **`saveContext` → `Bool`** | **검증 수단이 없음.** chmod는 소유자에게 통하지 않고, SQLite 배타 락은 저장 실패가 아니라 **무한 대기**를 유발 | SwiftData 저장 실패를 결정적으로 재현하는 수단 (예: 읽기 전용 볼륨 위의 store) |
-| **AI 3종 FoundationModels 연동** | macOS 26 / Apple Intelligence 가용성, API 리서치 필요 | 리서치 후 착수. 현재는 **정직한 실패**로 동작 중 |
 | **미구현 액션 100종** | 대부분 Apple 앱 연동 (`Photos`·`Music`·`Mail`·`Calendar`·`Reminders`·`Podcasts`) | 앱별 API 조사 필요. ScriptingBridge 또는 URL scheme |
 | **macOS 14 실기 검증** | 이 세션은 macOS 26에서만 실행 | macOS 14 기기 또는 가상머신 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월 | `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
@@ -130,6 +129,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 | **macOS 14 런타임 실기 검증** | 이 작업은 macOS 26에서만 수행됐다 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월. `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
 | **`docs/plans/` 28개 정리** | **하지 않기로 판단.** 각 파일에 `status`가 있어 색인만 있으면 된다. 삭제·이동하면 이력 맥락이 사라진다 |
+| **AI 3종 연동** | **하지 않기로 판단 (2026-10-06).** 정직한 실패 스텁 유지. 제품 방향(신규 기능 동결) 밖 |
 | **`TODO.md` 427줄 재배치** | **하지 않기로 판단.** 요약 인덱스로 탐색 비용만 낮췄다. 재배치하면 "T-036이 왜 superseded됐는지" 같은 맥락이 사라진다 |
 | **CI 서명 경로 검증** | 서명 도입의 일부. T-166 후속과 함께 |
 
@@ -169,7 +169,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 
 **1순위 — 위험이 낮고 완결된다**
 - `detectLanguage`(휴리스틱) · `recognizeText`(Vision — 프레임워크 내장이라 조사 부담 낮음)
-- Choose from Menu / Use Model 단계 설정값(actionParameters) UI 다듬기
+- Choose from Menu 단계 설정값(actionParameters) UI 다듬기 (Use Model 제외 — AI 미연동 확정)
 - 단축키 프로필 / 빠른 전환
 
 **2순위 — 규모 있음**
@@ -179,7 +179,6 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 **착수 불가 (조건 대기)**
 - Developer ID 서명 — Apple Developer Program 가입 대기
 - `saveContext → Bool` — 저장 실패를 결정적으로 재현할 수단이 없음
-- AI 3종 FoundationModels — API 리서치 선행
 
 ### 이 세션에 처리 완료 (T-175~T-183)
 

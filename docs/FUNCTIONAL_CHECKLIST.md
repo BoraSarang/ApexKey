@@ -75,18 +75,22 @@
 | 디버그 로그 창 | ⚠️ | 링버퍼 2000줄 동작. 로그 1줄마다 `body` 재평가 → 창 열려 있으면 리렌더 폭풍 (P2) |
 | 편집 메뉴 (Cmd+C/V/X/A/Z) | ✅ | responder chain. `AppDelegate.undo/redo`는 미사용 메서드 (U-17 정정) |
 
-## 5. 🔴 Apple Intelligence 3종 — 스텁 + 거짓 성공 + 공개 광고
+## 5. Apple Intelligence 3종 — 의도된 정직 실패 (연동 안 함, 2026-10-06 확정)
+
+> T-143에서 거짓 성공을 제거했고, 2026-10-06에 연동 자체를 **[~] 무효화**했다.
+> 아래 스텁 동작은 결함이 아니라 **의도된 최종 상태**다. 손대지 말 것.
+> 회귀 방지는 `AIStubHonestyTests`가 담당한다.
 
 | 액션 | 카탈로그 | 실제 | 비고 |
 |---|:-:|:-:|---|
-| 모델 사용 (useModel) | ✅ | 🔴 | **입력 프롬프트를 그대로 출력 변수로 저장**하고 성공 반환 (`UseModelExecutor.swift:139-147`) |
-| 라이팅 툴 (writingTool) | ✅ | 🔴 | `proofread`/`rewrite`는 문자열 래핑, `summarize`/`keyPoints`는 앞 3~5문장 절단 (`WritingToolExecutor.swift:56-68`) |
-| 이미지 생성 (imagePlayground) | ✅ | 🔴 | 512×512 단색 사각형 + 프롬프트 글자 플레이스홀더 (`ImagePlaygroundExecutor.swift:48-76`) |
-| 가용성 판정 | ✅ | 🔴 | `AIAvailabilityManager` 무조건 `.available`. Apple Intelligence 꺼진 기기에서도 "사용 가능" |
+| 모델 사용 (useModel) | ✅ | 의도된 실패 | 연동 전까지 실패 반환 (정직 실패) |
+| 라이팅 툴 (writingTool) | ✅ | 의도된 실패 | 연동 전까지 실패 반환 (정직 실패) |
+| 이미지 생성 (imagePlayground) | ✅ | 의도된 실패 | 연동 전까지 실패 반환 (정직 실패) |
+| 가용성 판정 | ✅ | 정직화됨 | 가용하지 않으면 `.unavailable` (T-143) |
 
-**공개 광고 중** (PLAN_v0.21 T-143에서 정정):
-- `website/ko/index.html:179` — "AI 액션 — 모델 사용, 라이팅 툴, 이미지 생성 — 모두 핫키 하나에 바인딩할 수 있습니다."
-- `README.ko.md:38` / `README.md` — "| AI 실행 | 모델 사용, 라이팅 툴, 이미지 생성 단계 |"
+**공개 문구 정정 완료** (T-143 + v1.4.0 현행화):
+- 랜딩 en/ko — AI 과장 카드 삭제됨 (2026-10-06 확인, 잔재 0건)
+- `README.md` / `README.ko.md` — "미연동: 정직 실패, 연동 계획 없음"으로 표기
 
 ---
 
