@@ -3,6 +3,28 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-06 macos — v1.4.1 디버그 패널 릴리스 노출 수정
+
+* 우클릭 메뉴 "디버그 로그" + 실패 토스트 탭 연결을 `#if DEBUG` 게이트 —
+  DMG 배포본에 내부 로그 UI가 노출되던 문제 수정
+* Debug/Release 양쪽 컴파일 확인. 검증: unit 515건 0실패(스킵 3)
+
+## 2026-10-06 macos — v1.4.0 메뉴바 아이콘·온보딩·설정 탭 (PLAN_v0.29·v0.30)
+
+* **메뉴바 아이콘 그리드** (`Services/MenuBarIconEnumerator.swift`, `Views/MenuBarIconsGridView.swift`) —
+  MenuBarAgent AXGroup 아래 시스템 아이콘 + 앱별 extras 열거, `AXPress` 클릭 + 포인터 워프,
+  `⌥⌘]` 예약 핫키 + 메뉴바 메뉴 진입점 + 설정(행당 개수·클릭 뒤바꿈) + 온보딩 6행.
+  Safari WebContent AX IPC(개당 ~1.5초) 블로킹 → 병렬 `enumerateAsync` + stale-while-revalidate 캐시 + 예열
+* **Menu HUD 드릴인 + 포인터 앵커** (M-01) — 서브메뉴 제자리 전개 + breadcrumb 점프/← 복귀,
+  플로팅 창 포인터 adjacent 배치 (`Services/MenuHUDAnchor.swift`)
+* **Option 대체항목 제거** (M-02) — AX 실측 결과 마커 없음 → 직전 형제 휴리스틱, HUD 표시만 적용
+* **시스템 단축키 충돌 3지선다** (M-04) — symbolic hotkeys 읽기 + 경고→저장 강행/다른 키/취소
+* **실패 토스트** (M-05) — `runMenuItem`·그리드 클릭 실패 시 원인 표시
+* **첫 실행 가이드** (M-06) — 권한 + 단축키 6종 확인/수정, Settings와 동일 저장 경로
+* **설정 8탭** (v0.30) — 기능별 탭 + 도움말 카드(뭐고·언제·이렇게), 기록 시트 6→1 통합,
+  GroupBox 카드 + 칩/▶ 직접 실행/↺ 복원 행, 숫자-컨트롤 우측 배치
+* 검증: unit 515건 0실패(스킵 3), 가드 통과, 신규 파일 클린 빌드 경고 0
+
 ## 2026-10-05 macos — v1.3.0 단계 설정·시스템 프리셋 재설계
 
 * 입력칸이 창 하단을 채우고 입력칸만 스크롤 (창 480×680 고정, 이중 스크롤 제거).
