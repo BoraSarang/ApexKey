@@ -218,12 +218,7 @@ struct SettingsView: View {
             Button {
                 recordingSlot = slot
             } label: {
-                Text(slot.current.displayString)
-                    .font(.system(.body, design: .monospaced))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(theme.tertiaryBackground.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                KeycapView(combo: slot.current, style: store.keycapStyle, highlighted: true)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("settings.menubar_icons.change".localized)
@@ -259,6 +254,33 @@ struct SettingsView: View {
             toggleRow("settings.show_in_dock",
                       isOn: dockBinding,
                       description: "settings.show_in_dock.description")
+        }
+        groupBox("settings.keycap") {
+            HStack {
+                Text("settings.keycap.style".localized).font(.body)
+                Spacer()
+                Picker("", selection: Binding(
+                    get: { store.keycapStyle },
+                    set: { store.setKeycapStyle($0) }
+                )) {
+                    ForEach(KeycapStyle.allCases) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
+            .padding(.vertical, 2)
+            HStack(spacing: 8) {
+                Text("settings.keycap.preview".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                Spacer()
+                KeycapView(combo: HotKeyCombo(keyCode: 45, modifiers: KeyboardUtil.cmdMask | KeyboardUtil.shiftMask, displayString: "⌘⇧N"), style: store.keycapStyle)
+                KeycapView(combo: HotKeyCombo(keyCode: 30, modifiers: KeyboardUtil.cmdMask | KeyboardUtil.optionMask, displayString: "⌥⌘]"), style: store.keycapStyle)
+                KeycapView(combo: HotKeyCombo(keyCode: 2, modifiers: KeyboardUtil.controlMask | KeyboardUtil.optionMask, displayString: "⌃⌥D"), style: store.keycapStyle)
+            }
+            .padding(.vertical, 2)
         }
         groupBox("settings.general.startup") {
             HStack {

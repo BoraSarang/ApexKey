@@ -1,6 +1,6 @@
 # ApexKey — 현황 (STATUS)
 
-> 최종 갱신: **2026-10-05**
+> 최종 갱신: **2026-10-13**
 > 이 문서가 "지금 어디까지 왔고, 무엇이 막혔고, 무엇을 안 했는지"의 단일 출처다.
 > 작업 목록은 [`TODO.md`](TODO.md), 문서 색인은 [`README.md`](README.md).
 
@@ -26,12 +26,12 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **515건 0실패**(3 skip, 2026-10-06) | `./build_and_run.sh test macos unit` |
+| 테스트 | **525건 0실패**(5 skip, 2026-10-13 — KeycapStyleTests 10건 포함) | `./build_and_run.sh test macos unit` |
 | 스모크 | 69건 0실패 | `test macos smoke` |
 | 빌드 | **클린 빌드 경고 0** | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. T-183으로 13건 제거 |
 | 액션 구현 | **59 / 162** (스텁 4, 미구현 100) | `ActionType.implementationCounts()` |
-| i18n | ko/en **957키 일치** | `*.lproj/Localizable.strings` |
-| 버전 | 1.4.1 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
+| i18n | ko/en **967키 일치** | `*.lproj/Localizable.strings` |
+| 버전 | 1.5.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
 | 미해결 작업 | **7건** (+ 무효화 6건) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **72건** (8-1~8-12) | `FUNCTIONAL_CHECKLIST.md` §8 |
@@ -40,7 +40,12 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 ---
 
-## 3. 최근 완료분 (2026-09-27 ~ 10-02)
+## 3. 최근 완료분 (2026-09-27 ~ 10-13)
+
+| 작업 | 결과 |
+|---|---|
+| **2026-10-13 키캡 표시 방법 (T-185)** | Studio 6종 코드 이식 + 설정 Picker·미리보기 + 13곳 `KeycapView` 통일 + 검색 정규화. 525건 0실패·i18n 967키 |
+| **2026-10-13 지정됨 강조 (T-186)** | 단일 캡슐+엑센트 `highlighted` + 목록 뱃지 강화. v1.5.0 릴리스 |
 
 | 작업 | 결과 |
 |---|---|

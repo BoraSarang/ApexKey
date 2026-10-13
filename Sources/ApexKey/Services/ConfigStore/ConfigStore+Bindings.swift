@@ -165,7 +165,7 @@ extension ConfigStore {
         return bindings.filter {
             KoreanSearch.matches(query: q, in: $0.title)
                 || KoreanSearch.matches(query: q, in: $0.actionType.displayName)
-                || $0.combo.displayString.lowercased().contains(q)
+                || KeyboardUtil.normalizedSearchText(keyCode: $0.combo.keyCode, modifiers: $0.combo.modifiers).contains(q)
         }.sorted { $0.title < $1.title }
     }
 
@@ -177,7 +177,7 @@ extension ConfigStore {
         let q = query.lowercased()
         return KoreanSearch.matches(query: q, in: app.name)
             || app.bundleID.lowercased().contains(q)
-            || bindings(for: app.id).contains { $0.combo.displayString.lowercased().contains(q) }
+            || bindings(for: app.id).contains { KeyboardUtil.normalizedSearchText(keyCode: $0.combo.keyCode, modifiers: $0.combo.modifiers).contains(q) }
     }
 
     /// 바인딩 복제

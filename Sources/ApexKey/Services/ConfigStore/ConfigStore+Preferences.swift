@@ -27,6 +27,7 @@ extension ConfigStore {
         static let showInMenuBar = "pref.showInMenuBar"
         static let showInDock = "pref.showInDock"
         static let menuHUDStyle = "pref.menuHUDStyle"
+        static let keycapStyle = "pref.keycapStyle"
         static let showNoShortcutItems = "pref.showNoShortcutItems"
         static let showSystemApps = "pref.showSystemApps"
         /// 숨김 앱 표시 (E-MAC-STORE-5008 — 이전엔 didSet/PrefKeys/복원이 모두 없어 리셋됨)
@@ -67,6 +68,12 @@ extension ConfigStore {
     func setMenuHUDStyle(_ style: MenuHUDStyle) {
         menuHUDStyle = style
         Logger.info("ConfigStore", "[HUD] 표시 방식 변경: \(style.rawValue)")
+    }
+
+    /// 키캡 표시 방법 전환 (E-MAC-UX keycap)
+    func setKeycapStyle(_ style: KeycapStyle) {
+        keycapStyle = style
+        Logger.info("ConfigStore", "[KEYCAP] 표시 방법 변경: \(style.rawValue)")
     }
 
     /// 메뉴바 표시를 전환. Dock도 꺼져 있으면 접근 불가가 되므로 거부하고 false 반환.

@@ -202,8 +202,7 @@ struct ShortcutEditorView: View {
                     if liveCombo.isEmpty {
                         Label("ui.hotkey".localized, systemImage: "keyboard")
                     } else {
-                        Text(liveCombo.displayString)
-                            .font(.system(.caption, design: .monospaced))
+                        KeycapView(combo: liveCombo, style: store.keycapStyle, highlighted: true)
                     }
                 }
                 .buttonStyle(.bordered)

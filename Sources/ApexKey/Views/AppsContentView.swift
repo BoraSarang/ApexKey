@@ -127,16 +127,19 @@ struct AppRowView: View {
             if !bindings.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "command")
-                        .font(.caption)
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(theme.successColor)
                     Text("\(bindings.count)")
-                        .font(.caption)
-                        .foregroundColor(theme.secondaryText)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(theme.successColor)
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(theme.successColor.opacity(0.12))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(theme.successColor.opacity(0.2))
                 .clipShape(Capsule())
+                .overlay(
+                    Capsule().stroke(theme.successColor.opacity(0.4), lineWidth: 1)
+                )
             }
             Button {
                 AppSwitcher.activate(bundleID: app.bundleID, path: app.path)
