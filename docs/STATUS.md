@@ -36,7 +36,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **72건** (8-1~8-12) | `FUNCTIONAL_CHECKLIST.md` §8 |
 | 브랜치 | `fix/macos-audit-p0` — **main에 병합됨**(PR #7, `3664d99`) | — |
-| 릴리스 | **없음** — PR #7은 main에 병합됐지만 `release.yml`은 **태그 트리거**라 배포 없음 | — |
+| 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
 
 ---
 
