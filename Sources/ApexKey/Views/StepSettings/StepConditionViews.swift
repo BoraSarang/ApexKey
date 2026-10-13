@@ -75,18 +75,24 @@ struct KeyPressSettingsView: View {
             : combo.displayString
     }
 
+    private var displayCombo: HotKeyCombo? { currentCombo }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(step.type.displayName)
                 .font(.headline)
 
             HStack {
-                Text(displayText)
-                    .font(.system(.title3, design: .monospaced))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(theme.inputBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                if let combo = displayCombo {
+                    KeycapView(combo: combo, large: false)
+                } else {
+                    Text(displayText)
+                        .font(.system(.title3, design: .monospaced))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(theme.inputBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
                 Spacer()
             }
 

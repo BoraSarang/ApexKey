@@ -28,7 +28,8 @@ enum KeyboardUtil {
         return result
     }
 
-    /// 표시용 단축키 문자열 (예: "⌘⇧N")
+    /// 표시용 단축키 문자열 (예: "⌘⇧N") — 기존 joined 방식 유지 (로그·검색·폴백용).
+    /// 읽기 쉬운 표시는 KeycapView + modifierTokens/keyToken 사용 (E-MAC-UX keycap).
     static func displayString(keyCode: UInt32, modifiers: UInt32) -> String {
         var parts: [String] = []
         if modifiers & cmdMask != 0 { parts.append("⌘") }
@@ -127,5 +128,46 @@ enum KeyboardUtil {
     /// 단축키에 필요한 최소 1개 이상의 수식키가 있는지 (순수 문자키만으로는 글로벌 등록 지양)
     static func hasModifier(_ combo: HotKeyCombo) -> Bool {
         combo.modifiers != 0
+    }
+
+    // MARK: - 키캡 토큰 (E-MAC-UX keycap — Mac-Keycap-Studio 이식)
+
+    /// 수식키 1개의 3종 표기 (기호 / 대문자 약어 / 소문자)
+    struct ModifierToken {
+        let symbol: String
+        let upper: String
+        let lower: String
+    }
+
+    /// 본키 1개의 3종 표기 (기호가 본체, 대소문자는 검색·병기용)
+    struct KeyToken {
+        let symbol: String
+        let upper: String
+        let lower: String
+    }
+
+    /// 수식키 토큰 (고정 순서 ⌘→⇧→⌥→⌃ — displayString과 동일 순서)
+    static func modifierTokens(_ modifiers: UInt32) -> [ModifierToken] {
+        var tokens: [ModifierToken] = []
+        if modifiers & cmdMask != 0 { tokens.append(ModifierToken(symbol: "⌘", upper: "CMD", lower: "cmd")) }
+        if modifiers & shiftMask != 0 { tokens.append(ModifierToken(symbol: "⇧", upper: "SHIFT", lower: "shift")) }
+        if modifiers & optionMask != 0 { tokens.append(ModifierToken(symbol: "⌥", upper: "OPT", lower: "opt")) }
+        if modifiers & controlMask != 0 { tokens.append(ModifierToken(symbol: "⌃", upper: "CTRL", lower: "ctrl")) }
+        return tokens
+    }
+
+    /// 본키 토큰 — symbol(for:)이 본체, 영문자는 대소문자 파생, 특수기호는 그대로
+    static func keyToken(_ keyCode: UInt32) -> KeyToken {
+        let s = symbol(for: keyCode)
+        return KeyToken(symbol: s, upper: s.uppercased(), lower: s.lowercased())
+    }
+
+    /// 검색 정규화 문자열 — 기호·대문자·소문자 모두 소문자로 합쳐 매칭한다.
+    /// 기존 displayString.lowercased()만으로는 "cmd" 검색이 ⌘에 닿지 않았다.
+    static func normalizedSearchText(keyCode: UInt32, modifiers: UInt32) -> String {
+        let base = displayString(keyCode: keyCode, modifiers: modifiers).lowercased()
+        let mods = modifierTokens(modifiers).map { "\($0.symbol) \($0.upper.lowercased()) \($0.lower)" }.joined(separator: " ")
+        let key = keyToken(keyCode)
+        return "\(base) \(mods) \(key.symbol.lowercased()) \(key.upper.lowercased()) \(key.lower)"
     }
 }

@@ -80,17 +80,24 @@ struct HotKeyRecorderView: View {
             Text(title)
                 .font(.headline)
 
-            // 키 표시 영역
-            Text(currentCombo.displayString.isEmpty ? "ui.recorder.press_keys".localized : currentCombo.displayString)
-                .font(.system(size: 40, weight: .bold, design: .monospaced))
-                // 긴 단축키 조합도 잘리지 않게 최소 300 유지, 길면 확장
-                .frame(minWidth: 300, minHeight: 80)
-                .frame(idealWidth: 300, idealHeight: 80)
-                .background(keyBackground)
-                .cornerRadius(10)
-                .foregroundColor(keyForeground)
-                .animation(.easeInOut(duration: 0.15), value: currentCombo)
-                .animation(.easeInOut(duration: 0.15), value: message)
+            // 키 표시 영역 — 스타일 설정 반영 (E-MAC-UX keycap)
+            if currentCombo.isEmpty {
+                Text("ui.recorder.press_keys".localized)
+                    .font(.system(size: 20, weight: .medium))
+                    .frame(minWidth: 300, minHeight: 80)
+                    .frame(idealWidth: 300, idealHeight: 80)
+                    .background(keyBackground)
+                    .cornerRadius(10)
+                    .foregroundColor(keyForeground)
+            } else {
+                KeycapView(combo: currentCombo, style: store.keycapStyle, large: true)
+                    .frame(minWidth: 300, minHeight: 80)
+                    .frame(idealWidth: 300, idealHeight: 80)
+                    .background(keyBackground)
+                    .cornerRadius(10)
+                    .animation(.easeInOut(duration: 0.15), value: currentCombo)
+                    .animation(.easeInOut(duration: 0.15), value: message)
+            }
 
             messageView
 

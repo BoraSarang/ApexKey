@@ -156,9 +156,7 @@ struct AutomationBrowserView: View {
                         .buttonStyle(.borderless)
                         .help("ui.station.assign_hotkey_help".localized)
                     } else {
-                        Text(live.combo.displayString)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(theme.accentColor)
+                        KeycapView(combo: live.combo, style: store.keycapStyle, highlighted: true)
                         Button("ui.appdetail.change_hotkey".localized) {
                             recordingComboFor = live
                         }

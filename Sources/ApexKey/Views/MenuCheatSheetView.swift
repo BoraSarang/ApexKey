@@ -41,7 +41,7 @@ struct MenuCheatSheetView: View {
         return all.filter {
             !$0.isSeparator
                 && (KoreanSearch.matches(query: query, in: $0.title)
-                    || $0.keyEquivalentDisplay.lowercased().contains(query))
+                    || $0.normalizedSearchText.contains(query))
         }
     }
 
@@ -295,7 +295,7 @@ struct MenuCheatSheetView: View {
     }
 
     /// macOS 표준대로 단축키를 오른쪽에 배치.
-    /// 서브메뉴 부모는 '▸' 화살표, 단축키 있으면 keycap, 없으면 고정 빈칸.
+    /// 서브메뉴 부모는 '▸' 화살표, 단축키 있으면 KeycapView, 없으면 고정 빈칸.
     @ViewBuilder
     private func trailingSlot(_ item: MenuItem) -> some View {
         if item.isSubmenu {
@@ -304,13 +304,7 @@ struct MenuCheatSheetView: View {
                 .foregroundColor(theme.secondaryText)
                 .frame(minWidth: 24)
         } else if item.hasKeyEquivalent {
-            Text(item.keyEquivalentDisplay)
-                .font(.system(.body, design: .monospaced))
-                .foregroundColor(theme.accentColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(theme.accentColor.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 5))
+            KeycapView(menuItem: item, style: store.keycapStyle)
         } else {
             Text("")
                 .frame(width: 24)

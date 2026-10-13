@@ -179,12 +179,7 @@ struct AppDetailView: View {
                 .buttonStyle(.borderless)
                 Spacer()
                 if let binding = list.first {
-                    Text(binding.combo.displayString)
-                        .font(.system(.body, design: .monospaced))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(theme.tertiaryBackground.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                    KeycapView(combo: binding.combo, style: store.keycapStyle, highlighted: true)
                     Button {
                         store.removeBinding(binding)
                     } label: {
@@ -244,12 +239,7 @@ struct AppDetailView: View {
             Text(binding.title.isEmpty ? "ui.command".localized : binding.title)
                 .lineLimit(1)
             Spacer()
-            Text(binding.combo.displayString)
-                .font(.system(.body, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(theme.tertiaryBackground.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+            KeycapView(combo: binding.combo, style: store.keycapStyle, highlighted: true)
             Button {
                 store.removeBinding(binding)
             } label: {
@@ -327,7 +317,7 @@ struct AppDetailView: View {
             } else {
                 let flat = MenuEnumerator.shared.allItems(in: menuItems)
                 let items = flat.filter {
-                    $0.title.lowercased().contains(query) || $0.keyEquivalentDisplay.lowercased().contains(query)
+                    $0.title.lowercased().contains(query) || $0.normalizedSearchText.contains(query)
                 }
                 if items.isEmpty {
                     Text("ui.appdetail.no_search_results".localized)
@@ -350,10 +340,8 @@ struct AppDetailView: View {
             Text(item.title)
                 .lineLimit(1)
             Spacer()
-            if !item.keyEquivalentDisplay.isEmpty {
-                Text(item.keyEquivalentDisplay)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundColor(theme.secondaryText)
+            if item.hasKeyEquivalent {
+                KeycapView(menuItem: item, style: store.keycapStyle)
             }
             if alreadySet {
                 Image(systemName: "checkmark.circle.fill")
@@ -584,10 +572,8 @@ private struct MenuTreeNode: View {
             Text(item.title)
                 .lineLimit(1)
             Spacer()
-            if !item.keyEquivalentDisplay.isEmpty {
-                Text(item.keyEquivalentDisplay)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundColor(theme.secondaryText)
+            if item.hasKeyEquivalent {
+                KeycapView(menuItem: item)
             }
             if alreadySet(item) {
                 Image(systemName: "checkmark.circle.fill")

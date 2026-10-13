@@ -183,9 +183,7 @@ struct ShortcutStationView: View {
                     .buttonStyle(.borderless)
                     .help("ui.station.run_all".localized)
                     if !shortcut.combo.isEmpty {
-                        Text(shortcut.combo.displayString)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(theme.accentColor)
+                        KeycapView(combo: shortcut.combo, style: store.keycapStyle, highlighted: true)
                     }
                 }
 
@@ -307,10 +305,8 @@ private struct MenuChoiceNode: View {
                     Text(item.title.isEmpty ? "ui.station.separator".localized : item.title)
                         .lineLimit(1)
                     Spacer()
-                    if !item.keyEquivalentDisplay.isEmpty {
-                        Text(item.keyEquivalentDisplay)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(theme.secondaryText)
+                    if item.hasKeyEquivalent {
+                        KeycapView(menuItem: item)
                     }
                     if selected?.id == item.id {
                         Image(systemName: "checkmark.circle.fill")

@@ -44,7 +44,7 @@ struct MenuHUDOverlayView: View {
         return all.filter {
             !$0.isSeparator
                 && (KoreanSearch.matches(query: query, in: $0.title)
-                    || $0.keyEquivalentDisplay.lowercased().contains(query))
+                    || $0.normalizedSearchText.contains(query))
         }
     }
 
@@ -319,32 +319,17 @@ struct MenuHUDOverlayView: View {
         }
     }
 
-    /// 단축키가 있는 항목은 keycap을, 없는 항목은 같은 폭/높이의 고정 빈칸을 둬서
+    /// 단축키가 있는 항목은 KeycapView를, 없는 항목은 같은 폭/높이의 고정 빈칸을 둬서
     /// 메뉴 이름 시작 위치가 항목 간 세로 정렬을 유지하게 한다.
     /// (frame(width:) 고정 — Color.clear+minWidth는 flex로 팽창해 레이아웃을 깨뜨림)
     @ViewBuilder
     private func shortcutSlot(_ item: MenuItem) -> some View {
         if item.hasKeyEquivalent {
-            keycap(item.keyEquivalentDisplay)
+            KeycapView(menuItem: item, style: store.keycapStyle)
         } else {
             Text("")
-                .frame(width: 52, height: 22)
+                .frame(width: 52, height: 20)
         }
-    }
-
-    /// 단축키 키캡 — KeyCue 스타일 (회색 캡슐)
-    private func keycap(_ display: String) -> some View {
-        Text(display)
-            .font(.system(size: 12, weight: .medium, design: .monospaced))
-            .foregroundColor(theme.primaryText)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(theme.primaryText.opacity(0.14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 5).stroke(theme.primaryText.opacity(0.1), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 5))
-            .frame(minWidth: 52, alignment: .leading)
     }
 
     private var emptyState: some View {

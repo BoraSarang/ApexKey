@@ -77,7 +77,7 @@ extension AppDelegate {
         guard let store else { return }
         NSApp.activate(ignoringOtherApps: true)
         let view = ConflictPaletteView(
-            comboDisplay: combo.displayString,
+            combo: combo,
             targets: targets,
             onPick: { [weak self] target in
                 self?.conflictWindow?.orderOut(nil)

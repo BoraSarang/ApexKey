@@ -142,12 +142,7 @@ struct OnboardingGuideView: View {
                             Text(slot.title)
                                 .font(.body)
                             Spacer()
-                            Text(slot.current.displayString)
-                                .font(.system(.body, design: .monospaced))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(theme.tertiaryBackground.opacity(0.5))
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            KeycapView(combo: slot.current, style: store.keycapStyle, highlighted: true)
                             Button("settings.panel_hotkey.change".localized) {
                                 recordingSlot = slot
                             }

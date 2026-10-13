@@ -60,6 +60,9 @@ final class ConfigStore: ObservableObject {
     @Published var menuHUDStyle: MenuHUDStyle = .floatingWindow {
         didSet { defaults.set(menuHUDStyle.rawValue, forKey: PrefKeys.menuHUDStyle) }
     }
+    @Published var keycapStyle: KeycapStyle = .symbolUpper {
+        didSet { defaults.set(keycapStyle.rawValue, forKey: PrefKeys.keycapStyle) }
+    }
     @Published var showNoShortcutItems: Bool = true {
 
         didSet { defaults.set(showNoShortcutItems, forKey: PrefKeys.showNoShortcutItems) }
@@ -207,6 +210,10 @@ final class ConfigStore: ObservableObject {
             let style = MenuHUDStyle(rawValue: raw) ?? legacy[raw] ?? .floatingWindow
             self.menuHUDStyle = style
             defaults.set(style.rawValue, forKey: PrefKeys.menuHUDStyle)
+        }
+        if let raw = defaults.string(forKey: PrefKeys.keycapStyle),
+           let style = KeycapStyle(rawValue: raw) {
+            self.keycapStyle = style
         }
         self.toggleHotkey = Self.loadHotkey(forKey: PrefKeys.panelToggleHotkey, fallback: Self.defaultToggleHotkey, defaults: defaults)
         self.menuHUDHotkey = Self.loadHotkey(forKey: PrefKeys.menuHUDHotkey, fallback: Self.defaultMenuHUDHotkey, defaults: defaults)

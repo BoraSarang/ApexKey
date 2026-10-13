@@ -6,8 +6,23 @@ import SwiftUI
 struct ConflictPaletteView: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var store: ConfigStore
 
-    let comboDisplay: String
+    let combo: HotKeyCombo
+    /// 구 시그니처 호환 (comboDisplay 문자열) — 내부에서 토큰 재렌더하므로 표시는 동일
+    init(comboDisplay: String, targets: [HotKeyConflict.Target], onPick: @escaping (HotKeyConflict.Target) -> Void, onPin: @escaping (HotKeyConflict.Target) -> Void) {
+        self.combo = HotKeyCombo(keyCode: 0, modifiers: 0, displayString: comboDisplay)
+        self.targets = targets
+        self.onPick = onPick
+        self.onPin = onPin
+    }
+
+    init(combo: HotKeyCombo, targets: [HotKeyConflict.Target], onPick: @escaping (HotKeyConflict.Target) -> Void, onPin: @escaping (HotKeyConflict.Target) -> Void) {
+        self.combo = combo
+        self.targets = targets
+        self.onPick = onPick
+        self.onPin = onPin
+    }
     let targets: [HotKeyConflict.Target]
     var onPick: (HotKeyConflict.Target) -> Void
     var onPin: (HotKeyConflict.Target) -> Void
@@ -20,8 +35,12 @@ struct ConflictPaletteView: View {
             HStack(spacing: 8) {
                 Image(systemName: "keyboard")
                     .foregroundColor(theme.secondaryText)
-                Text(comboDisplay)
-                    .font(.system(.body, design: .monospaced))
+                if combo.isEmpty && !combo.displayString.isEmpty {
+                    Text(combo.displayString)
+                        .font(.system(.body, design: .monospaced))
+                } else {
+                    KeycapView(combo: combo, style: store.keycapStyle)
+                }
                 Text("conflict.count".localizedFormat(targets.count))
                     .font(.caption)
                     .foregroundColor(theme.secondaryText)

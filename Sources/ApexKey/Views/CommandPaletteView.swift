@@ -112,7 +112,7 @@ enum CommandPaletteFilter {
         return bindings.filter {
             PaletteMatch.matchesRanges(text: $0.title, query: q)
                 || PaletteMatch.matchesRanges(text: $0.actionType.displayName, query: q)
-                || $0.combo.displayString.lowercased().contains(q)
+                || KeyboardUtil.normalizedSearchText(keyCode: $0.combo.keyCode, modifiers: $0.combo.modifiers).contains(q)
         }.sorted { $0.title < $1.title }
     }
 
@@ -785,9 +785,13 @@ struct CommandPaletteView: View {
                     }
                 }
                 Spacer()
-                Text(shortcutHint(shortcut))
-                    .font(.caption)
-                    .foregroundColor(theme.secondaryText.opacity(0.6))
+                if !shortcut.combo.isEmpty {
+                    KeycapView(combo: shortcut.combo, style: store.keycapStyle)
+                } else {
+                    Text("palette.steps_fmt".localizedFormat(shortcut.steps.count))
+                        .font(.caption)
+                        .foregroundColor(theme.secondaryText.opacity(0.6))
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
@@ -836,11 +840,6 @@ struct CommandPaletteView: View {
         .padding(.horizontal, 6)
     }
 
-    private func shortcutHint(_ shortcut: ShortcutItem) -> String {
-        if !shortcut.combo.displayString.isEmpty { return shortcut.combo.displayString }
-        return "palette.steps_fmt".localizedFormat(shortcut.steps.count)
-    }
-
     private func bindingRow(_ binding: HotKeyBinding) -> some View {
         Button { runBinding(binding) } label: {
             HStack(spacing: 8) {
@@ -857,10 +856,8 @@ struct CommandPaletteView: View {
                         .foregroundColor(theme.secondaryText)
                 }
                 Spacer()
-                if !binding.combo.displayString.isEmpty {
-                    Text(binding.combo.displayString)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(theme.secondaryText.opacity(0.6))
+                if !binding.combo.isEmpty {
+                    KeycapView(combo: binding.combo, style: store.keycapStyle)
                 }
             }
             .padding(.horizontal, 12)

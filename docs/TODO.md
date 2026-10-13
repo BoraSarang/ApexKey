@@ -381,6 +381,18 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 - [x] T-164: **`build_and_run.sh test` smoke/unit/full 실제 분리** — 현재 3분기 완전 동일 — **`build_and_run.sh test` smoke/unit/full 실제 분리 + **실패 exit code 전파****
 - [x] T-165: **`release.yml`에 현지화 가드 추가** — `check-localizable.py`가 ci·build에만 존재 — **`release.yml`에 현지화 가드 + 버전 가드 스텝 추가**
 
+## v0.30 — 단축키 키캡 표시 방법 (2026-10-13)
+
+- [x] T-185: **키캡 6종 + 설정 미리보기 + 13곳 통일** (E-MAC-UX keycap).
+  `KeyboardUtil` 토큰화 + `KeycapView` 공통뷰 + `KeycapStyle` 저장(`pref.keycapStyle`) +
+  설정 Picker·샘플 미리보기 + 검색 정규화 5곳. `KeycapStyleTests` 10건.
+  테스트 525건 0실패 · i18n 967키 일치. 상세는
+  [`plans/PLAN_v0.30_keycap_macos.md`](plans/PLAN_v0.30_keycap_macos.md)
+- [x] T-186: **지정됨 강조** (E-MAC-UX keycap-hl). `KeycapView.highlighted` —
+  본래 단일 캡슐 붙여쓰기 + 엑센트색. 분리형 중립은 유지. 적용: 앱상세·설정·온보딩·
+  워크플로우·자동화·에디터 + 목록 `⌘N` 뱃지 강화. 기능 추가 아님(마찰 개선).
+  테스트 525건 0실패. 상세는 PLAN_v0.30 §5
+
 ## v0.28 — CI 실패 수정 + PR #7 머지 (2026-09-29)
 
 - [x] T-184: **호스트 권한에 의존하던 테스트 수정** — `MenuActionPathTests.
