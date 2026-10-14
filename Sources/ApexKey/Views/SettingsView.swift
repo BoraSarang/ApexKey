@@ -277,7 +277,7 @@ struct SettingsView: View {
                     .foregroundColor(theme.secondaryText)
                 Spacer()
                 KeycapView(combo: HotKeyCombo(keyCode: 45, modifiers: KeyboardUtil.cmdMask | KeyboardUtil.shiftMask, displayString: "⌘⇧N"), style: store.keycapStyle)
-                KeycapView(combo: HotKeyCombo(keyCode: 30, modifiers: KeyboardUtil.cmdMask | KeyboardUtil.optionMask, displayString: "⌥⌘]"), style: store.keycapStyle)
+                KeycapView(combo: HotKeyCombo(keyCode: 30, modifiers: KeyboardUtil.optionMask, displayString: "⌥]"), style: store.keycapStyle)
                 KeycapView(combo: HotKeyCombo(keyCode: 2, modifiers: KeyboardUtil.controlMask | KeyboardUtil.optionMask, displayString: "⌃⌥D"), style: store.keycapStyle)
             }
             .padding(.vertical, 2)
@@ -433,6 +433,9 @@ struct SettingsView: View {
             toggleRow("settings.menubar_icons.swap_clicks",
                       isOn: $store.menuBarIconsSwapClicks,
                       description: "settings.menubar_icons.swap_clicks.description")
+            toggleRow("settings.menubar_icons.show_system",
+                      isOn: $store.showSystemMenuBarIcons,
+                      description: "settings.menubar_icons.show_system.description")
         }
     }
 

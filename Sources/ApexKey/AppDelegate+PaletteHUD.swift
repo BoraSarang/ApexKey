@@ -10,7 +10,7 @@ import SwiftUI
 import Combine
 
 extension AppDelegate {
-    // MARK: - 명령 팔레트 (⌘⌥K)
+    // MARK: - 명령 팔레트 (⌥')
 
     func showPalettePanel() {
         if paletteWindow == nil {
@@ -67,6 +67,19 @@ extension AppDelegate {
 
     func hidePalettePanel() {
         paletteWindow?.orderOut(nil)
+    }
+
+    /// 팔레트 토글 — key인 경우에만 닫고, 가려진 창이면 앞으로 가져온다
+    /// (togglePanel과 동일 규칙 — 바깥 클릭으로 뒤에 숨은 뒤 단축키 1번으로 복귀).
+    func togglePalette() {
+        guard let store else { return }
+        if let win = paletteWindow, win.isVisible, win.isKeyWindow {
+            store.showPalette = false
+            return
+        }
+        // 이미 true면 sink가 안 타므로 직접 front 보장
+        store.showPalette = true
+        showPalettePanel()
     }
 
     // MARK: - Conflict palette (공유 단축키 선택)
@@ -128,7 +141,10 @@ extension AppDelegate {
     // MARK: - Menu HUD (전면 앱 단축키 표시)
 
     @objc func toggleMenuHUD() {
-        if (menuHUDWindow?.isVisible ?? false) || (menuHUDOverlayWindow?.isVisible ?? false) {
+        // key인 경우에만 닫는다 — 가려진 창에 단축키를 누르면 앞으로 (togglePanel 규칙).
+        let hudKey = (menuHUDWindow?.isVisible == true && menuHUDWindow?.isKeyWindow == true)
+            || (menuHUDOverlayWindow?.isVisible == true && menuHUDOverlayWindow?.isKeyWindow == true)
+        if hudKey {
             hideMenuHUD()
             return
         }
@@ -279,7 +295,9 @@ extension AppDelegate {
     // MARK: - Menu Bar Icons 그리드 (M-03 UI)
 
     @objc func toggleMenuBarIcons() {
-        if menuBarIconsWindow?.isVisible ?? false {
+        // key인 경우에만 닫는다 — 가려진 창(뒤에 숨음)에 단축키를 누르면
+        // 닫지 않고 앞으로 가져온다 (togglePanel과 동일 규칙).
+        if let win = menuBarIconsWindow, win.isVisible, win.isKeyWindow {
             hideMenuBarIcons()
             return
         }
@@ -330,7 +348,14 @@ extension AppDelegate {
     }
 
     private func showMenuBarIcons(_ icons: [MenuBarIconEnumerator.IconItem], store: ConfigStore) {
-        let view = MenuBarIconsGridView(icons: icons, columns: store.menuBarIconsPerRow,
+        // 시스템 아이콘은 설정에서 켰을 때만 — 기본 제외.
+        let visible = MenuBarIconEnumerator.visibleIcons(icons, includeSystem: store.showSystemMenuBarIcons)
+        guard !visible.isEmpty else {
+            showToast(title: "menubar.icons.title".localized,
+                      message: "menubar.icons.empty".localized, success: false)
+            return
+        }
+        let view = MenuBarIconsGridView(icons: visible, columns: store.menuBarIconsPerRow,
                                         swapClicks: store.menuBarIconsSwapClicks) { [weak self] in
             self?.hideMenuBarIcons()
         } onActivate: { [weak self] item, rightClick in
@@ -356,6 +381,9 @@ extension AppDelegate {
             win.contentViewController = hosting
             win.setContentSize(NSSize(width: 560, height: 400))
             win.delegate = self
+            // Esc로 닫기 — 그리드엔 포커스 컨트롤이 없어 SwiftUI onKeyPress가
+            // 발동하지 않으므로 AppKit 레벨(cancelOperation)에서 보장한다.
+            win.onEscape = { [weak self] in self?.hideMenuBarIcons() }
             menuBarIconsWindow = win
         } else if let win = menuBarIconsWindow {
             win.contentViewController = hosting
@@ -369,8 +397,16 @@ extension AppDelegate {
         Logger.info("AppDelegate", "[ICONS] 그리드 표시 (\(icons.count)개)")
     }
 
-    /// 그리드에서 아이콘 활성화 — 실제 아이콘 클릭 후 닫기, 실패만 토스트 (M-05 패턴)
+    /// 그리드에서 아이콘 활성화 — 실제 아이콘 클릭 후 닫기, 실패만 토스트 (M-05 패턴).
+    /// 자사 아이콘은 AX로 누르지 않고 Hub를 연다 — AXPress는 성공을 반환하지만
+    /// 합성 이벤트라 currentEvent가 없어 handleClick이 무시하고 포인터만 워프되던 문제.
     func activateMenuBarIcon(_ item: MenuBarIconEnumerator.IconItem, rightClick: Bool) {
+        if item.bundleID == Bundle.main.bundleIdentifier {
+            Logger.info("AppDelegate", "[ICONS] 자사 아이콘 → Hub 열기")
+            hideMenuBarIcons()
+            toggleHub()
+            return
+        }
         let result = MenuBarIconEnumerator.shared.click(item, rightClick: rightClick)
         Logger.info("AppDelegate", "[ICONS] 아이콘 활성화 \(result.isSuccess ? "성공" : "실패"): \(item.title)")
         hideMenuBarIcons()

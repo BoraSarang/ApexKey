@@ -70,8 +70,26 @@ final class ConfigStoreMutationTests: XCTestCase {
         HotKeyCombo(keyCode: keyCode, modifiers: 1 << 8, displayString: display)  // ⌘ modifier
     }
 
-    // MARK: - 초기화·격리
+    // MARK: - 단축키 보유 앱 필터 ("단축키 설정됨만" 토글 근거)
 
+    func testBindingsForDistinguishesAppsWithAndWithoutShortcuts() {
+        let store = makeStore()
+        let withKey = makeApp("Safari", bundleID: "com.apple.Safari")
+        let withoutKey = makeApp("TextEdit", bundleID: "com.apple.TextEdit")
+        store.addApp(withKey)
+        store.addApp(withoutKey)
+        XCTAssertTrue(store.bindings(for: withKey.id).isEmpty)
+        _ = store.addBinding(HotKeyBinding(
+            combo: combo(101, "F20"), actionType: .launchApp,
+            target: "com.apple.Safari", title: "Safari"))
+        XCTAssertFalse(store.bindings(for: withKey.id).isEmpty)
+        XCTAssertTrue(store.bindings(for: withoutKey.id).isEmpty)
+        // 목록 필터와 동일한 술식
+        let onlyWithKeys = store.apps.filter { !store.bindings(for: $0.id).isEmpty }
+        XCTAssertEqual(onlyWithKeys.map(\.bundleID), ["com.apple.Safari"])
+    }
+
+    // MARK: - 초기화·격리
     func testInitUsesInjectedStoreDirectory() {
         let store = makeStore()
         XCTAssertNotNil(store.container, "컨테이너가 생성되지 않음")
@@ -130,7 +148,7 @@ final class ConfigStoreMutationTests: XCTestCase {
     }
 
     func testAddBindingRejectsReservedHotkey() {
-        // 예약 핫키(⇧⌥A 등)와의 충돌도 중복으로 취급돼야 한다
+        // 예약 핫키(⌥A 등)와의 충돌도 중복으로 취급돼야 한다
         let store = makeStore()
         let result = store.addBinding(
             HotKeyBinding(combo: store.toggleHotkey, actionType: .launchApp, target: "com.apple.Safari", title: "예약 충돌")

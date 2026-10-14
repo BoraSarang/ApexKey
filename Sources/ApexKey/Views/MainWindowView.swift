@@ -7,6 +7,8 @@ struct MainWindowView: View {
     @State private var selectedTool: ToolSelection?
     @State private var selectedApp: AppItem?
     @State private var searchText = ""
+    /// 단축키 설정된 앱만 표시 (툴바 토글 — 목록·검색 점프 공용)
+    @State private var showOnlyWithShortcuts = false
 
     enum ToolSelection: Hashable {
         case shortcut
@@ -68,6 +70,13 @@ struct MainWindowView: View {
                 }
                 .help("ui.main.reclassify_help".localized)
                 Button {
+                    showOnlyWithShortcuts.toggle()
+                } label: {
+                    Label("ui.main.only_shortcuts".localized, systemImage: showOnlyWithShortcuts ? "command.square.fill" : "command.square")
+                        .foregroundStyle(showOnlyWithShortcuts ? Color.accentColor : Color.secondary)
+                }
+                .help("ui.main.only_shortcuts_help".localized)
+                Button {
                     store.alwaysOnTop.toggle()
                 } label: {
                     Label(store.alwaysOnTop ? "ui.main.always_on_top_off".localized : "ui.main.always_on_top".localized, systemImage: store.alwaysOnTop ? "pin.fill" : "pin")
@@ -90,7 +99,11 @@ struct MainWindowView: View {
         guard !q.isEmpty else { return }
         let query = q.lowercased()
         // AppsContentView.filteredApps와 동일한 매칭 로직
-        let matches = store.visibleApps()
+        var matches = store.visibleApps()
+        if showOnlyWithShortcuts {
+            matches = matches.filter { !store.bindings(for: $0.id).isEmpty }
+        }
+        matches = matches
             .filter { store.appMatchesSearch($0, query: query) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
@@ -123,7 +136,7 @@ struct MainWindowView: View {
             }
             .environmentObject(store)
         } else {
-            AppsContentView(category: selectedCategory, searchText: searchText) { app in
+            AppsContentView(category: selectedCategory, searchText: searchText, showOnlyWithShortcuts: showOnlyWithShortcuts) { app in
                 selectedApp = app
             }
             .environmentObject(store)
@@ -169,6 +182,7 @@ struct SearchField: View {
 extension Notification.Name {
     static let openSettings = Notification.Name("ApexKey.openSettings")
     static let togglePanel = Notification.Name("ApexKey.togglePanel")
+    static let togglePalette = Notification.Name("ApexKey.togglePalette")
     static let toggleMenuHUD = Notification.Name("ApexKey.toggleMenuHUD")
     static let toggleMenuBarIcons = Notification.Name("ApexKey.toggleMenuBarIcons")
     static let showUpdateSheet = Notification.Name("ApexKey.showUpdateSheet")

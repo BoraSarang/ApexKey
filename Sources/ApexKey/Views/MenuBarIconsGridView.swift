@@ -32,6 +32,12 @@ struct MenuBarIconsGridView: View {
 
     private var effectiveColumns: Int { min(max(columns, 1), 16) }
 
+    /// 열 수에 따른 아이콘 크기 — 창(560pt)에 유연 열이 들어가므로
+    /// 열이 많으면(셀 ≤53pt) 아이콘이 셀을 넘지 않게 축소한다.
+    static func iconSize(columns: Int) -> CGFloat {
+        columns > 8 ? 20 : 32
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -81,7 +87,9 @@ struct MenuBarIconsGridView: View {
 
     private var grid: some View {
         ScrollView {
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(96), spacing: 4), count: effectiveColumns), spacing: 8) {
+            // 유연 열 — 고정 96pt면 6열 이상에서 창(560pt)을 넘어 잘렸다.
+            // 열 수와 무관하게 항상 창 안에 들어간다.
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: effectiveColumns), spacing: 8) {
                 ForEach(Array(icons.enumerated()), id: \.offset) { index, item in
                     cell(item, isSelected: index == selectedIndex)
                         .onTapGesture {
@@ -95,26 +103,30 @@ struct MenuBarIconsGridView: View {
     }
 
     private func cell(_ item: IconItem, isSelected: Bool) -> some View {
-        VStack(spacing: 4) {
+        let iconSize = Self.iconSize(columns: effectiveColumns)
+        return VStack(spacing: 4) {
             if let image = MenuBarIconEnumerator.shared.thumbnail(for: item) {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 32)
+                    .frame(width: iconSize, height: iconSize)
             } else {
                 Image(systemName: "circle.grid.2x2")
-                    .font(.system(size: 28))
+                    .font(.system(size: iconSize - 4))
                     .foregroundColor(theme.secondaryText)
-                    .frame(width: 32, height: 32)
+                    .frame(width: iconSize, height: iconSize)
             }
             Text(item.title)
                 .font(.system(size: 10))
                 .lineLimit(2)
+                // 공백 없는 긴 이름(TextInputMenuAgent 등)이 셀을 넘어
+                // 옆 셀과 겹치던 문제 — 말줄임으로 셀 안에 가둔다.
+                .truncationMode(.tail)
                 .multilineTextAlignment(.center)
                 .foregroundColor(isSelected ? theme.accentColor : theme.primaryText)
                 .frame(height: 26)
         }
-        .frame(width: 96)
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
         .background(isSelected ? theme.accentColor.opacity(0.12) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8))

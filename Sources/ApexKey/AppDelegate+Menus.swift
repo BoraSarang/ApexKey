@@ -85,7 +85,8 @@ extension AppDelegate {
 
     func buildMenu() -> NSMenu {
         let menu = NSMenu()
-        let openItem = Self.makeItem(title: "ui.open".localized, action: #selector(togglePanelAction(_:)), key: "o", target: self)
+        // open-only — 토글이 아니다. 이미 열려 있으면 앞으로만 가져온다.
+        let openItem = Self.makeItem(title: "ui.main_window.open".localized, action: #selector(openPanelAction(_:)), key: "o", target: self)
         let iconsItem = Self.makeItem(title: "menubar.icons.title".localized, action: #selector(toggleMenuBarIcons), key: "", target: self)
         let infoItem = Self.makeItem(title: "ui.info".localized, action: #selector(showAboutPanel(_:)), key: "", target: self)
         let settingsItem = Self.makeItem(title: "ui.main.settings".localized, action: #selector(showSettingsPanel(_:)), key: ",", target: self)
@@ -117,11 +118,11 @@ extension AppDelegate {
             NSMenu.popUpContextMenu(buildMenu(), with: event, for: button)
             return
         }
-        Logger.info("AppDelegate", "[MENU] 좌클릭 → 패널 토글")
-        togglePanel()
+        Logger.info("AppDelegate", "[MENU] 좌클릭 → Hub 팝오버")
+        toggleHub()
     }
 
-    @objc func togglePanelAction(_ sender: Any?) {
-        togglePanel()
+    @objc func openPanelAction(_ sender: Any?) {
+        openPanelOnly()
     }
 }

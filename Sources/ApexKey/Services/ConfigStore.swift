@@ -23,7 +23,7 @@ final class ConfigStore: ObservableObject {
         }
     }
     @Published var showPalette = false
-    /// 팔레트 표시 모드 — ⌘⇧V면 클립보드 기록 모드로 열린다.
+    /// 팔레트 표시 모드 — ⌥;면 클립보드 기록 모드로 열린다.
     @Published var paletteMode: PaletteMode = .normal
     /// 매크로 녹화 상태
     @Published var isMacroRecording = false
@@ -31,7 +31,7 @@ final class ConfigStore: ObservableObject {
     @Published var menuHUDHotkey: HotKeyCombo
     @Published var toggleHotkey: HotKeyCombo
     @Published var paletteHotkey: HotKeyCombo
-    /// ⌥⌘] 메뉴바 아이콘 그리드 핫키
+    /// ⌥] 메뉴바 아이콘 그리드 핫키
     var menuBarIconsHotkey: HotKeyCombo
     /// 그리드 행당 아이콘 수 (1...16, MenuDart 범위 차용)
     @Published var menuBarIconsPerRow: Int = 8 {
@@ -47,6 +47,10 @@ final class ConfigStore: ObservableObject {
     /// Space/Return 클릭 매핑 뒤바꿈 (기본 Space=좌클릭, Return=우클릭)
     @Published var menuBarIconsSwapClicks: Bool = false {
         didSet { defaults.set(menuBarIconsSwapClicks, forKey: PrefKeys.menuBarIconsSwapClicks) }
+    }
+    /// 그리드에 시스템 아이콘(Wi-Fi·배터리·시계 등) 포함 — 기본 제외
+    @Published var showSystemMenuBarIcons: Bool = false {
+        didSet { defaults.set(showSystemMenuBarIcons, forKey: PrefKeys.showSystemMenuBarIcons) }
     }
     @Published var alwaysOnTop = false {
         didSet { defaults.set(alwaysOnTop, forKey: PrefKeys.alwaysOnTop) }
@@ -129,16 +133,16 @@ final class ConfigStore: ObservableObject {
     let hotKeyService = HotKeyService.shared
     let actionExecutor = ActionExecutor.shared
 
-    /// ⇧⌥A 패널 토글 핫키 전용 등록 ID (bindings 배열 밖의 예약 ID)
+    /// ⌥A 패널 토글 핫키 전용 등록 ID (bindings 배열 밖의 예약 ID)
     let panelToggleID = UUID()
 
     /// ⌘⇧↩ 마지막 바인딩 반복 전용 등록 ID
     let repeatLastID = UUID()
 
-    /// ⌘⌥K 명령 팔레트 전용 등록 ID
+    /// ⌥' 명령 팔레트 전용 등록 ID
     let paletteID = UUID()
 
-    /// ⇧⌥S Menu HUD 전용 등록 ID (전면 앱 단축키 표시)
+    /// ⌥S Menu HUD 전용 등록 ID (전면 앱 단축키 표시)
     let menuHUDID = UUID()
 
     /// ⇧⌥D Instant Send 전용 등록 ID
@@ -150,13 +154,13 @@ final class ConfigStore: ObservableObject {
     /// Instant Send 캡처 결과 — 팔레트 전송 모드의 입력.
     @Published var sendPayload: InstantSend.Payload?
 
-    /// ⌘⇧V 클립보드 팔레트 전용 등록 ID
+    /// ⌥; 클립보드 팔레트 전용 등록 ID
     let clipboardID = UUID()
 
-    /// ⌘⇧V 클립보드 팔레트 핫키
+    /// ⌥; 클립보드 팔레트 핫키
     var clipboardHotkey: HotKeyCombo
 
-    /// ⌥⌘] 메뉴바 아이콘 그리드 전용 등록 ID
+    /// ⌥] 메뉴바 아이콘 그리드 전용 등록 ID
     let menuBarIconsID = UUID()
 
     /// 마지막으로 실행된 바인딩 ID (반복용)
@@ -223,6 +227,7 @@ final class ConfigStore: ObservableObject {
         self.menuBarIconsHotkey = Self.loadHotkey(forKey: PrefKeys.menuBarIconsHotkey, fallback: Self.defaultMenuBarIconsHotkey, defaults: defaults)
         self.menuBarIconsPerRow = min(max(defaults.object(forKey: PrefKeys.menuBarIconsPerRow) == nil ? 8 : defaults.integer(forKey: PrefKeys.menuBarIconsPerRow), 1), 16)
         self.menuBarIconsSwapClicks = defaults.bool(forKey: PrefKeys.menuBarIconsSwapClicks)
+        self.showSystemMenuBarIcons = defaults.bool(forKey: PrefKeys.showSystemMenuBarIcons)
         // 구 기본값(⇧⌥D) 저장분은 신 기본값(⌃⌥D)으로 이관 — 사용자 기존 단축키와 충돌나기 때문.
         // 사용자가 직접 바꾼 값은 keyCode/modifiers가 다르므로 건드리지 않는다.
         if defaults.string(forKey: PrefKeys.sendHotkey) == "2:2560:⇧⌥D" {
@@ -308,7 +313,7 @@ final class ConfigStore: ObservableObject {
             .sink { [weak self] bindingID in
                 guard let self else { return }
                 if bindingID == self.panelToggleID {
-                    // ⇧⌥A → 메인 패널 토글
+                    // ⌥A → 메인 패널 토글
                     Logger.info("ConfigStore", "[HOTKEY] 패널 토글 핫키 감지: \(self.toggleHotkey.displayString)")
                     NotificationCenter.default.post(name: .togglePanel, object: nil)
                     return
@@ -322,16 +327,16 @@ final class ConfigStore: ObservableObject {
                     return
                  }
                 if bindingID == self.paletteID {
-                    // ⌘⌥K → 명령 팔레트 토글
+                    // ⌥' → 명령 팔레트 토글 (가려진 창이면 front — AppDelegate가 판정)
                     self.paletteMode = .normal
-                    self.showPalette.toggle()
+                    NotificationCenter.default.post(name: .togglePalette, object: nil)
                     Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 토글")
                     return
                 }
                 if bindingID == self.clipboardID {
-                    // ⌘⇧V → 클립보드 팔레트 토글
+                    // ⌥; → 클립보드 팔레트 토글
                     self.paletteMode = .clipboard
-                    self.showPalette.toggle()
+                    NotificationCenter.default.post(name: .togglePalette, object: nil)
                     Logger.info("ConfigStore", "[HOTKEY] 클립보드 팔레트 토글")
                     return
                 }
@@ -341,13 +346,13 @@ final class ConfigStore: ObservableObject {
                     return
                 }
                 if bindingID == self.menuHUDID {
-                    // ⇧⌥S → Menu HUD 토글
+                    // ⌥S → Menu HUD 토글
                     Logger.info("ConfigStore", "[HOTKEY] Menu HUD 토글")
                     NotificationCenter.default.post(name: .toggleMenuHUD, object: nil)
                     return
                 }
                 if bindingID == self.menuBarIconsID {
-                    // ⌥⌘] → 메뉴바 아이콘 그리드 토글
+                    // ⌥] → 메뉴바 아이콘 그리드 토글
                     Logger.info("ConfigStore", "[HOTKEY] 메뉴바 아이콘 그리드 토글")
                     NotificationCenter.default.post(name: .toggleMenuBarIcons, object: nil)
                     return
@@ -358,26 +363,26 @@ final class ConfigStore: ObservableObject {
 
         // 등록된 핫키를 서비스에 반영
         registerAllBindings()
-        // ⇧⌥A 패널 토글 핫키 등록
+        // ⌥A 패널 토글 핫키 등록
         _ = hotKeyService.register(panelToggleID, combo: toggleHotkey)
         Logger.info("ConfigStore", "[HOTKEY] 패널 토글 핫키 등록: \(toggleHotkey.displayString)")
         // ⌘⇧↩ 마지막 바인딩 반복 핫키 등록
         _ = hotKeyService.register(repeatLastID, combo: Self.defaultRepeatHotkey)
         Logger.info("ConfigStore", "[HOTKEY] 반복 핫키 등록: ⌘⇧↩")
-        // ⌘⌥K 명령 팔레트 핫키 등록
+        // ⌥' 명령 팔레트 핫키 등록
         _ = hotKeyService.register(paletteID, combo: paletteHotkey)
         Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 핫키 등록: \(paletteHotkey.displayString)")
-        // ⇧⌥S Menu HUD 핫키 등록
+        // ⌥S Menu HUD 핫키 등록
         _ = hotKeyService.register(menuHUDID, combo: menuHUDHotkey)
         Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 등록: \(menuHUDHotkey.displayString)")
-        // ⌘⇧V 클립보드 팔레트 핫키 등록 + 기록 감시 시작
+        // ⌥; 클립보드 팔레트 핫키 등록 + 기록 감시 시작
         _ = hotKeyService.register(clipboardID, combo: clipboardHotkey)
         Logger.info("ConfigStore", "[HOTKEY] 클립보드 팔레트 핫키 등록: \(clipboardHotkey.displayString)")
         ClipboardMonitor.shared.start()
         // ⇧⌥D Instant Send 핫키 등록
         _ = hotKeyService.register(sendID, combo: sendHotkey)
         Logger.info("ConfigStore", "[HOTKEY] Instant Send 핫키 등록: \(sendHotkey.displayString)")
-        // ⌥⌘] 메뉴바 아이콘 그리드 핫키 등록
+        // ⌥] 메뉴바 아이콘 그리드 핫키 등록
         _ = hotKeyService.register(menuBarIconsID, combo: menuBarIconsHotkey)
         Logger.info("ConfigStore", "[HOTKEY] 메뉴바 아이콘 그리드 핫키 등록: \(menuBarIconsHotkey.displayString)")
     }

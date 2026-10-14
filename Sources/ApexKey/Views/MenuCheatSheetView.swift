@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Menu HUD — 현재 전면 앱의 전체 메뉴 단축키를 메뉴별 그룹으로 표시 + 검색 + 실행
-/// ⇧⌥S로 토글, ESC / 재토글 / 외부 클릭으로 닫힘.
+/// ⌥S로 토글, ESC / 재토글 / 외부 클릭으로 닫힘.
 struct MenuCheatSheetView: View {
     let appName: String
     let appIcon: NSImage?

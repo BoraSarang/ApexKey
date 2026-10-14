@@ -14,8 +14,8 @@ enum PaletteMode {
 extension ConfigStore {
     static let defaultToggleHotkey = HotKeyCombo(
         keyCode: 0, // A
-        modifiers: KeyboardUtil.shiftMask | KeyboardUtil.optionMask,
-        displayString: "⇧⌥A"
+        modifiers: KeyboardUtil.optionMask,
+        displayString: "⌥A"
     )
 
     static let defaultRepeatHotkey = HotKeyCombo(
@@ -24,24 +24,24 @@ extension ConfigStore {
         displayString: "⌘⇧↩"
     )
 
-    /// 명령 팔레트 기본값 — ⌘⌥K (전역 등록이므로 타 앱의 동일 조합을 가로챔. 설정에서 변경 가능).
+    /// 명령 팔레트 기본값 — ⌥' (전역 등록이므로 타 앱의 동일 조합을 가로챔. 설정에서 변경 가능).
     static let defaultPaletteHotkey = HotKeyCombo(
-        keyCode: 40, // K
-        modifiers: KeyboardUtil.cmdMask | KeyboardUtil.optionMask,
-        displayString: "⌘⌥K"
+        keyCode: 39, // '
+        modifiers: KeyboardUtil.optionMask,
+        displayString: "⌥'"
     )
 
     static let defaultMenuHUDHotkey = HotKeyCombo(
         keyCode: 1, // S
-        modifiers: KeyboardUtil.shiftMask | KeyboardUtil.optionMask,
-        displayString: "⇧⌥S"
+        modifiers: KeyboardUtil.optionMask,
+        displayString: "⌥S"
     )
 
-    /// 클립보드 팔레트 기본값 — ⌘⇧V.
+    /// 클립보드 팔레트 기본값 — ⌥;.
     static let defaultClipboardHotkey = HotKeyCombo(
-        keyCode: 9, // V
-        modifiers: KeyboardUtil.cmdMask | KeyboardUtil.shiftMask,
-        displayString: "⌘⇧V"
+        keyCode: 41, // ;
+        modifiers: KeyboardUtil.optionMask,
+        displayString: "⌥;"
     )
 
     /// Instant Send 기본값 — ⌃⌥D (선택을 워크플로우 입력으로 전달).
@@ -51,10 +51,10 @@ extension ConfigStore {
         displayString: "⌃⌥D"
     )
 
-    /// 메뉴바 아이콘 그리드 기본값 — ⌥⌘] (MenuDart와 같은 손 위치)
+    /// 메뉴바 아이콘 그리드 기본값 — ⌥] (MenuDart와 같은 손 위치)
     static let defaultMenuBarIconsHotkey = HotKeyCombo(
         keyCode: 30, // ]
-        modifiers: KeyboardUtil.cmdMask | KeyboardUtil.optionMask,
-        displayString: "⌥⌘]"
+        modifiers: KeyboardUtil.optionMask,
+        displayString: "⌥]"
     )
 }
