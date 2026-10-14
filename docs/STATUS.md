@@ -37,7 +37,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | user 실동작 대기 | **72건** (8-1~8-12) | `FUNCTIONAL_CHECKLIST.md` §8 |
 | 브랜치 | `fix/macos-audit-p0` — **main에 병합됨**(PR #7, `3664d99`) | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
-| 미배포 배치 | 메뉴 Hub·그리드 개선·한글명·앱 필터·단축키 기본값 (PR 예정) | `CHANGELOG.md` 2026-10-14 |
+| 미배포 배치 | 없음 — 메뉴 Hub 배치 PR #16 머지됨 | — |
 
 ---
 

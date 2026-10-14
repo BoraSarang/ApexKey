@@ -11,13 +11,17 @@ struct AppsContentView: View {
     var onSelect: (AppItem) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        // filteredApps는 body당 1회만 평가 — header/count/List가 각자 호출하면
+        // 3배 + 행마다 bindings(for:) N+1이 곱해진다.
+        let apps = filteredApps
+        let bindingCounts = Dictionary(uniqueKeysWithValues: apps.map { ($0.id, store.bindings(for: $0.id).count) })
+        return VStack(spacing: 0) {
+            header(count: apps.count)
             SettingsDivider()
-            if filteredApps.isEmpty {
+            if apps.isEmpty {
                 emptyState
             } else {
-                appList
+                appList(apps: apps, bindingCounts: bindingCounts)
             }
         }
         .background(theme.primaryBackground)
@@ -27,14 +31,14 @@ struct AppsContentView: View {
         category?.displayName ?? "ui.sidebar.all_apps".localized
     }
 
-    private var header: some View {
+    private func header(count: Int) -> some View {
         HStack {
             Text(title)
                 .font(.title3)
                 .fontWeight(.semibold)
                 .foregroundColor(theme.primaryText)
             Spacer()
-            Text("ui.apps.count".localizedFormat(filteredApps.count))
+            Text("ui.apps.count".localizedFormat(count))
                 .font(.caption)
                 .foregroundColor(theme.tertiaryText)
             Button {
@@ -49,23 +53,12 @@ struct AppsContentView: View {
     }
 
     private var filteredApps: [AppItem] {
-        var apps = store.visibleApps()
-        if let category {
-            apps = apps.filter { $0.category == category }
-        }
-        if showOnlyWithShortcuts {
-            apps = apps.filter { !store.bindings(for: $0.id).isEmpty }
-        }
-        if !searchText.isEmpty {
-            let q = searchText.lowercased()
-            apps = apps.filter { store.appMatchesSearch($0, query: q) }
-        }
-        return apps.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        store.filteredVisibleApps(category: category, query: searchText, showOnlyWithShortcuts: showOnlyWithShortcuts)
     }
 
-    private var appList: some View {
-        List(filteredApps) { app in
-            AppRowView(app: app) {
+    private func appList(apps: [AppItem], bindingCounts: [UUID: Int]) -> some View {
+        List(apps) { app in
+            AppRowView(app: app, bindingCount: bindingCounts[app.id] ?? 0) {
                 onSelect(app)
             }
             .environmentObject(store)
@@ -105,10 +98,12 @@ struct AppsContentView: View {
 }
 
 /// 앱 한 줄 — 아이콘 + 이름/번들ID + 단축키 배지. 전체 행 클릭.
+/// bindingCount는 부모가 1회 계산해 주입 (행마다 bindings(for:) N+1 방지).
 struct AppRowView: View {
     @EnvironmentObject var store: ConfigStore
     @Environment(\.theme) private var theme
     let app: AppItem
+    var bindingCount: Int? = nil
     let onSelect: () -> Void
 
     private var running: Bool {
@@ -128,13 +123,13 @@ struct AppRowView: View {
                     .lineLimit(1)
             }
             Spacer()
-            let bindings = store.bindings(for: app.id)
-            if !bindings.isEmpty {
+            let count = bindingCount ?? store.bindings(for: app.id).count
+            if count > 0 {
                 HStack(spacing: 6) {
                     Image(systemName: "command")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(theme.successColor)
-                    Text("\(bindings.count)")
+                    Text("\(count)")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(theme.successColor)
                 }
@@ -180,8 +175,7 @@ struct AppRowView: View {
     }
 
     private var icon: some View {
-        if let path = app.path.isEmpty ? nil : app.path,
-           let img = NSWorkspace.shared.icon(forFile: path) as NSImage? {
+        if let img = AppIconCache.icon(for: app) {
             return Image(nsImage: img)
                 .resizable()
                 .frame(width: 28, height: 28)

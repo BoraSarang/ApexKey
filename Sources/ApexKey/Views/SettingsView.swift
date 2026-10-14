@@ -38,13 +38,15 @@ struct SettingsView: View {
                               current: store.paletteHotkey, excluded: store.paletteHotkey,
                               save: { store.setPaletteHotkey($0).errorMessage },
                               reset: { store.setPaletteHotkey(ConfigStore.defaultPaletteHotkey) },
-                              test: { store.showPalette.toggle() })
+                              test: { store.paletteMode = .normal
+                                  NotificationCenter.default.post(name: .togglePalette, object: nil) })
         case .clipboard:
             return HotkeySlot(id: tab, title: "settings.clipboard".localized,
                               current: store.clipboardHotkey, excluded: store.clipboardHotkey,
                               save: { store.setClipboardHotkey($0).errorMessage },
                               reset: { store.setClipboardHotkey(ConfigStore.defaultClipboardHotkey) },
-                              test: { store.paletteMode = .clipboard; store.showPalette.toggle() })
+                              test: { store.paletteMode = .clipboard
+                                  NotificationCenter.default.post(name: .togglePalette, object: nil) })
         case .send:
             return HotkeySlot(id: tab, title: "settings.send".localized,
                               current: store.sendHotkey, excluded: store.sendHotkey,

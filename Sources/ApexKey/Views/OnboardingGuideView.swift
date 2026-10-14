@@ -33,7 +33,8 @@ struct OnboardingGuideView: View {
             Slot(id: 1, title: "settings.palette".localized, current: store.paletteHotkey,
                  excluded: store.paletteHotkey,
                  save: { store.setPaletteHotkey($0).errorMessage },
-                 test: { store.showPalette.toggle() }),
+                 test: { store.paletteMode = .normal
+                     NotificationCenter.default.post(name: .togglePalette, object: nil) }),
             Slot(id: 2, title: "settings.menu_hud".localized, current: store.menuHUDHotkey,
                  excluded: store.menuHUDHotkey,
                  save: { store.setMenuHUDHotkey($0).errorMessage },
@@ -41,7 +42,8 @@ struct OnboardingGuideView: View {
             Slot(id: 3, title: "settings.clipboard".localized, current: store.clipboardHotkey,
                  excluded: store.clipboardHotkey,
                  save: { store.setClipboardHotkey($0).errorMessage },
-                 test: { store.paletteMode = .clipboard; store.showPalette.toggle() }),
+                 test: { store.paletteMode = .clipboard
+                     NotificationCenter.default.post(name: .togglePalette, object: nil) }),
             Slot(id: 4, title: "settings.send".localized, current: store.sendHotkey,
                  excluded: store.sendHotkey,
                  save: { store.setSendHotkey($0).errorMessage },

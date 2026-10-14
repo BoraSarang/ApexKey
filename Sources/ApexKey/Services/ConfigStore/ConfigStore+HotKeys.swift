@@ -110,7 +110,7 @@ extension ConfigStore {
         return .applied
     }
 
-    /// ⇧⌥D Instant Send 핫키 변경 (재등록)
+    /// ⌃⌥D Instant Send 핫키 변경 (재등록)
     @discardableResult
     func setSendHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
         guard !combo.isEmpty else { return .invalidCombo }
@@ -297,6 +297,9 @@ extension ConfigStore {
     /// E-MAC-ACT-3006: 실행은 백그라운드, 통계·토스트는 메인.
     /// 호출부(핫키·팔레트·반복)는 MainActor이라 반환 시점이 사라져 콜백으로 넘어간다.
     func executeShortcutStats(_ shortcut: ShortcutItem) {
+        // 반복 실행(repeatLastBinding)의 원천 — lastRunAt과 함께 갱신해야
+        // Hub 최신행 표시와 repeat 대상이 일치한다.
+        lastExecutedBindingID = shortcut.id
         runOffMainThread(
             { [actionExecutor] in actionExecutor.executeWithDetail(shortcut) },
             onFinish: { [weak self] result in

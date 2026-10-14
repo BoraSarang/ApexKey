@@ -77,7 +77,8 @@ final class MenuBarIconEnumerator {
         return "circle.grid.2x2"
     }
 
-    /// 그리드 썸네일 — 소유 앱 아이콘 우선, 시스템 아이콘은 SF Symbol.
+    /// 그리드 썸네일 — 소유 앱 아이콘 우선, 못 구하면 SF Symbol.
+    /// 시스템 아이콘(MenuBarAgent)은 AX 이미지가 없어 기호로 폴백한다.
     func thumbnail(for item: IconItem) -> NSImage? {
         if let bundleID = item.bundleID, bundleID != Self.menuBarAgentBundleID,
            let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
@@ -101,7 +102,7 @@ final class MenuBarIconEnumerator {
 
     /// 비동기 전수 열거 (M-03 성능 수정) — Safari WebContent 같은 프로세스는 AX IPC가
     /// 1.5초씩 멈추므로(실측) 동기 호출하면 핫키가 "일주일" 걸린다. 앱별로 병렬 조회한다.
-    /// AXUIElement 호출은 스레드 안전하므로 백그라운드에서実行, 정렬만 마지막에.
+    /// AXUIElement 호출은 스레드 안전하므로 백그라운드에서 실행, 정렬만 마지막에.
     /// `.prohibited` 프로세스(44개 중 extras 보유 0건 실측)는 건너뛴다 — MenuBarAgent만 예외.
     func enumerateAsync() async -> [IconItem] {
         guard PermissionHelper.isAccessibilityTrusted else { return [] }
@@ -244,7 +245,7 @@ final class MenuBarIconEnumerator {
                 ok = err == .success
             } else if let pos = verifiedPosition(of: element, expectTitle: item.title) {
                 Logger.info("Enumerator", "[CLICK] \(item.title) CG 우클릭 폴백 pos=\(NSStringFromPoint(pos))")
-                ok = postRightClick(at: pos)
+                ok = postClick(at: pos, right: true)
             } else {
                 Logger.info("Enumerator", "[CLICK] \(item.title) 위치 확인 실패 — 클릭 중단")
                 ok = false
@@ -262,7 +263,7 @@ final class MenuBarIconEnumerator {
                 ok = false
             } else if let pos = verifiedPosition(of: element, expectTitle: item.title) {
                 Logger.info("Enumerator", "[CLICK] \(item.title) CG 좌클릭 폴백 pos=\(NSStringFromPoint(pos))")
-                ok = postLeftClick(at: pos)
+                ok = postClick(at: pos, right: false)
             } else {
                 Logger.info("Enumerator", "[CLICK] \(item.title) 위치 확인 실패 — 클릭 중단")
                 ok = false
@@ -274,6 +275,7 @@ final class MenuBarIconEnumerator {
     }
 
     /// 클릭 직전 신선한 요소 재조회 — 같은 pid·이름으로 현재 요소를 다시 찾는다.
+    /// 동명 후보가 여럿이면 캐시된 x좌표에 가장 가까운 것을 고른다.
     /// 못 찾으면 캐시 요소를 그대로 쓴다.
     private func refreshElement(for item: IconItem) -> AXUIElement {
         let appElement = AXUIElementCreateApplication(item.pid)
@@ -282,14 +284,23 @@ final class MenuBarIconEnumerator {
             if role(of: child) == "AXGroup" { return children(of: child) }
             return [child]
         }.filter { role(of: $0) == "AXMenuBarItem" }
-        for candidate in candidates {
-            let name = stringAttribute(candidate, kAXDescriptionAttribute as String)
-                ?? stringAttribute(candidate, kAXTitleAttribute as String)
-            if name == item.title {
-                return candidate
-            }
+        let named = candidates.filter {
+            (stringAttribute($0, kAXDescriptionAttribute as String)
+                ?? stringAttribute($0, kAXTitleAttribute as String)) == item.title
         }
-        Logger.info("Enumerator", "[CLICK] \(item.title) 요소 재조회 실패 — 캐시 사용")
+        if named.count == 1, let only = named.first {
+            return only
+        }
+        if named.count > 1, let x = item.positionX {
+            // 동명 다수 — 캐시 x좌표 최근접 (엉뚱한 쌍둥이 클릭 방지)
+            return named.min {
+                abs((position(of: $0)?.x ?? .greatestFiniteMagnitude) - x)
+                    < abs((position(of: $1)?.x ?? .greatestFiniteMagnitude) - x)
+            } ?? item.element
+        }
+        if named.isEmpty {
+            Logger.info("Enumerator", "[CLICK] \(item.title) 요소 재조회 실패 — 캐시 사용")
+        }
         return item.element
     }
 
@@ -315,16 +326,7 @@ final class MenuBarIconEnumerator {
         CGWarpMouseCursorPosition(CGPoint(x: targetX, y: max(cgY, 0)))
     }
 
-    /// AX 위치에 CG 우클릭 이벤트 (AXShowMenu 없는 앱용 폴백)
-    private func postRightClick(at pos: CGPoint) -> Bool {
-        postClick(at: pos, right: true)
-    }
-
-    /// AX 위치에 CG 좌클릭 이벤트 (AXPress 미지원 앱용 폴백)
-    private func postLeftClick(at pos: CGPoint) -> Bool {
-        postClick(at: pos, right: false)
-    }
-
+    /// AX 위치에 CG 클릭 이벤트 (우클릭=AXShowMenu 없는 앱용, 좌클릭=AXPress 미지원 앱용 폴백)
     private func postClick(at pos: CGPoint, right: Bool) -> Bool {
         let downType: CGEventType = right ? .rightMouseDown : .leftMouseDown
         let upType: CGEventType = right ? .rightMouseUp : .leftMouseUp

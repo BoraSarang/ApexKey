@@ -100,6 +100,8 @@ extension ConfigStore {
                     self.shortcuts[idx].lastRunAt = Date()
                     self.shortcuts[idx].runCount += 1
                     self.syncShortcut(self.shortcuts[idx])
+                    // Hub 최신행·repeat 대상 일치 (수동 실행과 동일 규칙)
+                    self.lastExecutedBindingID = shortcutID
                 }
                 Logger.info("ConfigStore", "자동화 실행 결과: success=\(result.success)")
             }

@@ -27,6 +27,9 @@ extension ConfigStore {
         }
         AutomationManager.shared.unregister(shortcutID: shortcut.id)
         shortcuts.removeAll { $0.id == shortcut.id }
+        if lastExecutedBindingID == shortcut.id {
+            lastExecutedBindingID = nil
+        }
         corruptedShortcutBlobColumns.removeValue(forKey: shortcut.id)
         corruptedBlobFallbackBytes.removeValue(forKey: shortcut.id)
         guard let context = container?.mainContext else { return }

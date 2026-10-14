@@ -73,7 +73,7 @@ extension AppDelegate {
     /// (togglePanel과 동일 규칙 — 바깥 클릭으로 뒤에 숨은 뒤 단축키 1번으로 복귀).
     func togglePalette() {
         guard let store else { return }
-        if let win = paletteWindow, win.isVisible, win.isKeyWindow {
+        if Self.shouldCloseFrontWindow(paletteWindow) {
             store.showPalette = false
             return
         }
@@ -141,10 +141,8 @@ extension AppDelegate {
     // MARK: - Menu HUD (전면 앱 단축키 표시)
 
     @objc func toggleMenuHUD() {
-        // key인 경우에만 닫는다 — 가려진 창에 단축키를 누르면 앞으로 (togglePanel 규칙).
-        let hudKey = (menuHUDWindow?.isVisible == true && menuHUDWindow?.isKeyWindow == true)
-            || (menuHUDOverlayWindow?.isVisible == true && menuHUDOverlayWindow?.isKeyWindow == true)
-        if hudKey {
+        // key인 경우에만 닫는다 — 가려진 창에 단축키를 누르면 앞으로.
+        if Self.shouldCloseFrontWindow(menuHUDWindow) || Self.shouldCloseFrontWindow(menuHUDOverlayWindow) {
             hideMenuHUD()
             return
         }
@@ -296,11 +294,13 @@ extension AppDelegate {
 
     @objc func toggleMenuBarIcons() {
         // key인 경우에만 닫는다 — 가려진 창(뒤에 숨음)에 단축키를 누르면
-        // 닫지 않고 앞으로 가져온다 (togglePanel과 동일 규칙).
-        if let win = menuBarIconsWindow, win.isVisible, win.isKeyWindow {
+        // 닫지 않고 앞으로 가져온다.
+        if Self.shouldCloseFrontWindow(menuBarIconsWindow) {
             hideMenuBarIcons()
             return
         }
+        // 비동기 열거의 세대 판정용 — 닫힘/재토글이 낡은 결과를 덮지 않게.
+        menuBarIconsGeneration += 1
         guard let store else { return }
         guard PermissionHelper.isAccessibilityTrusted else {
             showToast(title: "menubar.icons.title".localized,
@@ -319,6 +319,7 @@ extension AppDelegate {
             return
         }
         Task {
+            let generation = self.menuBarIconsGeneration
             let icons = await MenuBarIconEnumerator.shared.enumerateAsync()
             await MainActor.run {
                 guard !icons.isEmpty else {
@@ -326,8 +327,9 @@ extension AppDelegate {
                                    message: "menubar.icons.empty".localized, success: false)
                     return
                 }
-                // 열리는 동안 사용자가 닫았으면 덮어쓰지 않는다
-                guard !(self.menuBarIconsWindow?.isVisible ?? false),
+                // 열리는 동안 닫힘/재토글이 있었으면 낡은 결과로 덮어쓰지 않는다
+                guard generation == self.menuBarIconsGeneration,
+                      !(self.menuBarIconsWindow?.isVisible ?? false),
                       let store = self.store else { return }
                 self.showMenuBarIcons(icons, store: store)
             }
@@ -336,10 +338,12 @@ extension AppDelegate {
 
     /// 백그라운드 갱신 — 열려 있는 그리드가 있으면 그 자리에서 교체한다.
     private func refreshMenuBarIconsInBackground() {
+        let generation = menuBarIconsGeneration
         Task {
             let icons = await MenuBarIconEnumerator.shared.enumerateAsync()
             await MainActor.run {
-                guard !icons.isEmpty,
+                guard generation == self.menuBarIconsGeneration,
+                      !icons.isEmpty,
                       self.menuBarIconsWindow?.isVisible ?? false,
                       let store = self.store else { return }
                 self.showMenuBarIcons(icons, store: store)
@@ -351,8 +355,12 @@ extension AppDelegate {
         // 시스템 아이콘은 설정에서 켰을 때만 — 기본 제외.
         let visible = MenuBarIconEnumerator.visibleIcons(icons, includeSystem: store.showSystemMenuBarIcons)
         guard !visible.isEmpty else {
-            showToast(title: "menubar.icons.title".localized,
-                      message: "menubar.icons.empty".localized, success: false)
+            // 필터로 비었으면 낡은 그리드를 남기지 않고 닫는다
+            hideMenuBarIcons()
+            let message = icons.isEmpty
+                ? "menubar.icons.empty".localized
+                : "menubar.icons.filtered_empty".localized
+            showToast(title: "menubar.icons.title".localized, message: message, success: false)
             return
         }
         let view = MenuBarIconsGridView(icons: visible, columns: store.menuBarIconsPerRow,
@@ -401,7 +409,7 @@ extension AppDelegate {
     /// 자사 아이콘은 AX로 누르지 않고 Hub를 연다 — AXPress는 성공을 반환하지만
     /// 합성 이벤트라 currentEvent가 없어 handleClick이 무시하고 포인터만 워프되던 문제.
     func activateMenuBarIcon(_ item: MenuBarIconEnumerator.IconItem, rightClick: Bool) {
-        if item.bundleID == Bundle.main.bundleIdentifier {
+        if let selfBID = Bundle.main.bundleIdentifier, item.bundleID == selfBID {
             Logger.info("AppDelegate", "[ICONS] 자사 아이콘 → Hub 열기")
             hideMenuBarIcons()
             toggleHub()
@@ -417,6 +425,8 @@ extension AppDelegate {
 
     func hideMenuBarIcons() {
         menuBarIconsWindow?.orderOut(nil)
+        // 비동기 열거/갱신의 세대 무효화 — 완료 시점에 낡은 결과 무시
+        menuBarIconsGeneration += 1
         Logger.info("AppDelegate", "[ICONS] 닫기")
     }
 

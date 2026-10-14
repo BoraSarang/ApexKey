@@ -38,7 +38,7 @@ final class MenuHubTests: XCTestCase {
             "ui.main_window.open",
             "hub.run_tab", "hub.settings_tab",
             "hub.open_palette", "hub.open_palette.sub",
-            "hub.repeat_last", "hub.repeat_last.sub",
+            "hub.repeat_last",
             "hub.clipboard", "hub.clipboard.sub",
             "hub.menu_hud", "hub.menu_hud.sub",
             "hub.menu_bar_icons", "hub.menu_bar_icons.sub",
