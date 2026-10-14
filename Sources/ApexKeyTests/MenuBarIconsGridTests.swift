@@ -1,4 +1,5 @@
 import XCTest
+import ApplicationServices
 @testable import ApexKey
 
 /// 메뉴바 아이콘 그리드 UI 테스트 (M-03 UI)
@@ -52,14 +53,103 @@ final class MenuBarIconsGridTests: XCTestCase {
         XCTAssertNotNil(MenuBarIconEnumerator.ClickResult.actionFailed.toastMessage)
     }
 
+    // MARK: - 시스템 아이콘 표시 설정 (기본 제외)
+
+    func testSystemFilterExcludesByDefault() {let sys = MenuBarIconEnumerator.IconItem(
+            title: "Wi-Fi", bundleID: MenuBarIconEnumerator.menuBarAgentBundleID,
+            pid: 0, element: AXUIElementCreateSystemWide(), positionX: 1, hasShowMenu: true)
+        let app = MenuBarIconEnumerator.IconItem(
+            title: "Foo", bundleID: "com.example.foo",
+            pid: 0, element: AXUIElementCreateSystemWide(), positionX: 2, hasShowMenu: false)
+        XCTAssertEqual(
+            MenuBarIconEnumerator.visibleIcons([sys, app], includeSystem: false).map(\.title), ["Foo"])
+        XCTAssertEqual(
+            MenuBarIconEnumerator.visibleIcons([sys, app], includeSystem: true).count, 2)
+    }
+
+    // MARK: - 시스템 판정 (Apple 소유 프로세스)
+
+    private func makeItem(title: String, bundleID: String?) -> MenuBarIconEnumerator.IconItem {
+        MenuBarIconEnumerator.IconItem(
+            title: title, bundleID: bundleID, pid: 0,
+            element: AXUIElementCreateSystemWide(), positionX: nil, hasShowMenu: false)
+    }
+
+    func testAppleOwnedProcessesAreSystemIcons() {
+        // 설정 "Menu Bar Controls" ≒ Apple 소유 — TextInputMenuAgent 대표 케이스
+        XCTAssertTrue(makeItem(title: "Wi-Fi", bundleID: "com.apple.MenuBarAgent").isSystemIcon)
+        XCTAssertTrue(makeItem(title: "TextInputMenuAgent", bundleID: "com.apple.TextInputMenuAgent").isSystemIcon)
+        XCTAssertTrue(makeItem(title: "Siri", bundleID: "com.apple.Siri").isSystemIcon)
+    }
+
+    func testThirdPartyAndNilStayNonSystem() {
+        XCTAssertFalse(makeItem(title: "Foo", bundleID: "com.example.foo").isSystemIcon)
+        XCTAssertFalse(makeItem(title: "ApexKey", bundleID: "com.borasarang.ApexKey").isSystemIcon)
+        XCTAssertFalse(makeItem(title: "Unknown", bundleID: nil).isSystemIcon)
+    }
+
+    func testTextInputMapsToKeyboardSymbol() {
+        XCTAssertEqual(
+            MenuBarIconEnumerator.systemSymbolName(forDescription: "TextInputMenuAgent"), "keyboard")
+    }
+
+    @MainActor
+    func testSystemIconsPrefDefaultsOffAndPersists() {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ApexKeyIconsPrefTests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let suiteName = "ApexKeyIconsPrefTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer {
+            HotKeyService.shared.unregisterAll()
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: dir)
+        }
+        let store = ConfigStore(storeDirectory: dir, defaults: defaults,
+                                seedInstalledApps: false, registerSystemIntegrations: false)
+        XCTAssertFalse(store.showSystemMenuBarIcons)
+        store.showSystemMenuBarIcons = true
+        let reloaded = ConfigStore(storeDirectory: dir, defaults: defaults,
+                                   seedInstalledApps: false, registerSystemIntegrations: false)
+        XCTAssertTrue(reloaded.showSystemMenuBarIcons)
+    }
+
     // MARK: - 기본값
 
     func testDefaultHotkey() {
-        // ⌥⌘] — keyCode 30, cmd+option
+        // ⌥] — keyCode 30, option
         let def = ConfigStore.defaultMenuBarIconsHotkey
         XCTAssertEqual(def.keyCode, 30)
-        XCTAssertEqual(def.modifiers, KeyboardUtil.cmdMask | KeyboardUtil.optionMask)
+        XCTAssertEqual(def.modifiers, KeyboardUtil.optionMask)
+        XCTAssertEqual(def.displayString, "⌥]")
         XCTAssertFalse(def.isEmpty)
+    }
+
+    func testDefaultHotkeysMatchUserBaseline() {
+        // 새로 설치해도 사용자 단축키 그대로 — 공장 기본값 회귀 금지
+        let expected: [(HotKeyCombo, UInt32, String)] = [
+            (ConfigStore.defaultToggleHotkey, 0, "⌥A"),
+            (ConfigStore.defaultPaletteHotkey, 39, "⌥'"),
+            (ConfigStore.defaultClipboardHotkey, 41, "⌥;"),
+            (ConfigStore.defaultMenuHUDHotkey, 1, "⌥S"),
+            (ConfigStore.defaultMenuBarIconsHotkey, 30, "⌥]"),
+        ]
+        for (combo, keyCode, display) in expected {
+            XCTAssertEqual(combo.keyCode, keyCode, display)
+            XCTAssertEqual(combo.modifiers, KeyboardUtil.optionMask, display)
+            XCTAssertEqual(combo.displayString, display)
+            XCTAssertFalse(combo.isEmpty, display)
+        }
+    }
+
+    // MARK: - 셀 맞춤 (긴 이름 겹침 회귀)
+
+    func testIconSizeShrinksForManyColumns() {
+        // 8열까지 32pt, 9열부터 20pt — 좁은 셀에서 아이콘이 셀을 넘지 않게
+        XCTAssertEqual(MenuBarIconsGridView.iconSize(columns: 1), 32)
+        XCTAssertEqual(MenuBarIconsGridView.iconSize(columns: 8), 32)
+        XCTAssertEqual(MenuBarIconsGridView.iconSize(columns: 9), 20)
+        XCTAssertEqual(MenuBarIconsGridView.iconSize(columns: 16), 20)
     }
 
     func testNewKeysExistInBothLanguages() {

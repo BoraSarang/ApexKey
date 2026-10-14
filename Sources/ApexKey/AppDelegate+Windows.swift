@@ -52,23 +52,30 @@ extension AppDelegate {
     }
 
     func togglePanel() {
-        guard let panel else { return }
+        guard panel != nil else { return }
         // 전방에 실제로 보이는(key) 경우에만 닫고, 뒤로 숨었거나(다른 앱에 가려짐) 없으면
         // 앞으로 가져온다. isVisible만 보면 뒤로 숨은 패널을 "닫힘"으로 오판해
         // 첫 클릭이 반응 없음처럼 보이는 문제를 방지한다.
-        if panel.isVisible && (panel.isKeyWindow || NSApp.keyWindow === panel) {
+        if let panel, panel.isVisible && (panel.isKeyWindow || NSApp.keyWindow === panel) {
             Logger.info("AppDelegate", "[PANEL] 닫기")
             panel.orderOut(nil)
         } else {
-            Logger.info("AppDelegate", panel.isVisible ? "[PANEL] 앞으로 가져오기" : "[PANEL] 열기")
-            NSApp.activate(ignoringOtherApps: true)
-            panel.makeKeyAndOrderFront(nil)
-            panel.orderFrontRegardless()
-            // 패널 열 때 주기가 됐으면 조용히 확인 (자동 팝업 없음)
-            if let store {
-                Task {
-                    await store.maybeAutoCheckForUpdate()
-                }
+            openPanelOnly()
+        }
+    }
+
+    /// Hub·메뉴 "메인 창 열기" — open-only. 이미 보이면 앞으로만 가져오고
+    /// 절대 닫지 않는다. 닫기는 Esc·빨간 ×·⌥A 토글로.
+    func openPanelOnly() {
+        guard let panel else { return }
+        Logger.info("AppDelegate", panel.isVisible ? "[PANEL] 앞으로 가져오기" : "[PANEL] 열기")
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
+        // 패널 열 때 주기가 됐으면 조용히 확인 (자동 팝업 없음)
+        if let store {
+            Task {
+                await store.maybeAutoCheckForUpdate()
             }
         }
     }

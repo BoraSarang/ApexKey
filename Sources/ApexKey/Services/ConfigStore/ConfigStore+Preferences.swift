@@ -44,6 +44,7 @@ extension ConfigStore {
         static let menuBarIconsHotkey = "pref.menuBarIconsHotkey"
         static let menuBarIconsPerRow = "pref.menuBarIconsPerRow"
         static let menuBarIconsSwapClicks = "pref.menuBarIconsSwapClicks"
+        static let showSystemMenuBarIcons = "pref.showSystemMenuBarIcons"
         static let updateFrequency = "pref.updateFrequency"
         static let updateLastChecked = "pref.updateLastChecked"
         static let didMigrateLegacyStore = "pref.didMigrateLegacyStore"

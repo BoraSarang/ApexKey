@@ -6,6 +6,8 @@ struct AppsContentView: View {
     @Environment(\.theme) private var theme
     let category: AppCategory?
     var searchText: String = ""
+    /// 단축키가 설정된 앱만 표시 (툴바 토글)
+    var showOnlyWithShortcuts = false
     var onSelect: (AppItem) -> Void
 
     var body: some View {
@@ -50,6 +52,9 @@ struct AppsContentView: View {
         var apps = store.visibleApps()
         if let category {
             apps = apps.filter { $0.category == category }
+        }
+        if showOnlyWithShortcuts {
+            apps = apps.filter { !store.bindings(for: $0.id).isEmpty }
         }
         if !searchText.isEmpty {
             let q = searchText.lowercased()

@@ -21,7 +21,7 @@ extension AppDelegate {
             image?.isTemplate = true // 메뉴바 단색 템플릿
             button.image = image
 
-            // 좌클릭 → 창 토글, 우클릭 → 메뉴
+            // 좌클릭 → Hub 팝오버, 우클릭 → 컨텍스트 메뉴
             button.target = self
             button.action = #selector(handleClick(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])

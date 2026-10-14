@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ApexKey Menu Hub — 목업 (PickBeon식)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0a0a0c; color:#e8e8ec;
+    font-family:-apple-system,"Pretendard","Apple SD Gothic Neo",sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:28px;
+    padding:48px 20px 80px; min-height:100vh;
+  }
+  .page-title { text-align:center; }
+  .page-title h1 { font-size:22px; font-weight:800; letter-spacing:-.3px; }
+  .page-title p { margin-top:8px; font-size:13px; color:#8b8b96; }
+  .page-title code { background:#1d1d22; padding:2px 7px; border-radius:6px; font-size:12px; color:#a9c6ff; }
+  .stage { display:flex; gap:36px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .caption { font-size:12px; color:#8b8b96; text-align:center; margin-bottom:10px; }
+  .caption b { color:#cfcfe0; }
+  /* — Popover frame — */
+  .popover {
+    width:360px; background:rgba(32,32,36,.92);
+    backdrop-filter:blur(28px); -webkit-backdrop-filter:blur(28px);
+    border-radius:22px; border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 24px 80px rgba(0,0,0,.65), 0 0 0 6px rgba(255,255,255,.02);
+    overflow:hidden; position:relative;
+  }
+  .popover::before {
+    content:""; position:absolute; top:-9px; left:50%; transform:translateX(-50%) rotate(45deg);
+    width:18px; height:18px; background:rgba(32,32,36,.92); border-left:1px solid rgba(255,255,255,.12); border-top:1px solid rgba(255,255,255,.12);
+  }
+  .tabbar { display:flex; align-items:center; padding:12px 14px 10px; gap:8px; }
+  .logo { width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,#5b8cff,#2f6bff);
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#fff; }
+  .appname { font-size:15px; font-weight:800; letter-spacing:-.2px; }
+  .spacer { flex:1; }
+  .tabs { display:flex; gap:2px; }
+  .tab { font-size:12.5px; font-weight:600; padding:6px 13px; border-radius:9px; cursor:pointer; color:#8b8b96; }
+  .tab.on { background:#3b82f6; color:#fff; }
+  .tab:not(.on):hover { background:rgba(255,255,255,.07); color:#cfcfe0; }
+  .divider { height:1px; background:rgba(255,255,255,.09); }
+  .body { padding:12px 12px 8px; display:flex; flex-direction:column; gap:7px; }
+  .hero {
+    background:linear-gradient(135deg,#5b8cff 0%,#3b6bf5 60%,#2f5bf0 100%);
+    border-radius:14px; padding:11px 12px; display:flex; gap:10px; align-items:center; cursor:pointer;
+    border:1px solid rgba(255,255,255,.22); transition:transform .12s ease, filter .12s ease;
+  }
+  .hero:hover { filter:brightness(1.07); transform:translateY(-1px); }
+  .hero .ic { width:28px; height:28px; border-radius:8px; background:rgba(255,255,255,.22);
+    display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .hero .t1 { font-size:14px; font-weight:800; color:#fff; }
+  .hero .t2 { font-size:11.5px; color:rgba(255,255,255,.85); margin-top:1px; }
+  .kbd { margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; font-weight:600;
+    background:rgba(255,255,255,.2); color:#fff; padding:5px 8px; border-radius:7px; white-space:nowrap; }
+  .row {
+    background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.06);
+    border-radius:13px; padding:9px 10px; display:flex; gap:10px; align-items:center; cursor:pointer;
+    transition:background .12s ease, transform .12s ease;
+  }
+  .row:hover { background:rgba(255,255,255,.09); transform:translateY(-1px); }
+  .row .ic { width:24px; height:24px; border-radius:7px; background:rgba(91,140,255,.16);
+    display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+  .row .t1 { font-size:13px; font-weight:700; }
+  .row .t2 { font-size:11.5px; color:#9a9aa6; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .kbd { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); color:#b9b9c6; }
+  .latest {
+    background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07);
+    border-radius:12px; padding:9px 11px; display:flex; gap:8px; align-items:center; font-size:12.5px; color:#9a9aa6;
+  }
+  .latest .dot { width:6px; height:6px; border-radius:50%; background:#34d399; flex-shrink:0; }
+  .latest b { color:#d5d5de; font-weight:600; }
+  .mini-btn { width:26px; height:26px; border-radius:7px; background:rgba(91,140,255,.15); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; }
+  .footer { display:flex; align-items:center; gap:12px; padding:9px 16px 11px; font-size:11.5px; color:#777783; }
+  .footer .link { cursor:pointer; } .footer .link:hover { color:#cfcfe0; }
+  .footer .warn { color:#f5a524; font-weight:700; cursor:pointer; }
+  /* settings tab */
+  .setting-row { background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.06); border-radius:11px;
+    padding:9px 13px; display:flex; align-items:center; font-size:13px; font-weight:500; }
+  .toggle { margin-left:auto; width:36px; height:21px; border-radius:11px; background:#3b82f6; position:relative; cursor:pointer; }
+  .toggle.off { background:rgba(255,255,255,.16); }
+  .toggle::after { content:""; position:absolute; top:2px; left:2px; width:17px; height:17px; border-radius:50%; background:#fff; transition:left .15s ease; }
+  .toggle.off::after { left:17px; }
+  .open-all { background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.06); border-radius:13px;
+    padding:11px 12px; display:flex; gap:10px; align-items:center; cursor:pointer; }
+  .open-all:hover { background:rgba(255,255,255,.09); }
+  /* behavior table */
+  .panel { width:min(760px,100%); background:#131316; border:1px solid rgba(255,255,255,.09); border-radius:16px; padding:20px 22px; }
+  .panel h2 { font-size:14px; font-weight:800; margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.07); vertical-align:top; }
+  th { color:#8b8b96; font-weight:600; font-size:11.5px; }
+  td b { color:#fff; } .old { color:#f87171; } .new { color:#34d399; }
+  .note { margin-top:12px; font-size:12px; color:#9a9aa6; line-height:1.7; }
+  .note b { color:#d5d5de; }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>ApexKey Menu Hub 목업 <span style="font-weight:400;color:#777">— PickBeon 패리티</span></h1>
+  <p>좌클릭 토글 폐지 → 좌클릭 Hub 팝오버 · <code>열기</code>는 open-only로 개명 · 파일: <code>AppDelegate+Menus.swift</code> · <code>+Windows.swift</code></p>
+</div>
+
+<div class="stage">
+  <div>
+    <div class="caption"><b>① 실행 탭</b> — 좌클릭 기본 화면</div>
+    <div class="popover">
+      <div class="tabbar">
+        <div class="logo">⌘</div><div class="appname">ApexKey</div>
+        <div class="spacer"></div>
+        <div class="tabs"><div class="tab on">실행</div><div class="tab" onclick="document.getElementById('s').scrollIntoView({behavior:'smooth',block:'center'})">설정</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="body">
+        <div class="hero">
+          <div class="ic">⌕</div>
+          <div><div class="t1">명령 팔레트 열기</div><div class="t2">단축키 · 앱 · 클립보드 검색 실행</div></div>
+          <div class="kbd">⌘⌥K</div>
+        </div>
+        <div class="row"><div class="ic">▦</div><div><div class="t1">메뉴바 아이콘 보기</div><div class="t2">숨은 아이콘 모아 바로 클릭</div></div><div class="kbd">⌥⌘]</div></div>
+        <div class="row"><div class="ic">⧉</div><div><div class="t1">클립보드 기록</div><div class="t2">최근 복사 → 바로 붙여넣기</div></div><div class="kbd">⌘⇧V</div></div>
+        <div class="row"><div class="ic">▤</div><div><div class="t1">메뉴 HUD</div><div class="t2">현재 앱 메뉴 검색 실행</div></div><div class="kbd">⇧⌥S</div></div>
+        <div class="row"><div class="ic">◧</div><div><div class="t1">메인 창 열기</div><div class="t2">단축키 · 자동화 관리 (닫기 없음)</div></div><div class="kbd">⌘O</div></div>
+        <div class="row"><div class="ic">✎</div><div><div class="t1">새 단축키 만들기</div><div class="t2">편집기 바로 열기</div></div></div>
+        <div class="latest"><span class="dot"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">방금 실행 — <b>Xcode 빌드 후 테스트 실행</b></span><span style="flex:1"></span><span class="mini-btn">⧉</span><span class="mini-btn">✎</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="footer"><span>ApexKey v1.4.2</span><span style="flex:1"></span><span class="warn">v1.5.0 사용 가능</span><span class="link">전체 설정</span><span class="link">종료</span></div>
+    </div>
+  </div>
+
+  <div id="s">
+    <div class="caption"><b>② 설정 탭</b> — Hub 안에서 바로 토글</div>
+    <div class="popover">
+      <div class="tabbar">
+        <div class="logo">⌘</div><div class="appname">ApexKey</div>
+        <div class="spacer"></div>
+        <div class="tabs"><div class="tab">실행</div><div class="tab on">설정</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="body">
+        <div class="open-all"><div class="ic" style="width:24px;height:24px;border-radius:7px;background:rgba(91,140,255,.16);display:flex;align-items:center;justify-content:center;font-size:13px">⚙</div>
+          <div><div class="t1" style="font-size:13px;font-weight:700">전체 설정 열기</div><div class="t2" style="font-size:11.5px;color:#9a9aa6">상세는 전체 설정에서</div></div>
+          <span style="flex:1"></span><span style="color:#777">›</span></div>
+        <div class="setting-row">항상 위에 표시 <div class="toggle"></div></div>
+        <div class="setting-row">로그인 시 실행 <div class="toggle"></div></div>
+        <div class="setting-row">성공 토스트 표시 <div class="toggle off"></div></div>
+        <div class="setting-row">메뉴바 아이콘 표시 <div class="toggle"></div></div>
+        <div class="latest"><span>ⓘ</span><span>단축키 변경은 전체 설정 → 단축키에서</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="footer"><span>ApexKey v1.4.2</span><span style="flex:1"></span><span class="link">업데이트 확인…</span><span class="link">종료</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>동작 변경표 — 지금 vs 제안 (코딩 전 확인용)</h2>
+  <table>
+    <tr><th style="width:22%">구분</th><th style="width:39%">지금 (AppDelegate+Menus.swift:111-122)</th><th>제안 (PickBeon 패리티)</th></tr>
+    <tr><td><b>좌클릭</b></td><td class="old">togglePanel() — 900×620 메인창 열기/닫기 토글 + 포커스 탈취</td><td class="new"><b>Hub 팝오버 열기</b> (360×~500, transient — 바깥 클릭で 닫힘). 실수 클릭 피해 ↓</td></tr>
+    <tr><td><b>우클릭</b></td><td>NSMenu (열기/아이콘/정보/설정…/종료)</td><td>레거시 NSMenu 유지 (폴백) <b>또는</b> 디버그로 — 우클릭 의존 제거가 목적이므로 유지 권장</td></tr>
+    <tr><td><b>"열기" 메뉴</b></td><td class="old">togglePanelAction → 토글 (이름과 동작 불일치)</td><td class="new"><b>"메인 창 열기 ⌘O"</b> — open-only (이미 열려 있으면 앞으로만, 절대 닫지 않음). 닫기는 Esc/⌘W</td></tr>
+    <tr><td><b>창 크기</b></td><td>NSPanel 900×620 중앙</td><td>Hub는 메뉴바 앵커 팝오버로; 메인창은 Hub 안 "메인 창 열기"에서만</td></tr>
+    <tr><td><b>구현</b></td><td>—</td><td>신규 <b>MenuHubView.swift</b> (SwiftUI) + NSPopover(.transient, 360×512) + hubAction 닫기-후-실행 — PickBeon <code>MenuPopupView.swift / PickBeonApp.swift:29-50</code> 구조 그대로 이식.</td></tr>
+  </table>
+  <div class="note">
+    <b>왜 토글이 짜증나는지:</b> 메뉴바 아이콘은 "상태 확인/빠른 실행" 심리적 모델인데, 지금은 매 클릭마다 거대 창 + <code>NSApp.activate</code>로 작업 포커스를 뺏음.
+    PickBeon은 이 문제를 <b>작은 transient 팝오버 + 모든 행 액션 후 자동 닫힘</b>(<code>coordinator.menuAction { dismissMenu?(); work() }</code>)으로 해결 — ApexKey도 동일 패턴 권장.<br>
+    <b>최소안(B):</b> Hub 없이 좌/우만 맞바꾸고 열기를 open-only로 — 10줄 수정으로 당장 가능. Hub는 그 다음 단계.
+  </div>
+</div>
+
+</body>
+</html>

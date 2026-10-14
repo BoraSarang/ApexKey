@@ -130,7 +130,7 @@ enum CommandPaletteFilter {
     }
 }
 
-/// Spotlight식 명령 팔레트 (⌘⌥K) — 검색창 + 섹션(최근 실행/명령/동작/단축키/앱) + 초성 매칭.
+/// Spotlight식 명령 팔레트 (⌥') — 검색창 + 섹션(최근 실행/명령/동작/단축키/앱) + 초성 매칭.
 /// ↑↓ 이동(순환)·Enter 실행·Esc 닫기.
 struct CommandPaletteView: View {
     @EnvironmentObject var store: ConfigStore
@@ -159,10 +159,10 @@ struct CommandPaletteView: View {
     private var commands: [PaletteCommand] {
         [
             PaletteCommand(id: "newShortcut", title: "palette.cmd.new_shortcut".localized, hint: "", icon: "plus"),
-            PaletteCommand(id: "clipboard", title: "palette.cmd.clipboard".localized, hint: "⌘⇧V", icon: "doc.on.clipboard"),
+            PaletteCommand(id: "clipboard", title: "palette.cmd.clipboard".localized, hint: store.clipboardHotkey.displayString, icon: "doc.on.clipboard"),
             PaletteCommand(id: "openSettings", title: "palette.cmd.open_settings".localized, hint: "", icon: "gearshape"),
-            PaletteCommand(id: "openPanel", title: "palette.cmd.open_panel".localized, hint: "⇧⌥A", icon: "macwindow"),
-            PaletteCommand(id: "menuHUD", title: "palette.cmd.menu_hud".localized, hint: "⇧⌥S", icon: "menubar"),
+            PaletteCommand(id: "openPanel", title: "palette.cmd.open_panel".localized, hint: store.toggleHotkey.displayString, icon: "macwindow"),
+            PaletteCommand(id: "menuHUD", title: "palette.cmd.menu_hud".localized, hint: store.menuHUDHotkey.displayString, icon: "menubar"),
             PaletteCommand(id: "repeatLast", title: "palette.cmd.repeat_last".localized, hint: "⌘⇧↩", icon: "repeat"),
             PaletteCommand(id: "quitApp", title: "palette.cmd.quit".localized, hint: "", icon: "power"),
         ]

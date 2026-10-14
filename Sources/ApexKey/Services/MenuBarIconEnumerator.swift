@@ -32,8 +32,16 @@ final class MenuBarIconEnumerator {
         /// 우클릭 대체 액션 보유 여부
         var hasShowMenu: Bool
 
-        /// 시스템 아이콘인가 (MenuBarAgent 경유)
-        var isSystemIcon: Bool { bundleID == MenuBarIconEnumerator.menuBarAgentBundleID }
+        /// 시스템 아이콘인가 — MenuBarAgent 경유 또는 Apple 소유 프로세스.
+        /// 설정의 "Menu Bar Controls"(시스템) vs "Allow in the Menu Bar"(서드파티)
+        /// 구분과 일치시킨다. TextInputMenuAgent(com.apple.TextInputMenuAgent)처럼
+        /// 별도 Apple 프로세스로 뜨는 것까지 시스템으로 본다.
+        /// (Apple 앱의 상태 아이템도 함께 숨겨지지만, 설정에서 다시 포함 가능)
+        var isSystemIcon: Bool {
+            guard let bundleID else { return false }
+            return bundleID == MenuBarIconEnumerator.menuBarAgentBundleID
+                || bundleID.hasPrefix("com.apple.")
+        }
     }
 
     /// 클릭 결과
@@ -65,6 +73,7 @@ final class MenuBarIconEnumerator {
         if lower.contains("bluetooth") { return "bluetooth" }
         if lower.contains("sound") || lower.contains("volume") || lower.contains("사운드") || lower.contains("음량") { return "speaker.wave.2" }
         if lower.contains("spotlight") || lower.contains("siri") { return "magnifyingglass" }
+        if lower.contains("text input") || lower.contains("textinput") || lower.contains("input menu") { return "keyboard" }
         return "circle.grid.2x2"
     }
 
@@ -156,7 +165,7 @@ final class MenuBarIconEnumerator {
         cache = (Date(), items)
     }
 
-    /// 앱 실행 직후 백그라운드 예열 — 첫 ⌥⌘]가 캐시 히트로 즉시 뜨게 한다.
+    /// 앱 실행 직후 백그라운드 예열 — 첫 ⌥]가 캐시 히트로 즉시 뜨게 한다.
     func prewarm() {
         Task.detached(priority: .background) { [weak self] in
             _ = await self?.enumerateAsync()
@@ -169,6 +178,11 @@ final class MenuBarIconEnumerator {
             if $0.isSystemIcon != $1.isSystemIcon { return $0.isSystemIcon }
             return ($0.positionX ?? .greatestFiniteMagnitude) < ($1.positionX ?? .greatestFiniteMagnitude)
         }
+    }
+
+    /// 표시 필터 (순수 함수 — 테스트 고정): 기본은 시스템 아이콘 제외.
+    static func visibleIcons(_ items: [IconItem], includeSystem: Bool) -> [IconItem] {
+        includeSystem ? items : items.filter { !$0.isSystemIcon }
     }
 
     /// MenuBarAgent 산하 시스템 아이콘 (Wi-Fi·배터리·제어센터·시계 등)
@@ -215,29 +229,85 @@ final class MenuBarIconEnumerator {
     // MARK: - 클릭
 
     /// 좌클릭(AXPress) / 우클릭(AXShowMenu → 없으면 CG 우클릭 이벤트).
+    /// 클릭 직전 요소를 재조회한다 — 30초 캐시가 메뉴바 재배치 뒤에 처지면
+    /// 엉뚱한 아이콘의 메뉴가 열리는 오발이 난다 (2Set Korean 건).
     /// 성공 시 포인터를 아이콘 메뉴 위치(메뉴바 아래)로 워프한다 (M-03 포인터 비행).
     func click(_ item: IconItem, rightClick: Bool) -> ClickResult {
         guard PermissionHelper.isAccessibilityTrusted else { return .noPermission }
+        let element = refreshElement(for: item)
+        let canShowMenu = hasAction(element, "AXShowMenu")
         let ok: Bool
         if rightClick {
-            if item.hasShowMenu {
-                ok = AXUIElementPerformAction(item.element, "AXShowMenu" as CFString) == .success
-            } else if let pos = position(of: item.element) {
+            if canShowMenu {
+                let err = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
+                Logger.info("Enumerator", "[CLICK] \(item.title) AXShowMenu → \(err.rawValue)")
+                ok = err == .success
+            } else if let pos = verifiedPosition(of: element, expectTitle: item.title) {
+                Logger.info("Enumerator", "[CLICK] \(item.title) CG 우클릭 폴백 pos=\(NSStringFromPoint(pos))")
                 ok = postRightClick(at: pos)
             } else {
+                Logger.info("Enumerator", "[CLICK] \(item.title) 위치 확인 실패 — 클릭 중단")
                 ok = false
             }
         } else {
-            ok = AXUIElementPerformAction(item.element, kAXPressAction as CFString) == .success
+            // AXPress 우선 — 커스텀 뷰(Electron 등)처럼 미지원이면
+            // 실제 클릭 이벤트로 폴백 (우클릭 폴백과 동일 패턴).
+            let err = AXUIElementPerformAction(element, kAXPressAction as CFString)
+            Logger.info("Enumerator", "[CLICK] \(item.title) AXPress → \(err.rawValue)")
+            if err == .success {
+                ok = true
+            } else if err == .invalidUIElement {
+                // 죽은 참조 — 좌표 클릭은 엉뚱한 곳을 맞출 수 있어 중단한다.
+                Logger.info("Enumerator", "[CLICK] \(item.title) 요소 무효 — 클릭 중단")
+                ok = false
+            } else if let pos = verifiedPosition(of: element, expectTitle: item.title) {
+                Logger.info("Enumerator", "[CLICK] \(item.title) CG 좌클릭 폴백 pos=\(NSStringFromPoint(pos))")
+                ok = postLeftClick(at: pos)
+            } else {
+                Logger.info("Enumerator", "[CLICK] \(item.title) 위치 확인 실패 — 클릭 중단")
+                ok = false
+            }
         }
         guard ok else { return .actionFailed }
-        warpPointerToMenu(near: item)
+        warpPointerToMenu(element: element)
         return .success
     }
 
+    /// 클릭 직전 신선한 요소 재조회 — 같은 pid·이름으로 현재 요소를 다시 찾는다.
+    /// 못 찾으면 캐시 요소를 그대로 쓴다.
+    private func refreshElement(for item: IconItem) -> AXUIElement {
+        let appElement = AXUIElementCreateApplication(item.pid)
+        guard let extras = extrasMenuBar(of: appElement) else { return item.element }
+        let candidates = children(of: extras).flatMap { child -> [AXUIElement] in
+            if role(of: child) == "AXGroup" { return children(of: child) }
+            return [child]
+        }.filter { role(of: $0) == "AXMenuBarItem" }
+        for candidate in candidates {
+            let name = stringAttribute(candidate, kAXDescriptionAttribute as String)
+                ?? stringAttribute(candidate, kAXTitleAttribute as String)
+            if name == item.title {
+                return candidate
+            }
+        }
+        Logger.info("Enumerator", "[CLICK] \(item.title) 요소 재조회 실패 — 캐시 사용")
+        return item.element
+    }
+
+    /// CG 폴백용 위치 — 요소에서 읽은 이름이 기대와 다르면 nil.
+    /// 이름 자체가 없으면(앱 이름 폴백분) 검증을 건너뛰고 위치만 쓴다.
+    private func verifiedPosition(of element: AXUIElement, expectTitle: String) -> CGPoint? {
+        if let name = stringAttribute(element, kAXDescriptionAttribute as String)
+            ?? stringAttribute(element, kAXTitleAttribute as String),
+           name != expectTitle {
+            Logger.info("Enumerator", "[CLICK] 이름 불일치(기대 \(expectTitle), 실제 \(name)) — 클릭 중단")
+            return nil
+        }
+        return position(of: element)
+    }
+
     /// 클릭한 아이콘 아래로 포인터 이동 — 메뉴가 열리는 위치로 데려간다.
-    private func warpPointerToMenu(near item: IconItem) {
-        guard let pos = position(of: item.element),
+    private func warpPointerToMenu(element: AXUIElement) {
+        guard let pos = position(of: element),
               let screen = NSScreen.screens.first(where: { $0.frame.contains(pos) }) ?? NSScreen.main else { return }
         // 메뉴바 아래(visible 상단 + 여유)로 워프. CG 좌표는 좌상단 원점이므로 변환.
         let targetX = min(max(pos.x, screen.visibleFrame.minX + 8), screen.visibleFrame.maxX - 8)
@@ -247,8 +317,20 @@ final class MenuBarIconEnumerator {
 
     /// AX 위치에 CG 우클릭 이벤트 (AXShowMenu 없는 앱용 폴백)
     private func postRightClick(at pos: CGPoint) -> Bool {
-        guard let eventDown = CGEvent(mouseEventSource: nil, mouseType: .rightMouseDown, mouseCursorPosition: pos, mouseButton: .right),
-              let eventUp = CGEvent(mouseEventSource: nil, mouseType: .rightMouseUp, mouseCursorPosition: pos, mouseButton: .right) else { return false }
+        postClick(at: pos, right: true)
+    }
+
+    /// AX 위치에 CG 좌클릭 이벤트 (AXPress 미지원 앱용 폴백)
+    private func postLeftClick(at pos: CGPoint) -> Bool {
+        postClick(at: pos, right: false)
+    }
+
+    private func postClick(at pos: CGPoint, right: Bool) -> Bool {
+        let downType: CGEventType = right ? .rightMouseDown : .leftMouseDown
+        let upType: CGEventType = right ? .rightMouseUp : .leftMouseUp
+        let button: CGMouseButton = right ? .right : .left
+        guard let eventDown = CGEvent(mouseEventSource: nil, mouseType: downType, mouseCursorPosition: pos, mouseButton: button),
+              let eventUp = CGEvent(mouseEventSource: nil, mouseType: upType, mouseCursorPosition: pos, mouseButton: button) else { return false }
         eventDown.post(tap: .cghidEventTap)
         eventUp.post(tap: .cghidEventTap)
         return true

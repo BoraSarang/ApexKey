@@ -44,8 +44,8 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 | **Menu command shortcuts** | Assign a global shortcut to any menu item of a running app → execute from anywhere; failures toast the reason |
 | **App launch / toggle** | Shortcut to launch, focus, or toggle a specific app |
 | **URL scheme** | Shortcut to open `scheme://` |
-| **Command palette** | Keyboard-first launcher for workflows, apps, and commands (`⌘⌥K`) |
-| **Clipboard history** | `⌘⇧V` — last 100 clips / 30 days, with image previews |
+| **Command palette** | Keyboard-first launcher for workflows, apps, and commands (`⌥'`) |
+| **Clipboard history** | `⌥;` — last 100 clips / 30 days, with image previews |
 | **Instant Send** | `⌃⌥D` — selected text straight into a workflow as input |
 | **Shared hotkeys** | One combo, many targets — a picker with pinning when combos collide |
 | **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action (59 of 162 catalog actions fully wired; the rest read "Coming soon") |
@@ -54,7 +54,7 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 | **AI actions** | Use model / writing tool / image playground — **not planned**: they fail gracefully by design (see docs: AI is out of scope) |
 | **System actions** | Lock, mute, dark mode, and more via built-in presets |
 | **Menu HUD** | Fullscreen / floating view of the current app's shortcuts, with in-place submenu drill-in + breadcrumb |
-| **Menu Bar Icons** | Grid of every status icon (even notch-hidden ones) — `⌥⌘]` to open, click the real icon |
+| **Menu Bar Icons** | Grid of every status icon (even notch-hidden ones) — `⌥]` to open, click the real icon |
 | **First-launch guide** | 2-minute setup: permissions + shortcut review with instant try-it |
 | **Shortcut safety** | Warns on macOS system-shortcut conflicts (move / register anyway / cancel); recorder has a live test button |
 | **Settings** | 8 feature tabs, each with a what/when/how help card and a ▶ Try-it button |
@@ -90,10 +90,10 @@ Developer ID certificate removes it.
 
 ## Usage
 
-- Open the panel via the ApexKey menu bar icon (default `⇧⌥A`)
+- Open the panel via the ApexKey menu bar icon (default `⌥A`)
 - In an app's detail view, press **`+`** on any menu command to record a global shortcut
-- Press **Menu Shortcut HUD** (`⇧⌥S`) to view the frontmost app's shortcuts
-- Press **Menu Bar Icons** (`⌥⌘]`) to click any status icon, even notch-hidden ones
+- Press **Menu Shortcut HUD** (`⌥S`) to view the frontmost app's shortcuts
+- Press **Menu Bar Icons** (`⌥]`) to click any status icon, even notch-hidden ones
 - Use the **Shortcuts** tab to combine multiple steps into your own action
 - Every feature tab in Settings has a **▶ Try it** button — see what a shortcut does before memorizing it
 

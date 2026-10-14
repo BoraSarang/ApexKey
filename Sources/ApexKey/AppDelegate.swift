@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var stepSettingsWindow: NSWindow?
     var stepTestResultWindow: NSWindow?
     var updateWindow: NSWindow?
+    var hubPopover: NSPopover?
+    var hubHosting: NSViewController?
     // NSWindow.contentViewController는 strong(직접 참조 유지)이지만, NSHostingController가
     // 창 dealloc보다 먼저 해제되는 것을 막기 위해 슈퍼타입으로 안전하게 보관해 둔다.
     var panelHosting: NSViewController?
@@ -69,7 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showOnboardingGuide()
         }
 
-        // 메뉴바 아이콘 캐시 예열 — 첫 ⌥⌘]가 즉시 뜨게 (M-03). 실패해도 조용.
+        // 메뉴바 아이콘 캐시 예열 — 첫 ⌥]가 즉시 뜨게 (M-03). 실패해도 조용.
         MenuBarIconEnumerator.shared.prewarm()
         // 앱 실행/종료 시 아이콘 캐시 무효화 — 다음 열기에 새로고침 (조회는 그때)
         let center = NSWorkspace.shared.notificationCenter
@@ -88,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        // ⇧⌥A → 메인 패널 토글 (ConfigStore에서 발신)
+        // ⌥A → 메인 패널 토글 (ConfigStore에서 발신)
         NotificationCenter.default.publisher(for: .togglePanel)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -96,7 +98,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        // ⇧⌥S → Menu HUD 토글 (전면 앱 단축키 표시)
+        // ⌥' / ⌥; → 명령 팔레트 토글 (가려진 창이면 front)
+        NotificationCenter.default.publisher(for: .togglePalette)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.togglePalette()
+            }
+            .store(in: &cancellables)
+
+        // ⌥S → Menu HUD 토글 (전면 앱 단축키 표시)
         NotificationCenter.default.publisher(for: .toggleMenuHUD)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -104,7 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        // ⌥⌘] → 메뉴바 아이콘 그리드 토글
+        // ⌥] → 메뉴바 아이콘 그리드 토글
         NotificationCenter.default.publisher(for: .toggleMenuBarIcons)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in

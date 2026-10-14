@@ -34,7 +34,7 @@ extension ConfigStore {
         }
     }
 
-    /// ⇧⌥A 패널 토글 핫키 변경 (재등록)
+    /// ⌥A 패널 토글 핫키 변경 (재등록)
     @discardableResult
     func setPanelToggleHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
         guard !combo.isEmpty else { return .invalidCombo }
@@ -53,7 +53,7 @@ extension ConfigStore {
         return .applied
     }
 
-    /// ⌘⌥K 명령 팔레트 핫키 변경 (재등록)
+    /// ⌥' 명령 팔레트 핫키 변경 (재등록)
     @discardableResult
     func setPaletteHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
         guard !combo.isEmpty else { return .invalidCombo }
@@ -72,7 +72,7 @@ extension ConfigStore {
         return .applied
     }
 
-    /// ⇧⌥S Menu HUD 핫키 변경 (재등록)
+    /// ⌥S Menu HUD 핫키 변경 (재등록)
     @discardableResult
     func setMenuHUDHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
         guard !combo.isEmpty else { return .invalidCombo }
@@ -91,7 +91,7 @@ extension ConfigStore {
         return .applied
     }
 
-    /// ⌘⇧V 클립보드 팔레트 핫키 변경 (재등록)
+    /// ⌥; 클립보드 팔레트 핫키 변경 (재등록)
     @discardableResult
     func setClipboardHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
         guard !combo.isEmpty else { return .invalidCombo }
@@ -129,7 +129,7 @@ extension ConfigStore {
         return .applied
     }
 
-    /// ⌥⌘] 메뉴바 아이콘 그리드 핫키 변경 (재등록)
+    /// ⌥] 메뉴바 아이콘 그리드 핫키 변경 (재등록)
     @discardableResult
     func setMenuBarIconsHotkey(_ combo: HotKeyCombo) -> HotKeyApplyResult {
         guard !combo.isEmpty else { return .invalidCombo }
