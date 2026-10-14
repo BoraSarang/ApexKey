@@ -32,7 +32,7 @@ final class ConfigStore: ObservableObject {
     @Published var toggleHotkey: HotKeyCombo
     @Published var paletteHotkey: HotKeyCombo
     /// ⌥] 메뉴바 아이콘 그리드 핫키
-    var menuBarIconsHotkey: HotKeyCombo
+    @Published var menuBarIconsHotkey: HotKeyCombo
     /// 그리드 행당 아이콘 수 (1...16, MenuDart 범위 차용)
     @Published var menuBarIconsPerRow: Int = 8 {
         didSet {
@@ -148,8 +148,8 @@ final class ConfigStore: ObservableObject {
     /// ⇧⌥D Instant Send 전용 등록 ID
     let sendID = UUID()
 
-    /// ⇧⌥D Instant Send 핫키
-    var sendHotkey: HotKeyCombo
+    /// ⌃⌥D Instant Send 핫키
+    @Published var sendHotkey: HotKeyCombo
 
     /// Instant Send 캡처 결과 — 팔레트 전송 모드의 입력.
     @Published var sendPayload: InstantSend.Payload?
@@ -158,7 +158,7 @@ final class ConfigStore: ObservableObject {
     let clipboardID = UUID()
 
     /// ⌥; 클립보드 팔레트 핫키
-    var clipboardHotkey: HotKeyCombo
+    @Published var clipboardHotkey: HotKeyCombo
 
     /// ⌥] 메뉴바 아이콘 그리드 전용 등록 ID
     let menuBarIconsID = UUID()
@@ -223,14 +223,18 @@ final class ConfigStore: ObservableObject {
         self.menuHUDHotkey = Self.loadHotkey(forKey: PrefKeys.menuHUDHotkey, fallback: Self.defaultMenuHUDHotkey, defaults: defaults)
         self.paletteHotkey = Self.loadHotkey(forKey: PrefKeys.paletteHotkey, fallback: Self.defaultPaletteHotkey, defaults: defaults)
         self.clipboardHotkey = Self.loadHotkey(forKey: PrefKeys.clipboardHotkey, fallback: Self.defaultClipboardHotkey, defaults: defaults)
-        self.sendHotkey = Self.loadHotkey(forKey: PrefKeys.sendHotkey, fallback: Self.defaultSendHotkey, defaults: defaults)
+        let loadedSendHotkey = Self.loadHotkey(forKey: PrefKeys.sendHotkey, fallback: Self.defaultSendHotkey, defaults: defaults)
+        self.sendHotkey = loadedSendHotkey
         self.menuBarIconsHotkey = Self.loadHotkey(forKey: PrefKeys.menuBarIconsHotkey, fallback: Self.defaultMenuBarIconsHotkey, defaults: defaults)
         self.menuBarIconsPerRow = min(max(defaults.object(forKey: PrefKeys.menuBarIconsPerRow) == nil ? 8 : defaults.integer(forKey: PrefKeys.menuBarIconsPerRow), 1), 16)
         self.menuBarIconsSwapClicks = defaults.bool(forKey: PrefKeys.menuBarIconsSwapClicks)
         self.showSystemMenuBarIcons = defaults.bool(forKey: PrefKeys.showSystemMenuBarIcons)
-        // 구 기본값(⇧⌥D) 저장분은 신 기본값(⌃⌥D)으로 이관 — 사용자 기존 단축키와 충돌나기 때문.
+        // 구 기본값(⇧⌥D, keyCode 2 + cmd·shift) 저장분은 신 기본값(⌃⌥D)으로 이관 —
+        // 사용자 기존 단축키와 충돌나기 때문. 표시 문자열이 아닌 keyCode/modifiers로
+        // 비교한다 (display 표기 변형에 영향받지 않게).
         // 사용자가 직접 바꾼 값은 keyCode/modifiers가 다르므로 건드리지 않는다.
-        if defaults.string(forKey: PrefKeys.sendHotkey) == "2:2560:⇧⌥D" {
+        let legacySend = HotKeyCombo(keyCode: 2, modifiers: KeyboardUtil.shiftMask | KeyboardUtil.optionMask, displayString: "")
+        if loadedSendHotkey.matches(legacySend) {
             defaults.removeObject(forKey: PrefKeys.sendHotkey)
             self.sendHotkey = Self.defaultSendHotkey
         }

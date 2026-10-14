@@ -2,6 +2,17 @@ import SwiftUI
 import AppKit
 import ServiceManagement
 
+/// Hub 치수 단일 출처 — View frame(340×492) + 패딩(10) = popover contentSize(360×512).
+/// 한쪽만 바꾸면 팝오버에 빈틈/잘림이 생기므로 여기로만 수정한다.
+enum HubMetrics {
+    static let contentWidth: CGFloat = 340
+    static let contentHeight: CGFloat = 492
+    static let padding: CGFloat = 10
+    static var popoverSize: NSSize {
+        NSSize(width: contentWidth + padding * 2, height: contentHeight + padding * 2)
+    }
+}
+
 /// 메뉴바 Hub 팝오버 액션 — AppDelegate가 팝오버를 먼저 닫고 수행한다
 /// (PickBeon `menuAction { dismissMenu?(); work() }` 패턴).
 enum MenuHubAction {
@@ -60,15 +71,15 @@ struct MenuHubView: View {
             Divider()
             footer
         }
-        .frame(width: 340, height: 492)
+        .frame(width: HubMetrics.contentWidth, height: HubMetrics.contentHeight)
         .background(theme.primaryBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(theme.cardBorder, lineWidth: 1)
         )
-        .padding(.horizontal, 10)
-        .padding(.vertical, 10)
+        .padding(.horizontal, HubMetrics.padding)
+        .padding(.vertical, HubMetrics.padding)
     }
 
     // MARK: - 헤더 + 탭
@@ -137,7 +148,7 @@ struct MenuHubView: View {
             hubRow(icon: "macwindow",
                    title: "hub.open_panel".localized,
                    sub: "hub.open_panel.sub".localized,
-                   combo: HotKeyCombo(keyCode: 31, modifiers: KeyboardUtil.cmdMask, displayString: "⌘O")) {
+                   combo: store.toggleHotkey) {
                 onAction(.openPanel)
             }
             hubRow(icon: "plus",
@@ -169,7 +180,7 @@ struct MenuHubView: View {
                     Text("hub.open_palette.sub".localized)
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.85))
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
                 Spacer(minLength: 4)
                 Text(store.paletteHotkey.displayString)
@@ -197,40 +208,8 @@ struct MenuHubView: View {
 
     private func hubRow(icon: String, title: String, sub: String,
                        combo: HotKeyCombo?, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.blue)
-                    .frame(width: 22, height: 22)
-                    .background(Color.blue.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(theme.primaryText)
-                    Text(sub)
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.secondaryText)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 2)
-                if let combo, !combo.isEmpty {
-                    KeycapView(combo: combo)
-                }
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 7)
-            .background(theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 11))
-            .overlay(
-                RoundedRectangle(cornerRadius: 11)
-                    .stroke(theme.cardBorder, lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 11))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 12)
+        HubRowButton(icon: icon, title: title, sub: sub, combo: combo, action: action)
+            .padding(.horizontal, 12)
     }
 
     // MARK: - 최신 실행 한 줄
@@ -241,10 +220,14 @@ struct MenuHubView: View {
                 .fill(latest == nil ? theme.tertiaryText : Color.green)
                 .frame(width: 6, height: 6)
             if let latest {
-                Text("hub.latest.just".localized + " — \(latest.name)")
+                (Text("hub.latest.just".localized + " — ")
                     .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(theme.primaryText)
+                    .foregroundStyle(theme.secondaryText)
+                    + Text(latest.name)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(theme.primaryText))
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer()
                 Button { onAction(.repeatLast) } label: {
                     Image(systemName: "repeat")
@@ -265,7 +248,7 @@ struct MenuHubView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
-                .help("hub.new_shortcut.sub".localized)
+                .help("hub.latest.edit_help".localized)
             } else {
                 Text("hub.latest.none".localized)
                     .font(.system(size: 12))
@@ -338,8 +321,6 @@ struct MenuHubView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 2)
-
-            Spacer(minLength: 0)
         }
         .padding(.top, 10)
         .padding(.bottom, 4)
@@ -414,7 +395,16 @@ struct MenuHubView: View {
                 }
                 footerTap("hub.footer.settings".localized) { onAction(.openSettings) }
             case .settings:
-                footerTap("hub.footer.check_update".localized) { onAction(.checkUpdate) }
+                if let update = store.availableUpdate {
+                    Button { onAction(.checkUpdate) } label: {
+                        Text("hub.update_available".localizedFormat(update.tagName))
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(Color.orange)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    footerTap("hub.footer.check_update".localized) { onAction(.checkUpdate) }
+                }
             }
             footerTap("ui.quit".localized) { onAction(.terminate) }
         }
@@ -429,5 +419,56 @@ struct MenuHubView: View {
                 .foregroundStyle(theme.secondaryText)
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Hub 실행 행 — hover 강조 + 목업식 단일-필 키캡.
+/// KeycapView 기본(멀티캡)은 행을 키우므로 Hub에선 할당-강조 단일캡슐을 쓴다.
+private struct HubRowButton: View {
+    @Environment(\.theme) private var theme
+    let icon: String
+    let title: String
+    let sub: String
+    let combo: HotKeyCombo?
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.blue)
+                    .frame(width: 22, height: 22)
+                    .background(Color.blue.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(theme.primaryText)
+                    Text(sub)
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                Spacer(minLength: 2)
+                if let combo, !combo.isEmpty {
+                    KeycapView(combo: combo, highlighted: true)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(hovering ? theme.cardBackground.opacity(1) : theme.cardBackground.opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 11))
+            .overlay(
+                RoundedRectangle(cornerRadius: 11)
+                    .stroke(hovering ? theme.focusBorder.opacity(0.6) : theme.cardBorder, lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 11))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }

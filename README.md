@@ -32,7 +32,7 @@ ApexKey sits in your **menu bar** and lets you trigger any app's **menu command*
 
 - **App control** — launch/toggle apps, trigger any app's menu command from anywhere
 - **Workflows** — chain steps (scripts, keys, clicks, conditions, variables) into one shortcut
-- **Menu HUD** — every shortcut of the frontmost app at a glance
+- **Menu Shortcut HUD** — every shortcut of the frontmost app at a glance
 - **Automation** — time/folder/battery/charger triggers run workflows for you
 
 Supporting: system presets, command palette, clipboard history, URL scheme, themes. AI actions are not on the table.
@@ -53,7 +53,7 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 | **Automation** | Time, folder, battery and charger triggers (display, wifi, bluetooth, app: planned) |
 | **AI actions** | Use model / writing tool / image playground — **not planned**: they fail gracefully by design (see docs: AI is out of scope) |
 | **System actions** | Lock, mute, dark mode, and more via built-in presets |
-| **Menu HUD** | Fullscreen / floating view of the current app's shortcuts, with in-place submenu drill-in + breadcrumb |
+| **Menu Shortcut HUD** | Fullscreen / floating view of the current app's shortcuts, with in-place submenu drill-in + breadcrumb |
 | **Menu Bar Icons** | Grid of every status icon (even notch-hidden ones) — `⌥]` to open, click the real icon |
 | **First-launch guide** | 2-minute setup: permissions + shortcut review with instant try-it |
 | **Shortcut safety** | Warns on macOS system-shortcut conflicts (move / register anyway / cancel); recorder has a live test button |

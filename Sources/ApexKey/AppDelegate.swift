@@ -32,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var updateWindow: NSWindow?
     var hubPopover: NSPopover?
     var hubHosting: NSViewController?
+    /// 메뉴바 아이콘 그리드 비동기 열거 세대 — 닫힘/재토글 시 낡은 결과 무시용
+    var menuBarIconsGeneration = 0
     // NSWindow.contentViewController는 strong(직접 참조 유지)이지만, NSHostingController가
     // 창 dealloc보다 먼저 해제되는 것을 막기 위해 슈퍼타입으로 안전하게 보관해 둔다.
     var panelHosting: NSViewController?
@@ -90,37 +92,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        // ⌥A → 메인 패널 토글 (ConfigStore에서 발신)
-        NotificationCenter.default.publisher(for: .togglePanel)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.togglePanel()
-            }
-            .store(in: &cancellables)
-
-        // ⌥' / ⌥; → 명령 팔레트 토글 (가려진 창이면 front)
-        NotificationCenter.default.publisher(for: .togglePalette)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.togglePalette()
-            }
-            .store(in: &cancellables)
-
-        // ⌥S → Menu HUD 토글 (전면 앱 단축키 표시)
-        NotificationCenter.default.publisher(for: .toggleMenuHUD)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.toggleMenuHUD()
-            }
-            .store(in: &cancellables)
-
-        // ⌥] → 메뉴바 아이콘 그리드 토글
-        NotificationCenter.default.publisher(for: .toggleMenuBarIcons)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.toggleMenuBarIcons()
-            }
-            .store(in: &cancellables)
+        // ⌥A → 메인 패널, ⌥'/⌥; → 팔레트, ⌥S → 메뉴 단축키표, ⌥] → 아이콘 토글
+        onToggle(.togglePanel) { $0.togglePanel() }
+        onToggle(.togglePalette) { $0.togglePalette() }
+        onToggle(.toggleMenuHUD) { $0.toggleMenuHUD() }
+        onToggle(.toggleMenuBarIcons) { $0.toggleMenuBarIcons() }
 
         // 업데이트 안내 창 요청 (정보 창·메뉴바에서 발신, AppDelegate가 창 소유)
         NotificationCenter.default.publisher(for: .showUpdateSheet)
@@ -167,6 +143,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - 상태 관찰 (alwaysOnTop / menuBar / dock)
+
+    /// 토글 알림 → 액션 배선 (Combine으로 MainActor 격리 보장)
+    private func onToggle(_ name: Notification.Name, _ action: @escaping (AppDelegate) -> Void) {
+        NotificationCenter.default.publisher(for: name)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                action(self)
+            }
+            .store(in: &cancellables)
+    }
 
     private func observe(_ store: ConfigStore) {
         store.$alwaysOnTop

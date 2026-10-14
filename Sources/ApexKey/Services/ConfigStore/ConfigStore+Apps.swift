@@ -106,6 +106,23 @@ extension ConfigStore {
         return result
     }
 
+    /// 메인 목록·검색 점프 공용 필터 — AppsContentView.filteredApps와
+    /// MainWindowView.submitSearch가 같은 결과를 보게 단일 출처로 둔다.
+    func filteredVisibleApps(category: AppCategory?, query: String, showOnlyWithShortcuts: Bool) -> [AppItem] {
+        var apps = visibleApps()
+        if let category {
+            apps = apps.filter { $0.category == category }
+        }
+        if showOnlyWithShortcuts {
+            apps = apps.filter { !bindings(for: $0.id).isEmpty }
+        }
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !q.isEmpty {
+            apps = apps.filter { appMatchesSearch($0, query: q) }
+        }
+        return apps.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     func categoryOrder() -> [AppCategory] {
         AppCategory.allCases
     }

@@ -97,15 +97,9 @@ struct MainWindowView: View {
     private func submitSearch() {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
-        let query = q.lowercased()
-        // AppsContentView.filteredApps와 동일한 매칭 로직
-        var matches = store.visibleApps()
-        if showOnlyWithShortcuts {
-            matches = matches.filter { !store.bindings(for: $0.id).isEmpty }
-        }
-        matches = matches
-            .filter { store.appMatchesSearch($0, query: query) }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        // AppsContentView.filteredApps와 동일한 매칭 로직 (단일 출처).
+        // 카테고리 무관 전체 검색 — 1건이면 상세로, 여러 건이면 전체 목록 유지.
+        let matches = store.filteredVisibleApps(category: nil, query: q, showOnlyWithShortcuts: showOnlyWithShortcuts)
 
         // 여러 앱이 매칭되면 목록에서 검색 필터 유지 (상세 이동 없음)
         guard matches.count == 1, let only = matches.first else {

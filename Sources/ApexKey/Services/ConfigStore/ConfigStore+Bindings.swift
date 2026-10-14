@@ -15,8 +15,7 @@ extension ConfigStore {
 
     /// 특정 앱의 "앱 실행/토글" 단축키 (launchApp 타입)
     func launchBindings(for appID: UUID) -> [HotKeyBinding] {
-        guard let app = apps.first(where: { $0.id == appID }) else { return [] }
-        return bindings.filter { $0.actionType == .launchApp && $0.target == app.bundleID }
+        bindings(for: appID).filter { $0.actionType == .launchApp }
     }
 
     /// 앱 실행/토글 단축키 추가/교체 (이미 있으면 첫 항목만 갱신)
@@ -88,6 +87,9 @@ extension ConfigStore {
 
     func removeBinding(_ binding: HotKeyBinding) {
         bindings.removeAll { $0.id == binding.id }
+        if lastExecutedBindingID == binding.id {
+            lastExecutedBindingID = nil
+        }
         releaseComboRegistration(binding.combo, removedID: binding.id)
         guard let context = container?.mainContext else { return }
         let fetch = FetchDescriptor<PersistedBinding>(predicate: #Predicate { $0.id == binding.id })

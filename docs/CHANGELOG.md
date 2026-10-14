@@ -3,6 +3,21 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-14 macos — 리뷰 5패스 반영 (싱크·기능·성능·UI·리팩터)
+
+* **싱크** — 웹사이트 히어로 ⌥A, README(한영) 즉시 전송·메뉴 단축키표 통일,
+  체크리스트 §8-1에 ⌥;/⌃⌥D행 추가·구문 갱신.
+* **기능** — Hub 최신행·repeat 원천 일치(`lastExecutedBindingID` 갱신+삭제 정리),
+  Hub 팔레트 열기 front 보장, 설정/온보딩 테스트 버튼 `.togglePalette` 통일,
+  핫키 3종 `@Published`, HUD 푸터 ⌥S, Hub 패널행 ⌥A, 전송 이관 keyCode 비교,
+  그리드 세대 카운터+필터-빈 닫힘, 재조회 동명 근접 선택, 자사 nil 가드.
+* **성능** — 목록 필터 1회 평가+배지 카운트 주입, 행 아이콘 `AppIconCache` 재사용.
+* **UI** — Hub 단일-필 키캡+hover+이름 볼드+편집 툴팁+설정탭 배지, EN 잘림 방지,
+  필터-빈 토스트 구분.
+* **리팩터** — `shouldCloseFrontWindow`·`onToggle`·`filteredVisibleApps` 추출,
+  `launchBindings` 단일화, `postClick` 폴딩, `HubMetrics`, 데드 키 2종 삭제.
+* 검증: unit **537건 0실패**(스킵 3), i18n **1000키 일치**, 가드 통과.
+
 ## 2026-10-14 macos — 메뉴 Hub·아이콘 그리드 개선·단축키 기본값 변경
 
 * **메뉴 Hub** (`Views/MenuHubView.swift`, `AppDelegate+Hub.swift`) — 좌클릭

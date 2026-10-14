@@ -31,3 +31,13 @@ final class ToastPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
+
+extension AppDelegate {
+    /// front-aware 토글 판정 — key인 경우에만 true(닫기), 가려진 창이면 false(앞으로).
+    /// togglePanel/togglePalette/toggleMenuHUD/toggleMenuBarIcons 공용.
+    /// togglePanel 본체는 NSPanel key 판정 주석 때문에 원형을 유지한다 (동등 조건).
+    static func shouldCloseFrontWindow(_ win: NSWindow?) -> Bool {
+        guard let win, win.isVisible else { return false }
+        return win.isKeyWindow
+    }
+}

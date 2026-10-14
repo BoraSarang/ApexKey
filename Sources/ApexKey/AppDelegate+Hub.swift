@@ -24,7 +24,7 @@ extension AppDelegate {
         )
         hubHosting = hosting
         popover.contentViewController = hosting
-        popover.contentSize = NSSize(width: 360, height: 512)
+        popover.contentSize = HubMetrics.popoverSize
         popover.behavior = .transient
         popover.animates = true
         hubPopover = popover
@@ -63,6 +63,8 @@ extension AppDelegate {
         case .openPalette:
             store.paletteMode = .normal
             store.showPalette = true
+            // 이미 true면 sink가 안 타므로 직접 front 보장
+            showPalettePanel()
             Logger.info("AppDelegate", "[HUB] 명령 팔레트 열기")
         case .repeatLast:
             store.repeatLastBinding()
@@ -70,6 +72,7 @@ extension AppDelegate {
             store.paletteMode = .clipboard
             ClipboardMonitor.shared.refresh()
             store.showPalette = true
+            showPalettePanel()
             Logger.info("AppDelegate", "[HUB] 클립보드 기록 열기")
         case .menuHUD:
             toggleMenuHUD()
