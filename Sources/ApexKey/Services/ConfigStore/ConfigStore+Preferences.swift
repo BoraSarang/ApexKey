@@ -48,6 +48,8 @@ extension ConfigStore {
         static let updateFrequency = "pref.updateFrequency"
         static let updateLastChecked = "pref.updateLastChecked"
         static let didMigrateLegacyStore = "pref.didMigrateLegacyStore"
+        /// 워크플로우 목록 순서 (UUID 문자열 배열, T-192)
+        static let shortcutOrder = "pref.shortcutOrder"
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")

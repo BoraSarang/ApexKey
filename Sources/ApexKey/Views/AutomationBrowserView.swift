@@ -79,6 +79,13 @@ struct AutomationBrowserView: View {
                     .foregroundColor(theme.secondaryText)
             }
             Spacer()
+            Button {
+                showingWorkflowPicker = true
+            } label: {
+                Label("ui.automation.new".localized, systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -89,13 +96,6 @@ struct AutomationBrowserView: View {
     private var contentList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Button {
-                    showingWorkflowPicker = true
-                } label: {
-                    Label("ui.automation.new".localized, systemImage: "plus")
-                }
-                .buttonStyle(.bordered)
-
                 VStack(spacing: 8) {
                     ForEach(automatedShortcuts) { shortcut in
                         automationCard(shortcut)

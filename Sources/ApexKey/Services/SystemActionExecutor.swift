@@ -11,6 +11,7 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
     case screenSaver
     case dockRestart
     case finderRestart
+    case minimizeFrontWindow
 
     var id: String { rawValue }
 
@@ -24,6 +25,7 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .screenSaver:  return "system.action.screen_saver".localized
         case .dockRestart:  return "system.action.dock_restart".localized
         case .finderRestart: return "system.action.finder_restart".localized
+        case .minimizeFrontWindow: return "system.action.minimize".localized
         }
     }
 
@@ -37,6 +39,7 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .screenSaver:  return "sparkles.tv"
         case .dockRestart:  return "dock.rectangle"
         case .finderRestart: return "folder"
+        case .minimizeFrontWindow: return "arrow.down.right.and.arrow.up.left"
         }
     }
 }
@@ -58,7 +61,8 @@ enum SystemActionExecutor {
         .displaySleep: "do shell script \"pmset displaysleepnow\"",
         .screenSaver: "do shell script \"open -a ScreenSaverEngine\"",
         .dockRestart: "do shell script \"killall Dock\"",
-        .finderRestart: "do shell script \"killall Finder\""
+        .finderRestart: "do shell script \"killall Finder\"",
+        .minimizeFrontWindow: "tell application \"System Events\" to keystroke \"m\" using command down"
     ]
 
     /// 시스템 동작 실행. 성공 여부 반환.

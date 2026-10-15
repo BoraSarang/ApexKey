@@ -167,6 +167,8 @@ struct StepSettingsView: View {
             TextActionSettingsView(step: $draft)
         case .comment:
             CommentSettingsView(step: $draft)
+        case .menuCommand:
+            MenuCommandSettingsView(step: $draft)
         case .system:
             // 프리셋 선택지 — 스크립트 표시·수정 없음 (선택=프리셋 ID)
             SystemPresetPickerView(step: $draft)

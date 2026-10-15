@@ -11,6 +11,7 @@ struct ShortcutStationView: View {
     @State private var recordingComboFor: ShortcutItem?
     @State private var runningShortcutID: UUID?
     @State private var pendingDeletion: ShortcutItem?
+    @State private var dropTargetID: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -23,14 +24,6 @@ struct ShortcutStationView: View {
                         .foregroundColor(theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Button {
-                        creatingShortcut = true
-                        newShortcutName = ""
-                    } label: {
-                        Label("ui.station.new_shortcut".localized, systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-
                     if store.shortcuts.isEmpty {
                         Text("ui.station.empty".localized)
                             .font(.caption)
@@ -38,8 +31,22 @@ struct ShortcutStationView: View {
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
                             VStack(spacing: 8) {
-                                ForEach(store.shortcuts) { shortcut in
+                                ForEach(Array(store.shortcuts.enumerated()), id: \.element.id) { index, shortcut in
                                     shortcutCard(shortcut)
+                                        .opacity(dropTargetID == shortcut.id ? 0.4 : 1.0)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.accentColor.opacity(dropTargetID == shortcut.id ? 0.6 : 0), lineWidth: 1)
+                                        )
+                                        .draggable(shortcut.id.uuidString)
+                                        .dropDestination(for: String.self) { items, _ in
+                                            guard let s = items.first,
+                                                  let dest = StepReorder.dropDestination(fromIDString: s, onto: index, in: store.shortcuts) else { return false }
+                                            store.moveShortcuts(from: dest.from, to: dest.to)
+                                            return true
+                                        } isTargeted: { targeted in
+                                            dropTargetID = targeted ? shortcut.id : nil
+                                        }
                                 }
                             }
                         }
@@ -112,6 +119,14 @@ struct ShortcutStationView: View {
                     .foregroundColor(theme.secondaryText)
             }
             Spacer()
+            Button {
+                creatingShortcut = true
+                newShortcutName = ""
+            } label: {
+                Label("ui.station.new_shortcut".localized, systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

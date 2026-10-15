@@ -268,6 +268,35 @@ final class ActionExecutor {
         LaunchConfigCodec.encode(config)
     }
 
+    // MARK: - 파일 열기 (T-188: 특정 앱 지정)
+
+    /// 파일 열기. 앱 번들ID가 비어 있으면 기본앱 (기존 동작).
+    /// 지정됐으면 `NSWorkspace.open URLs withApplicationAt`으로 해당 앱으로 연다.
+    @discardableResult
+    static func openFile(path: String, withAppBundleID bundleID: String?) -> Bool {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, FileManager.default.fileExists(atPath: trimmed) else {
+            Logger.error("E-MAC-ACT-3003", "파일 없음: \(trimmed)")
+            return false
+        }
+        let url = URL(fileURLWithPath: trimmed)
+        let appID = bundleID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !appID.isEmpty else {
+            NSWorkspace.shared.open(url)
+            Logger.info("ActionExecutor", "파일 열기 (기본앱): \(trimmed)")
+            return true
+        }
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appID) else {
+            Logger.error("E-MAC-APP-4001", "앱 없음 (파일 열기): \(appID)")
+            return false
+        }
+        let conf = NSWorkspace.OpenConfiguration()
+        conf.activates = true
+        NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: conf)
+        Logger.info("ActionExecutor", "파일 열기 (\(appID)): \(trimmed)")
+        return true
+    }
+
     // MARK: - 키 조합 보내기 (keyCombo)
 
     /// target 형식 "keyCode:modifiers" (Carbon 값, 예: ⌥⌘L = "37:2304") 파싱.

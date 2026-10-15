@@ -97,6 +97,18 @@ struct DefaultSettingsView: View {
         }
     }
     
+    private var fileAppBinding: Binding<String> {
+        Binding(
+            get: { FileOpenConfig.decode(from: step.actionParameters).appBundleID ?? "" },
+            set: {
+                var cfg = FileOpenConfig.decode(from: step.actionParameters)
+                let v = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                cfg.appBundleID = v.isEmpty ? nil : v
+                step.actionParameters = cfg.encode()
+            }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(step.type.displayName)
@@ -133,6 +145,12 @@ struct DefaultSettingsView: View {
                         }
                     }
                 }
+                Text("file.open_with.app".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                TextField("file.open_with.hint".localized, text: fileAppBinding)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
             } else {
                 Text("ui.step_settings.target_value".localized)
                     .font(.caption)

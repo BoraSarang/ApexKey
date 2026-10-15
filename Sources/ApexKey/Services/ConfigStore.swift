@@ -447,6 +447,7 @@ final class ConfigStore: ObservableObject {
             }
         }
         shortcuts = persistedShortcuts.map { $0.toShortcut() }
+        applyShortcutOrder()
         // 시딩(설치 앱 자동 로드)은 테스트에서 비활성화한다 (E-MAC-STORE-5009).
         // 비활성화해도 `pruneRemovedApps()`는 **항상** 돈다 — 경로가 사라진 앱과
         // 그 고아 핫키를 정리하는 정합성 로직이라 시딩과 무관하다.
