@@ -13,6 +13,7 @@
 * **T-191 새 워크플로우 버튼 헤더 이동** — 목록 상단 파란 버튼을 헤더(워크플로우 타이틀 우측)로 이동. `ShortcutStationView.swift` header.
 * **T-192 워크플로우 목록 드래그** — 카드 드래그로 리스트 순서 변경. 순서는 스키마 변경 없이 `pref.shortcutOrder`(UserDefaults ID 배열)에 영속, 로드 시 복원. `ConfigStore+ShortcutOrder.swift` + `ShortcutOrderTests` 3건. 검증 550건 0실패.
 * **T-193 새 자동화 버튼 헤더 이동** — T-191과 동일. 목록 상단 버튼을 헤더 우측으로, 빈 상태 버튼은 유지 (비어 있을 땐 두 곳). `AutomationBrowserView.swift` header.
+* **T-194 윈도우 타일링 프리셋 6종** — 좌/우 40·50·60. `SystemActionType` 9→15종, `WindowTiling.script` 생성 + 테스트 2건. 첫 배포에서 Finder 경유로 실패(E-MAC-SYS-8007) → 화면 크기는 `NSScreen`으로 구해 숫자로 주입, 스크립트는 System Events만(메뉴 명령과 동일 권한 경로). 검증 552건 0실패 · i18n 1013키.
 * IINA 시나리오: ① launchApp ② 파일+앱 지정 ③ 메뉴/AppleScript ④ 최소화, 사이 `wait` 권장. ③ 실메뉴 선택은 접근성 권한 + 앱 실행 필요.
 
 ## 2026-10-14 macos — 리뷰 5패스 반영 (싱크·기능·성능·UI·리팩터)

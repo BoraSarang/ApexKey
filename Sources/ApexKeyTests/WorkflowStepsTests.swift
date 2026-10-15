@@ -90,4 +90,24 @@ final class WorkflowStepsTests: XCTestCase {
         XCTAssertFalse(type.systemImage.isEmpty)
         XCTAssertTrue(SystemActionType.allCases.contains(type))
     }
+
+    // MARK: - T-194 윈도우 타일링 프리셋
+
+    func testTilingScriptContainsPercentAndSide() {
+        let left = WindowTiling.script(side: .left, percent: 60, screenWidth: 3000, screenHeight: 2000)
+        XCTAssertTrue(left.contains("set position of frontWin to {0, 25}"))
+        XCTAssertTrue(left.contains("set size of frontWin to {1800, 1975}"))
+        XCTAssertFalse(left.contains("Finder"))
+        let right = WindowTiling.script(side: .right, percent: 40, screenWidth: 3000, screenHeight: 2000)
+        XCTAssertTrue(right.contains("set position of frontWin to {1800, 25}"))
+        XCTAssertTrue(right.contains("set size of frontWin to {1200, 1975}"))
+    }
+
+    func testTilingTypeMapping() {
+        XCTAssertEqual(SystemActionType.windowLeft60.tilingPercent, 60)
+        XCTAssertEqual(SystemActionType.windowRight40.tilingPercent, 40)
+        XCTAssertTrue(SystemActionType.windowLeft50.isWindowTiling)
+        XCTAssertFalse(SystemActionType.lock.isWindowTiling)
+        XCTAssertNil(SystemActionType.lock.tilingPercent)
+    }
 }

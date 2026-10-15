@@ -12,6 +12,12 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
     case dockRestart
     case finderRestart
     case minimizeFrontWindow
+    case windowLeft40
+    case windowLeft50
+    case windowLeft60
+    case windowRight40
+    case windowRight50
+    case windowRight60
 
     var id: String { rawValue }
 
@@ -26,6 +32,12 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .dockRestart:  return "system.action.dock_restart".localized
         case .finderRestart: return "system.action.finder_restart".localized
         case .minimizeFrontWindow: return "system.action.minimize".localized
+        case .windowLeft40:  return "system.action.window_left_40".localized
+        case .windowLeft50:  return "system.action.window_left_50".localized
+        case .windowLeft60:  return "system.action.window_left_60".localized
+        case .windowRight40: return "system.action.window_right_40".localized
+        case .windowRight50: return "system.action.window_right_50".localized
+        case .windowRight60: return "system.action.window_right_60".localized
         }
     }
 
@@ -40,12 +52,76 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
         case .dockRestart:  return "dock.rectangle"
         case .finderRestart: return "folder"
         case .minimizeFrontWindow: return "arrow.down.right.and.arrow.up.left"
+        case .windowLeft40, .windowLeft50, .windowLeft60:
+            return "rectangle.lefthalf.filled"
+        case .windowRight40, .windowRight50, .windowRight60:
+            return "rectangle.righthalf.filled"
+        }
+    }
+
+    /// 윈도우 타일링 여부 (T-194)
+    var isWindowTiling: Bool {
+        switch self {
+        case .windowLeft40, .windowLeft50, .windowLeft60,
+             .windowRight40, .windowRight50, .windowRight60:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// 타일링 비율 (왼쪽/오른쪽 %). 타일링이 아니면 nil.
+    var tilingPercent: Int? {
+        switch self {
+        case .windowLeft40, .windowRight40: return 40
+        case .windowLeft50, .windowRight50: return 50
+        case .windowLeft60, .windowRight60: return 60
+        default: return nil
+        }
+    }
+
+    /// 타일링 방향. 타일링이 아니면 nil.
+    var tilingSide: WindowTiling.TilingSide? {
+        switch self {
+        case .windowLeft40, .windowLeft50, .windowLeft60: return .left
+        case .windowRight40, .windowRight50, .windowRight60: return .right
+        default: return nil
         }
     }
 }
 
+/// 전면 창 타일링 스크립트 생성 (T-194, 순수 — 단위테스트 대상).
+///
+/// 화면 크기는 호출부(Swift, `NSScreen` — 권한 불필요)가 넣어준다.
+/// AppleScript 안에서 `Finder`를 건드리면 Automation 권한이 하나 더 필요해
+/// (`NSAppleScript` 프로세스 내 실행) 실패하므로, 스크립트는 이미 허용된
+/// System Events(메뉴 명령과 동일 경로)에만 의존한다.
+enum WindowTiling {
+    enum TilingSide { case left, right }
+
+    static func script(side: TilingSide, percent: Int, screenWidth: Int, screenHeight: Int) -> String {
+        let tileW = (screenWidth * percent) / 100
+        let x: Int
+        switch side {
+        case .left: x = 0
+        case .right: x = screenWidth - tileW
+        }
+        return """
+        tell application "System Events"
+          set frontProc to first application process whose frontmost is true
+          tell frontProc
+            set frontWin to first window
+            set position of frontWin to {\(x), 25}
+            set size of frontWin to {\(tileW), \(screenHeight - 25)}
+          end tell
+        end tell
+        """
+    }
+}
+
 enum SystemActionExecutor {
-    /// 기본 AppleScript (8종) — 고정 프리셋. 수정 불가 (프리셋 선택지만 제공한다).
+    /// 기본 AppleScript — 고정 프리셋. 수정 불가 (프리셋 선택지만 제공한다).
+    /// 윈도우 타일링 6종은 `WindowTiling.script`로 생성 (위 execute 분기).
     private static let defaultAppleScripts: [SystemActionType: String] = [
         .lock: "tell application \"System Events\" to keystroke \"q\" using {control down, command down}",
         .mute: """
@@ -71,6 +147,17 @@ enum SystemActionExecutor {
         if type == .mute {
             // AppleScript 없는 순수 볼륨 토글
             return toggleMute()
+        }
+        if let side = type.tilingSide, let percent = type.tilingPercent {
+            guard let frame = NSScreen.main?.frame, frame.width > 0, frame.height > 25 else {
+                Logger.error("E-MAC-SYS-8007", "화면 크기 조회 실패 — 타일링 취소")
+                return false
+            }
+            let script = WindowTiling.script(
+                side: side, percent: percent,
+                screenWidth: Int(frame.width), screenHeight: Int(frame.height)
+            )
+            return runAppleScript(script, action: type)
         }
         let script = defaultAppleScripts[type] ?? "" 
         guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }

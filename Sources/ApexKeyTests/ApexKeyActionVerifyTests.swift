@@ -113,9 +113,9 @@ final class ApexKeyActionVerifyTests: XCTestCase {
 
     // MARK: - SYSTEM (시스템 프리셋)
 
-    /// V-SYS-02: 시스템 액션 9종이 타입·이름·아이콘을 모두 갖춤 (목록 누락 방지)
+    /// V-SYS-02: 시스템 액션 15종이 타입·이름·아이콘을 모두 갖춤 (목록 누락 방지)
     func testVerifySystemActionCatalogComplete() {
-        XCTAssertEqual(SystemActionType.allCases.count, 9)
+        XCTAssertEqual(SystemActionType.allCases.count, 15)
         for type in SystemActionType.allCases {
             XCTAssertFalse(type.displayName.isEmpty, "\(type.rawValue) 이름 누락")
             XCTAssertFalse(type.systemImage.isEmpty, "\(type.rawValue) 아이콘 누락")
