@@ -17,6 +17,7 @@ extension ConfigStore {
         context.insert(PersistedShortcut.from(shortcut))
         saveContext(context)
         shortcuts.append(shortcut)
+        persistShortcutOrder()
         Logger.info("ConfigStore", "[SHORTCUT] 동작 생성: \(trimmed)")
         return shortcut
     }
@@ -27,6 +28,7 @@ extension ConfigStore {
         }
         AutomationManager.shared.unregister(shortcutID: shortcut.id)
         shortcuts.removeAll { $0.id == shortcut.id }
+        persistShortcutOrder()
         if lastExecutedBindingID == shortcut.id {
             lastExecutedBindingID = nil
         }

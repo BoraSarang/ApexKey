@@ -184,6 +184,8 @@ struct BlockStepRowView: View {
     let nestingLevel: Int
     
     var onSelect: (() -> Void)?
+    var onMoveUp: (() -> Void)?
+    var onMoveDown: (() -> Void)?
     @Environment(\.theme) private var theme
     
     var body: some View {
@@ -195,6 +197,8 @@ struct BlockStepRowView: View {
                 totalSteps: totalSteps,
                 isEditing: isEditing,
                 isSelected: false,
+                onMoveUp: onMoveUp,
+                onMoveDown: onMoveDown,
                 onSelect: onSelect
             )
             
@@ -293,6 +297,7 @@ struct StepListView: View {
     let steps: [ShortcutStep]
     let isEditing: Bool
     @Binding var selectedStepID: UUID?
+    @State private var dropTargetID: UUID?
     
     var onMove: ((IndexSet, Int) -> Void)?
     var onDelete: ((IndexSet) -> Void)?
@@ -315,7 +320,8 @@ struct StepListView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
                             VStack(spacing: 0) {
-                                // 단계 행
+                                // 단계 행 (드래그 modifier용 Group 래퍼)
+                                Group {
                                 if step.isBlockStructure {
                                     BlockStepRowView(
                                         step: step,
@@ -323,7 +329,9 @@ struct StepListView: View {
                                         totalSteps: steps.count,
                                         isEditing: isEditing,
                                         nestingLevel: 0,
-                                        onSelect: { handleSelect(step) }
+                                        onSelect: { handleSelect(step) },
+                                        onMoveUp: { onMove?([index], index - 1) },
+                                        onMoveDown: { if let dest = StepReorder.moveDownDestination(from: index, count: steps.count) { onMove?([index], dest) } }
                                     )
                                 } else {
                                     StepRowView(
@@ -333,12 +341,28 @@ struct StepListView: View {
                                         isEditing: isEditing,
                                         isSelected: selectedStepID == step.id,
                                         onMoveUp: { onMove?([index], index - 1) },
-                                        onMoveDown: { onMove?([index], index + 1) },
+                                        onMoveDown: { if let dest = StepReorder.moveDownDestination(from: index, count: steps.count) { onMove?([index], dest) } },
                                         onDelete: { onDelete?([index]) },
                                         onDuplicate: { onDuplicate?(index) },
                                         onSelect: { handleSelect(step) },
                                         onToggleSkip: { onToggleSkip?(index) }
                                     )
+                                }
+                                }
+                                .opacity(dropTargetID == step.id ? 0.4 : 1.0)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.accentColor.opacity(dropTargetID == step.id ? 0.6 : 0), lineWidth: 1)
+                                )
+                                .ifEditingDraggable(isEditing: isEditing, id: step.id)
+                                .dropDestination(for: String.self) { items, _ in
+                                    guard isEditing,
+                                          let s = items.first,
+                                          let dest = StepReorder.dropDestination(fromIDString: s, onto: index, steps: steps) else { return false }
+                                    onMove?(dest.from, dest.to)
+                                    return true
+                                } isTargeted: { targeted in
+                                    dropTargetID = targeted ? step.id : nil
                                 }
                                 
                                 // 연결선
@@ -368,5 +392,55 @@ struct StepListView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 40)
+    }
+}
+
+// MARK: - 단계 순서 변경 순수 로직 (T-190, 단위테스트 대상)
+
+// Array.move(fromOffsets:toOffset:) 의미의 목적지 계산.
+// toOffset은 원본 배열 기준이며, 제거된 앞쪽 원소 수만큼 밀린다.
+// 실측: [A,B,C] move([0],1) == 제자리, move([0],2) == 아래로 한 칸.
+enum StepReorder {
+    /// 아래 화살표 목적지. 마지막 행이면 nil (버튼 disabled와 동일 조건).
+    static func moveDownDestination(from index: Int, count: Int) -> Int? {
+        guard index < count - 1 else { return nil }
+        return index + 2
+    }
+
+    /// 드롭 목적지. 같은 자리면 nil.
+    /// - Returns: (fromOffsets, toOffset)
+    static func dropDestination(from: Int, onto index: Int) -> (from: IndexSet, to: Int)? {
+        guard from != index else { return nil }
+        return (IndexSet([from]), from < index ? index + 1 : index)
+    }
+
+    /// ID 문자열 기준 드롭 목적지 (View 배선용).
+    static func dropDestination<T: Identifiable>(fromIDString s: String, onto index: Int, in items: [T]) -> (from: IndexSet, to: Int)? where T.ID == UUID {
+        guard let from = items.firstIndex(where: { $0.id.uuidString == s }) else { return nil }
+        return dropDestination(from: from, onto: index)
+    }
+
+    /// ID 문자열 기준 드롭 목적지 (단계 행 배선용).
+    static func dropDestination(fromIDString s: String, onto index: Int, steps: [ShortcutStep]) -> (from: IndexSet, to: Int)? {
+        dropDestination(fromIDString: s, onto: index, in: steps)
+    }
+}
+
+extension View {
+    /// 편집 모드일 때만 드래그 가능하게 한다.
+    @ViewBuilder
+    func ifEditingDraggable(isEditing: Bool, id: UUID) -> some View {
+        if isEditing {
+            self.draggable(id.uuidString) {
+                Text(id.uuidString.prefix(8))
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+        } else {
+            self
+        }
     }
 }

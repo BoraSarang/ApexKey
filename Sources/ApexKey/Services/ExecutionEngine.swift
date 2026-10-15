@@ -379,7 +379,10 @@ final class ExecutionEngine {
             
         case .outputToVariable:
             return executeOutputToVariable(step, context: &context)
-            
+
+        case .file:
+            return executeFile(step, context: &context)
+
         default:
             // 일반 액션은 변수 토큰 치환 후 실행, 실패는 성공으로 둔팝시키지 않고 전파 (R-01)
             var binding = step.toBinding()
@@ -687,7 +690,24 @@ final class ExecutionEngine {
         }
         return .continueRunning
     }
-    
+
+    // MARK: - 파일 열기 (T-188)
+
+    private func executeFile(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let ctx = makeResolveContext(context)
+        let path = VariableResolver.resolveText(step.target, context: ctx)
+        let cfg = FileOpenConfig.decode(from: step.actionParameters)
+        let rawApp = cfg.appBundleID ?? ""
+        let appID = VariableResolver.resolveText(rawApp, context: ctx)
+        let ok = ActionExecutor.openFile(path: path, withAppBundleID: appID)
+        context.setOutput(.text(path), for: step.id)
+        context.lastOutput = .text(path)
+        if !ok {
+            return Result(success: false, controlFlow: .continueExecution, error: "toast.reason.file_missing".localized)
+        }
+        return .continueRunning
+    }
+
     // MARK: - 셸 스크립트
 
     /// 스크립트 단계 실행 — 변수 토큰({마법변수} 등)을 해석한 뒤 셸에서 실행

@@ -3,6 +3,19 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-15 macos — 워크플로우 3종 (T-187 메뉴 피커·T-188 특정앱 열기·T-189 최소화)
+
+* **T-187 메뉴 명령 피커 (T-036 실구현)** — `Views/StepSettings/MenuCommandSettingsView.swift` 신규. 앱 피커 → 메뉴 트리 선택으로 `target=번들ID`+`title`+`menuPath` 저장. `StepSettingsView`에 `.menuCommand` 배선. `MenuCommandSelection.apply` 순수 로직 + 테스트 2건.
+* **T-188 특정 앱으로 열기** — `Models/FileOpenConfig.swift` (`actionParameters` JSON, Step 필드 추가 없음). `ActionExecutor.openFile(path:withApp:)` + `ExecutionEngine.executeFile` 신설. 파일 설정에 앱 번들ID 입력란. 테스트 3건.
+* **T-189 최소화** — `SystemActionType.minimizeFrontWindow` 추가 (8→9, `Services/SystemActionExecutor.swift:5`). 전면 앱에 ⌘M. 카운트 테스트 갱신.
+* 검증: unit **544건 0실패**(3 skip, 신규 7건) · `check-localizable` 통과 · i18n **1007키** · 클린빌드 신규 경고 0 (기존 AppIcon/Combine/NSEvent 경고만).
+* **T-190 순서 변경** — 아래 화살표가 제자리로 돌아오던 버그(move([i],i+1)는 무연산, 실측) 수정 → index+2. 햄버거 드래그 정식 구현(draggable+dropDestination, 편집모드만, 블록행 포함). StepReorder 순수 로직 + 테스트 3건. JXA 1건은 전수에서만 실패·격리 통과하는 기존 환경성 flake.
+* **T-191 새 워크플로우 버튼 헤더 이동** — 목록 상단 파란 버튼을 헤더(워크플로우 타이틀 우측)로 이동. `ShortcutStationView.swift` header.
+* **T-192 워크플로우 목록 드래그** — 카드 드래그로 리스트 순서 변경. 순서는 스키마 변경 없이 `pref.shortcutOrder`(UserDefaults ID 배열)에 영속, 로드 시 복원. `ConfigStore+ShortcutOrder.swift` + `ShortcutOrderTests` 3건. 검증 550건 0실패.
+* **T-193 새 자동화 버튼 헤더 이동** — T-191과 동일. 목록 상단 버튼을 헤더 우측으로, 빈 상태 버튼은 유지 (비어 있을 땐 두 곳). `AutomationBrowserView.swift` header.
+* **T-194 윈도우 타일링 프리셋 6종** — 좌/우 40·50·60. `SystemActionType` 9→15종, `WindowTiling.script` 생성 + 테스트 2건. 첫 배포에서 Finder 경유로 실패(E-MAC-SYS-8007) → 화면 크기는 `NSScreen`으로 구해 숫자로 주입, 스크립트는 System Events만(메뉴 명령과 동일 권한 경로). 검증 552건 0실패 · i18n 1013키.
+* IINA 시나리오: ① launchApp ② 파일+앱 지정 ③ 메뉴/AppleScript ④ 최소화, 사이 `wait` 권장. ③ 실메뉴 선택은 접근성 권한 + 앱 실행 필요.
+
 ## 2026-10-14 macos — 리뷰 5패스 반영 (싱크·기능·성능·UI·리팩터)
 
 * **싱크** — 웹사이트 히어로 ⌥A, README(한영) 즉시 전송·메뉴 단축키표 통일,
