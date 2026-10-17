@@ -38,7 +38,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>ApexKey가 다른 앱의 메뉴 명령을 실행하기 위해 시스템 이벤트 접근이 필요합니다.</string>
+	<string>ApexKey가 파인더·터미널 등 다른 앱을 제어하기 위해 자동화 접근이 필요합니다.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>NSPrincipalClass</key>

@@ -383,6 +383,9 @@ final class ExecutionEngine {
         case .file:
             return executeFile(step, context: &context)
 
+        case .openInTerminal:
+            return executeOpenInTerminal(step, context: &context)
+
         default:
             // 일반 액션은 변수 토큰 치환 후 실행, 실패는 성공으로 둔팝시키지 않고 전파 (R-01)
             var binding = step.toBinding()
@@ -708,7 +711,32 @@ final class ExecutionEngine {
         return .continueRunning
     }
 
-    // MARK: - 셸 스크립트
+    // MARK: - 터미널에서 열기 (T-195)
+
+    /// `target` = 명시 경로(비우면 파인더에서 읽기), `actionParameters` = TerminalOpenConfig
+    private func executeOpenInTerminal(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {
+        let ctx = makeResolveContext(context)
+        let path = VariableResolver.resolveText(step.target, context: ctx)
+        let config = TerminalOpenConfig.decode(from: step.actionParameters)
+        let appID = VariableResolver.resolveText(config.appBundleID ?? "", context: ctx)
+        let result = ActionExecutor.openInTerminal(
+            path: path,
+            appBundleID: appID,
+            openInNewTab: config.openInNewTab
+        )
+        // 열린 폴더를 출력으로 남긴다 — 다음 단계가 같은 경로를 쓸 수 있다 (실패 시엔 빈 값)
+        let output = result.path ?? ""
+        context.setOutput(.text(output), for: step.id)
+        context.lastOutput = .text(output)
+        if !result.success {
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: result.message ?? "toast.reason.terminal_open_failed".localized
+            )
+        }
+        return .continueRunning
+    }
 
     /// 스크립트 단계 실행 — 변수 토큰({마법변수} 등)을 해석한 뒤 셸에서 실행
     private func executeShellScript(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext) -> Result {

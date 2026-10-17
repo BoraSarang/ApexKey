@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Apple Events(자동화) — E-MAC-TERM-8101 / E-MAC-SCRIPT-6001
+	     하드닝 런타임(ENABLE_HARDENED_RUNTIME: YES)에서는 이 키가 없으면
+	     AppleEvent 전송이 **사용자 프롬프트 없이** errAEEventNotPermitted(-1743)로
+	     거부된다(tccd에 요청 기록조차 남지 않는다). 실측: 2026-10-17, macOS 26.
+	     값은 반드시 <true/> — 문자열 "YES"는 invalid entitlement로 실패한다.
+	     영향 범위: 파인더 폴더 읽기, 새 탭 열기, System Events 메뉴 클릭, AppleScript/JXA 액션. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>

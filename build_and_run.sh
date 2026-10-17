@@ -140,8 +140,20 @@ info "설치 완료: ${INSTALL_DIR}/${APP_NAME}.app"
 # ── 4. 현지화 검증 ──────────────────────────────────
 info "4/5: 현지화 검증 (애펙스키)..."
 if [ -e "${INSTALL_DIR}/${APP_NAME}.app/Contents/Resources/ko.lproj/InfoPlist.strings" ]; then
-  name=$(mdls -name kMDItemDisplayName "${INSTALL_DIR}/${APP_NAME}.app" 2>/dev/null | awk -F' = ' '{print $2}')
-  info "kMDItemDisplayName = ${name}"
+  # E-MAC-BUILD-0001: `mdls`는 Spotlight 인덱싱이 꺼진 머신에서 **항상 exit 1**을 낸다.
+  # `set -e` 아래에서 `name=$(mdls ...)`가 실패하면 스크립트가 **5단계(재시작) 전에 조용히 종료**되어
+  # "빌드했는데 예전 앱이 계속 돌고 있는" 상태가 된다(실측: `mdutil -s /` = Indexing disabled).
+  # 따라서 여기서는 실패를 삼키지 않고 **대체 경로로 읽고, 못 읽으면 그 사실을 표시**한다.
+  name=$(mdls -name kMDItemDisplayName "${INSTALL_DIR}/${APP_NAME}.app" 2>/dev/null | awk -F' = ' '{print $2}') || true
+  if [ -z "$name" ]; then
+    name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" \
+      "${INSTALL_DIR}/${APP_NAME}.app/Contents/Resources/ko.lproj/InfoPlist.strings" 2>/dev/null) || true
+  fi
+  if [ -n "$name" ]; then
+    info "앱 표시 이름 = ${name}"
+  else
+    warn "앱 표시 이름 확인 불가 (Spotlight 비활성) — 재시작은 계속 진행한다"
+  fi
 else
   warn "ko.lproj/InfoPlist.strings 미존재 (현지화 미반영 가능)"
 fi

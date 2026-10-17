@@ -3,6 +3,29 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-17 macos — 터미널에서 열기 (T-195, `E-MAC-TERM-81xx`)
+
+* **신규 액션 `openInTerminal`** — 파인더에서 고른 폴더를 iTerm2/터미널에서 연다. 카탈로그 essential 1종 추가(153→154).
+* **Finder 경로는 AppleScript(Finder 자동화)로 읽는다** — `Services/FinderPathProvider.swift`. `target of front window`(현재 창 폴더) + `selection`(선택)을 **NUL 구분자 한 번의 스크립트**로 받는다(경로에 `\n`이 들어갈 수 있어 줄바꿈 구분은 unsafe). 초판의 AX 구현은 **폐기** — 실측 결과 이 macOS의 Finder 창은 현재 폴더를 `AXDocument`로 주지 않고(`kAXErrorNoValue(-25212)`) 행/셀에는 `AXURL`·`AXDocument`·`AXFilename` 속성이 **없어** 절대 경로를 만들 수 없다. 얻을 수 있는 것은 폴더 표시 이름(`AXTitle`="Files")과 파일 이름뿐이었다.
+* **근본 원인 수정 — 하드닝 런타임 자동화 엔타이틀먼트 누락 (`E-MAC-TERM-8101`, 프로젝트 전역)** — `ENABLE_HARDENED_RUNTIME: YES`인데 `com.apple.security.automation.apple-events`가 없어 AppleEvent 전송이 **사용자 프롬프트 없이** `-1743`(`errAEEventNotPermitted`)으로 거부되고 있었다. tccd 로그의 결정적 증거: `Policy disallows prompt for com.borasarang.ApexKey; access to kTCCServiceAppleEvents denied` — **요청이 TCC에 도달조차 못 했다.** 신규 `Sources/ApexKey/ApexKey.entitlements`(`<true/>` — 문자열 `"YES"`는 invalid entitlement로 실패) + `project.yml`의 `CODE_SIGN_ENTITLEMENTS`.
+  * **파급 범위(같은 원인으로 조용히 깨져 있던 기능)**: System Events 메뉴 클릭(T-187·T-194 타일링), AppleScript/JXA 액션, 새 탭 열기. 프로브 실측: 엔타이틀먼트 이전 `System Events`·`Finder` 둘 다 `-1743`, 이후 둘 다 성공. T-194가 "Finder 경유 타일링 실패 → NSScreen 우회"로 남긴 우회는 **원인을 잘못 짚은 것이 아니었지만 진단이 틀렸다** — 권한은 있었고 엔타이틀먼트가 없었다.
+* **`NSAppleEventsUsageDescription` 문구 확장** — "다른 앱의 메뉴 명령" → "파인더·터미널 등 다른 앱을 제어"(실제 사용 범위 반영, `project.yml` + `Info.plist` 동기화).
+* **규칙: 선택 우선 → 현재 창** — 선택에 폴더가 있으면 그 폴더, 파일만 있으면 상위 폴더, 선택이 없으면 현재 창 폴더 (`resolveFolder` 순수 함수 + 테스트 5건).
+* **여는 방식** — 새 창은 `NSWorkspace.open(_:withApplicationAt:)`(터미널 앱이 폴더 열기를 직접 처리 → **Automation 권한 불필요**), 새 탭은 AppleScript(`create tab`/`do script` → 권한 필요, 실패 시 사유 토스트).
+* **저장 스키마 무변경** — `Models/TerminalOpenConfig.swift`(`appBundleID`·`openInNewTab`)를 `actionParameters` JSON에 저장, 관대 디코딩 유지 (E-MAC-STORE-5008).
+* **중복 제거** — `Utils/AppleScriptLiteral.swift` 신설, `MenuEnumerator.appleScriptQuoted` 위임.
+* UI: `Views/StepSettings/TerminalOpenSettingsView.swift`(앱·방식·경로 + 안내) + `StepSettingsView` 라우팅. i18n 19키 추가 후 1키 추가(1013→1033, ko/en 일치) — 파인더 경로 읽기에 자동화 승인이 필요하다는 사전 안내.
+* 검증: unit **573건 0실패**(3 skip, 신규 21건) · smoke 75건 0실패 · `check-localizable` 통과 · 클린빌드 **신규 경고 0**(기존 AppIcon/Combine/NSEvent 경고 4건만, 이번 변경과 무관) · AppleScript는 `osacompile`로 문법 검증 · **라이브 실측** `folder=/Users/lee/Documents/Files/Qwen2.5-32B`(선택 우선 규칙 일치).
+* **문서 정정** — STATUS의 카탈로그 수치가 코드 실측과 어긋나 있었다(문서 162/구현 59 ↔ 코드 153/51). 실측값으로 정정: **154종 / 구현 52 / 스텁 3 / 미구현 99**.
+* **워크플로우 1건을 사용자 저장소에 직접 등록 (사용자 요청)** — 앱에서 30초에 만들 수도 있지만 사용자가 직접 수정을 선택. 작업 순서: **ApexKey 종료 → `sqlite3 .backup` + 파일 복사 백업 → 실제 행(Z_PK=25) 대조 → 삽입 → 검증 → 앱 재시작**.
+  * 등록 내용: 이름 `터미널에서 열기`, 단계 1개(`openInTerminal`, `target=""`=파인더에서 읽기, `TerminalOpenConfig{appBundleID: com.googlecode.iterm2, openInNewTab: false}`), 단축키 **⌥⌃T**(keyCode 17 / modifiers 6144 = Carbon ⌥2048+⌃4096 — 기존 앱 콤보와 충돌 없음, ⌥ 단독 글로벌 핫키 5종과도 무관).
+  * **이후 사용자가 UI에서 자기 단축키로 변경** — 2026-10-17 저장소 실측: `ZHOTKEYKEYCODE=14`·`ZCOMBOMODIFIERS=2048`·`ZCOMBODISPLAYSTRING=⌥E`(⌥E), 터미널 앱은 자동(iTerm2 우선)으로 정리, `ZRUNCOUNT=4`. 즉 등록값은 초깃값일 뿐이고 **단축키는 사용자 선택**이다.
+  * blob은 **Swift `JSONEncoder`로 생성**해 삽입했다. 손으로 흉내내면 `\/` 이스케이프·Data→base64·`.sortedKeys` 순서·UUID 대문자에서 틀린다. **대조군 검증**: 기존 행(Z_PK=25)을 같은 인코더로 재현해 DB 텍스트와 **바이트 단위 일치**를 확인한 뒤 실제 blob을 생성했다.
+  * 삽입 중 **`X''` 인자 순서를 컬럼 순서와 한 칸 어긋나게 넣어 `ZPERMISSIONSDATA`↔`ZSTEPSDATA`가 뒤바뀌었다.** 검증 SELECT에서 즉시 발견해 UPDATE로 정정하고 4개 blob 전부 hex 일치를 재확인했다. (교훈: 정적 리터럴 나열은 이름 있는 바인딩보다 틀리기 쉽다 — 검증 SELECT가 없었으면 "손상된 단계"로 남았다.)
+  * 백업/복원: 백업은 `$TMPDIR/opencode/apexkey-store-backup-20261017-195541/`(일회성, 저장소 밖). 복원은 앱 종료 후 `cp …/default.store.copied "$HOME/Library/Application Support/com.borasarang.ApexKey/default.store" && rm -f …/default.store-wal`.
+  * ✅ **사용자 실동작 확인 완료(2026-10-17)** — 앱 로그로 실측: `Qwen2.5-32B`·`Google LiteRT-LM`·`Desktop`(선택 1건), `/Users/lee/Documents/Files`(선택 0건 — 현재 창 폴더). 사용자는 단축키를 **⌥E**로 바꿔 사용 중(등록 시 제공값은 ⌥⌃T). §8-13의 나머지 7항목(파일 선택→상위 폴더, 터미널 앱 변경, 새 탭, 권한 거부, 특수문자 경로, iTerm2 종료 상태, 엔타이틀먼트 영향권 회귀)은 **미확인으로 체크리스트에 남긴다** — 확인된 것만 ✅로 적는다.
+* **빌드 스크립트 결함 수정 (`E-MAC-BUILD-0001`)** — `build_and_run.sh` 4단계의 `mdls`가 **Spotlight 인덱싱이 꺼진 머신에서 항상 exit 1**을 내고, `set -e` 때문에 스크립트가 **5단계(앱 종료·재시작) 전에 조용히 종료**됐다. 실측: `mdutil -s /` = `Indexing and searching disabled`, 수정 전 실행에서 pid가 바뀌지 않음(10-16 시작 프로세스가 계속 실행). → `mdls` 실패를 삼키지 않고 `PlistBuddy` 대체 읽기 + 실패 시 경고 후 **재시작은 항상 진행**. 수정 후 재시작 확인(신규 PID).
+
 ## 2026-10-15 macos — 워크플로우 3종 (T-187 메뉴 피커·T-188 특정앱 열기·T-189 최소화)
 
 * **T-187 메뉴 명령 피커 (T-036 실구현)** — `Views/StepSettings/MenuCommandSettingsView.swift` 신규. 앱 피커 → 메뉴 트리 선택으로 `target=번들ID`+`title`+`menuPath` 저장. `StepSettingsView`에 `.menuCommand` 배선. `MenuCommandSelection.apply` 순수 로직 + 테스트 2건.

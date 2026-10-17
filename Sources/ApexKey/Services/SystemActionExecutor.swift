@@ -93,9 +93,13 @@ enum SystemActionType: String, Codable, CaseIterable, Identifiable {
 /// 전면 창 타일링 스크립트 생성 (T-194, 순수 — 단위테스트 대상).
 ///
 /// 화면 크기는 호출부(Swift, `NSScreen` — 권한 불필요)가 넣어준다.
-/// AppleScript 안에서 `Finder`를 건드리면 Automation 권한이 하나 더 필요해
-/// (`NSAppleScript` 프로세스 내 실행) 실패하므로, 스크립트는 이미 허용된
-/// System Events(메뉴 명령과 동일 경로)에만 의존한다.
+///
+/// **2026-10-17 정정**: T-194에서 "AppleScript 안에서 `Finder`를 건드리면 Automation 권한이 없어
+/// 실패한다"고 진단했지만, **실제 원인은 하드닝 런타임 자동화 엔타이틀먼트 누락**이었다
+/// (`Sources/ApexKey/ApexKey.entitlements`, `docs/CHANGELOG.md` 2026-10-17 항목).
+/// 지금은 Finder 자동화도 가능하다 — 다만 화면 크기를 `NSScreen`으로 넘기는 방식은
+/// AppleEvent 왕복을 줄이고 Finder 창 유무와 무관하게 동작하므로 그대로 둔다.
+/// 스크립트는 System Events(메뉴 명령과 동일 경로)에만 의존한다.
 enum WindowTiling {
     enum TilingSide { case left, right }
 

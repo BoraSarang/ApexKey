@@ -255,9 +255,8 @@ final class MenuEnumerator {
 
     /// AppleScript 문자열 리터럴로 안전하게 감싼다 (따옴표·백슬래시 이스케이프)
     private func appleScriptQuoted(_ text: String) -> String {
-        let escaped = text.replacingOccurrences(of: "\\", with: "\\\\")
-                          .replacingOccurrences(of: "\"", with: "\\\"")
-        return "\"\(escaped)\""
+        // 단일 출처: AppleScriptLiteral (T-195에서 중복 제거)
+        AppleScriptLiteral.quoted(text)
     }
 
     private enum OSAScriptResult {

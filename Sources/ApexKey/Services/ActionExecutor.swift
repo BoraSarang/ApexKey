@@ -100,6 +100,11 @@ final class ActionExecutor {
             }
             NSWorkspace.shared.open(URL(fileURLWithPath: trimmed))
             return (true, nil)
+        case .openInTerminal:
+            // 핫키 직접 바인딩은 actionParameters를 갖지 않는다 → 자동 앱 · 새 창
+            // (워크플로우 단계는 ExecutionEngine.executeOpenInTerminal이 설정을 읽는다)
+            let terminal = Self.openInTerminal(path: binding.target, appBundleID: nil, openInNewTab: false)
+            return (terminal.success, terminal.message)
         case .script, .runScriptInShell:
             let r = runShellScriptResult(binding.target)
             if r.success { return (true, nil) }
@@ -295,6 +300,44 @@ final class ActionExecutor {
         NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: conf)
         Logger.info("ActionExecutor", "파일 열기 (\(appID)): \(trimmed)")
         return true
+    }
+
+    // MARK: - 터미널에서 열기 (T-195)
+
+    /// 폴더를 터미널에서 연다. `path`가 비면 **파인더 선택 → 현재 창 폴더** 순으로 정한다.
+    ///
+    /// 파인더 폴더를 읽는 길은 AppleScript 하나뿐이다(AX로는 이 macOS에서 경로가 안 나온다 —
+    /// `FinderPathProvider` 참고). 그래서 **자동화 권한 1회 승인**이 필요하고, 거부되면 그 사유를 돌려준다.
+    ///
+    /// - Returns: `success`, 실패 사유(사용자 문구), 실제로 연 폴더 경로
+    static func openInTerminal(
+        path: String,
+        appBundleID: String?,
+        openInNewTab: Bool
+    ) -> (success: Bool, message: String?, path: String?) {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        let folder: URL
+        if trimmed.isEmpty {
+            // Finder 폴더 읽기는 AppleScript(자동화 권한)를 쓴다 — 실패 사유를 구분해 알려준다
+            let outcome = FinderPathProvider.resolveFolder()
+            guard let resolved = outcome.folder else {
+                return (false, outcome.failure == .automationDenied
+                    ? "toast.reason.terminal_permission".localized
+                    : "toast.reason.terminal_folder_missing".localized, nil)
+            }
+            folder = resolved
+        } else if FileManager.default.fileExists(atPath: trimmed) {
+            folder = URL(fileURLWithPath: trimmed)
+        } else {
+            Logger.error("E-MAC-TERM-8102", "터미널에서 열 경로 없음: \(trimmed)")
+            return (false, "toast.reason.folder_missing".localized, nil)
+        }
+        guard let app = TerminalLauncher.resolveApp(bundleID: appBundleID) else {
+            Logger.error("E-MAC-TERM-8103", "터미널 앱 자동 탐지 실패 — iTerm2·터미널 모두 없음")
+            return (false, "toast.reason.terminal_app_missing".localized, folder.path)
+        }
+        let result = TerminalLauncher.open(folder: folder, app: app, openInNewTab: openInNewTab)
+        return (result.success, result.message, folder.path)
     }
 
     // MARK: - 키 조합 보내기 (keyCombo)
