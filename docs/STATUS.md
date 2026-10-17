@@ -45,7 +45,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 작업 | 결과 |
 |---|---|
-| **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AX**로 읽는다(`AXDocument`+`AXSelectedChildren`) — AppleScript는 T-194에서 Automation 권한으로 깨진 경로. 규칙: 선택 우선 → 현재 창. 새 창은 권한 불필요(`NSWorkspace.open withApplicationAt`), 새 탭은 AppleScript(권한 필요·실패 시 사유 토스트). 스키마 무변경(`actionParameters`). 569건 0실패·i18n 1032키 |
+| **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AX**로 읽는다(`AXDocument`+`AXSelectedChildren`) — AppleScript는 T-194에서 Automation 권한으로 깨진 경로. 규칙: 선택 우선 → 현재 창. 새 창은 권한 불필요(`NSWorkspace.open withApplicationAt`), 새 탭은 AppleScript(권한 필요·실패 시 사유 토스트). 스키마 무변경(`actionParameters`). 569건 0실패·i18n 1032키. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`, ⌥⌃T) — **실동작 확인 대기** |
 | **2026-10-13 키캡 표시 방법 (T-185)** | Studio 6종 코드 이식 + 설정 Picker·미리보기 + 13곳 `KeycapView` 통일 + 검색 정규화. 525건 0실패·i18n 967키 |
 | **2026-10-13 지정됨 강조 (T-186)** | 단일 캡슐+엑센트 `highlighted` + 목록 뱃지 강화. v1.5.0 릴리스 |
 

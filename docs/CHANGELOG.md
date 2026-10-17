@@ -14,6 +14,12 @@
 * UI: `Views/StepSettings/TerminalOpenSettingsView.swift`(앱·방식·경로 + 안내) + `StepSettingsView` 라우팅. i18n 19키 추가(1013→1032, ko/en 일치).
 * 검증: unit **569건 0실패**(3 skip, 신규 17건) · smoke 75건 0실패 · `check-localizable` 통과 · 클린빌드 **신규 경고 0**(기존 AppIcon/Combine/NSEvent 경고 4건만, 이번 변경과 무관).
 * **문서 정정** — STATUS의 카탈로그 수치가 코드 실측과 어긋나 있었다(문서 162/구현 59 ↔ 코드 153/51). 실측값으로 정정: **154종 / 구현 52 / 스텁 3 / 미구현 99**.
+* **워크플로우 1건을 사용자 저장소에 직접 등록 (사용자 요청)** — 앱에서 30초에 만들 수도 있지만 사용자가 직접 수정을 선택. 작업 순서: **ApexKey 종료 → `sqlite3 .backup` + 파일 복사 백업 → 실제 행(Z_PK=25) 대조 → 삽입 → 검증 → 앱 재시작**.
+  * 등록 내용: 이름 `터미널에서 열기`, 단계 1개(`openInTerminal`, `target=""`=파인더에서 읽기, `TerminalOpenConfig{appBundleID: com.googlecode.iterm2, openInNewTab: false}`), 단축키 **⌥⌃T**(keyCode 17 / modifiers 6144 = Carbon ⌥2048+⌃4096 — 기존 앱 콤보와 충돌 없음, ⌥ 단독 글로벌 핫키 5종과도 무관).
+  * blob은 **Swift `JSONEncoder`로 생성**해 삽입했다. 손으로 흉내내면 `\/` 이스케이프·Data→base64·`.sortedKeys` 순서·UUID 대문자에서 틀린다. **대조군 검증**: 기존 행(Z_PK=25)을 같은 인코더로 재현해 DB 텍스트와 **바이트 단위 일치**를 확인한 뒤 실제 blob을 생성했다.
+  * 삽입 중 **`X''` 인자 순서를 컬럼 순서와 한 칸 어긋나게 넣어 `ZPERMISSIONSDATA`↔`ZSTEPSDATA`가 뒤바뀌었다.** 검증 SELECT에서 즉시 발견해 UPDATE로 정정하고 4개 blob 전부 hex 일치를 재확인했다. (교훈: 정적 리터럴 나열은 이름 있는 바인딩보다 틀리기 쉽다 — 검증 SELECT가 없었으면 "손상된 단계"로 남았다.)
+  * 백업/복원: 백업은 `$TMPDIR/opencode/apexkey-store-backup-20261017-195541/`(일회성, 저장소 밖). 복원은 앱 종료 후 `cp …/default.store.copied "$HOME/Library/Application Support/com.borasarang.ApexKey/default.store" && rm -f …/default.store-wal`.
+  * ⚠️ UI 표시·실행은 **사용자 실동작 확인 대기**(§8-13) — 에이전트는 화면을 볼 수 없고, 포커스를 빼앗는 조작은 규칙상 하지 않는다.
 * **빌드 스크립트 결함 수정 (`E-MAC-BUILD-0001`)** — `build_and_run.sh` 4단계의 `mdls`가 **Spotlight 인덱싱이 꺼진 머신에서 항상 exit 1**을 내고, `set -e` 때문에 스크립트가 **5단계(앱 종료·재시작) 전에 조용히 종료**됐다. 실측: `mdutil -s /` = `Indexing and searching disabled`, 수정 전 실행에서 pid가 바뀌지 않음(10-16 시작 프로세스가 계속 실행). → `mdls` 실패를 삼키지 않고 `PlistBuddy` 대체 읽기 + 실패 시 경고 후 **재시작은 항상 진행**. 수정 후 재시작 확인(신규 PID).
 
 ## 2026-10-15 macos — 워크플로우 3종 (T-187 메뉴 피커·T-188 특정앱 열기·T-189 최소화)

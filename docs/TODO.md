@@ -648,3 +648,6 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   iTerm2/터미널에서 연다. 여는 방식 새 창(권한 불필요)/새 탭(Automation 필요).
   Finder 경로는 **AX**로 읽는다 — AppleScript는 T-194에서 Automation 권한으로 깨진 경로다.
   저장 스키마 변경 없음(`actionParameters`의 `TerminalOpenConfig`). 상세: `docs/plans/PLAN_v0.32_open-in-terminal_macos.md`
+  - [x] 코드·테스트·i18n 완료 (unit 569건 0실패 · 커밋 `aa8b127`)
+  - [x] 사용자 저장소에 워크플로우 1건 직접 등록 (이름 `터미널에서 열기`, 단축키 ⌥⌃T, DB 백업 후 삽입)
+  - [ ] **사용자 실동작 확인** — `docs/FUNCTIONAL_CHECKLIST.md` §8-13 (8항목). 확인 후 PR.
