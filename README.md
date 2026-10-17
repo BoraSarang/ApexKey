@@ -48,7 +48,7 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 | **Clipboard history** | `⌥;` — last 100 clips / 30 days, with image previews |
 | **Instant Send** | `⌃⌥D` — selected text straight into a workflow as input |
 | **Shared hotkeys** | One combo, many targets — a picker with pinning when combos collide |
-| **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action (59 of 162 catalog actions fully wired; the rest read "Coming soon") |
+| **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action (52 of 154 catalog actions fully wired; the rest read "Coming soon") |
 | **Flow control** | If / repeat / menu choice, variables, output-to-variable |
 | **Automation** | Time, folder, battery and charger triggers (display, wifi, bluetooth, app: planned) |
 | **AI actions** | Use model / writing tool / image playground — **not planned**: they fail gracefully by design (see docs: AI is out of scope) |

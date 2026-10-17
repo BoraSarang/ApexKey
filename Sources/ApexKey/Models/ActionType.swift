@@ -56,7 +56,7 @@ enum ActionCategory: String, Codable, CaseIterable, Identifiable {
     /// 해당 카테고리의 액션 타입 목록
     var actionTypes: [ActionType] {
         switch self {
-        case .essential:    return [.launchApp, .keyCombo, .menuCommand, .file, .url, .script, .system, .paste, .wait, .coordinateClick, .pauseUntilInput, .macro, .dialog, .text, .clipText, .moveToFront, .wakeDisplay, .clearRecents, .preventSleep, .wallpaper, .darkMode, .focusMode, .screenshot, .pdf, .network, .bluetooth, .timer, .stopwatch, .location, .airDrop, .newQuickNote, .newNote, .readTable, .emailData, .date]
+        case .essential:    return [.launchApp, .keyCombo, .menuCommand, .file, .url, .script, .system, .paste, .wait, .coordinateClick, .pauseUntilInput, .macro, .dialog, .text, .clipText, .moveToFront, .wakeDisplay, .clearRecents, .preventSleep, .wallpaper, .darkMode, .focusMode, .screenshot, .pdf, .network, .bluetooth, .timer, .stopwatch, .location, .airDrop, .newQuickNote, .newNote, .readTable, .emailData, .date, .openInTerminal]
         case .scripting:    return [.appleScript, .javaScriptForAutomation]
         case .media:        return [.quickLook, .photos, .musicAndVideo, .playMusic, .playPodcast, .tuneStation, .radio, .viewPhotos, .album, .randomPhoto, .slideshow, .getLastPhoto, .camera, .rotateImage, .cropImage, .trimVideo, .takeScreenshot, .saveOutput, .setVolumeMedia, .moveMedia, .bookmark, .podcasts, .news, .stocks, .videoDownloader]
         case .documents:    return [.editDocument, .translate, .textEditShortcut, .noteActions, .createNote, .setParagraphStyle, .newDocument, .viewDocument, .mail, .setMailBody, .setMailRecipients, .drive, .oneDrive, .box, .getFiles, .moveFiles, .renameFiles, .extractArchive, .externalStorage, .fileActions, .getConfirmation, .getAttachment, .getDictionary, .dateFormatter, .listActions, .adjustDate, .formatNumber, .math, .hash, .uuid, .outputDifference, .typeNumber, .typeText, .getClipboard, .setClipboard, .regex, .typeDateTime, .sort, .changeCase, .replaceText, .combineText, .matchText, .splitText, .trimWhitespace, .surroundText, .count, .wordCount, .calculate, .base64Encode, .htmlToMarkdown, .measurement, .scanQRCode, .recognizeText, .recognizeAnimal, .detectLanguage]
@@ -110,6 +110,7 @@ enum ActionType: String, Codable, CaseIterable, Identifiable {
     case readTable            // 테이블 읽기
     case emailData            // 이메일 데이터
     case date                 // 날짜
+    case openInTerminal       // 터미널에서 열기 (파인더 선택/현재 폴더 → iTerm2/터미널) — T-195
     
     // === 코딩/스크립팅 ===
     case appleScript          // AppleScript 실행

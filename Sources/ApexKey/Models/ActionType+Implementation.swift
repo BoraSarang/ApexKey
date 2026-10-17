@@ -31,7 +31,7 @@ extension ActionType {
         switch self {
         case .appleScript, .chooseFromMenu, .comment, .coordinateClick, .endRepeat,
              .file, .ifElse, .javaScriptForAutomation, .keyCombo, .launchApp, .macro,
-             .menuCommand, .outputToVariable, .paste, .pauseUntilInput, .repeatEach,
+             .menuCommand, .openInTerminal, .outputToVariable, .paste, .pauseUntilInput, .repeatEach,
              .repeatLoop, .runScriptInShell, .runShortcut, .script, .setVariable,
              .stopShortcut, .system, .url, .wait,
              // 텍스트 액션 11종 — E-MAC-TEXT-6001 (ExecutionEngine.executeTextAction)

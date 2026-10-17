@@ -3,6 +3,19 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-10-17 macos — 터미널에서 열기 (T-195, `E-MAC-TERM-81xx`)
+
+* **신규 액션 `openInTerminal`** — 파인더에서 고른 폴더를 iTerm2/터미널에서 연다. 카탈로그 essential 1종 추가(153→154).
+* **Finder 경로는 AX로 읽는다** — `Services/FinderPathProvider.swift`. `AXDocument`(현재 창 폴더) + `AXSelectedChildren`/`AXSelectedRows`(선택). **AppleScript를 쓰지 않는다** — T-194에서 Finder Automation 권한 부족으로 깨진 경로다. 순회 상한(3000노드/깊이 12)으로 실행큐 점유를 막는다.
+* **규칙: 선택 우선 → 현재 창** — 선택에 폴더가 있으면 그 폴더, 파일만 있으면 상위 폴더, 선택이 없으면 현재 창 폴더 (`resolveFolder` 순수 함수 + 테스트 5건).
+* **여는 방식** — 새 창은 `NSWorkspace.open(_:withApplicationAt:)`(터미널 앱이 폴더 열기를 직접 처리 → **Automation 권한 불필요**), 새 탭은 AppleScript(`create tab`/`do script` → 권한 필요, 실패 시 사유 토스트).
+* **저장 스키마 무변경** — `Models/TerminalOpenConfig.swift`(`appBundleID`·`openInNewTab`)를 `actionParameters` JSON에 저장, 관대 디코딩 유지 (E-MAC-STORE-5008).
+* **중복 제거** — `Utils/AppleScriptLiteral.swift` 신설, `MenuEnumerator.appleScriptQuoted` 위임.
+* UI: `Views/StepSettings/TerminalOpenSettingsView.swift`(앱·방식·경로 + 안내) + `StepSettingsView` 라우팅. i18n 19키 추가(1013→1032, ko/en 일치).
+* 검증: unit **569건 0실패**(3 skip, 신규 17건) · smoke 75건 0실패 · `check-localizable` 통과 · 클린빌드 **신규 경고 0**(기존 AppIcon/Combine/NSEvent 경고 4건만, 이번 변경과 무관).
+* **문서 정정** — STATUS의 카탈로그 수치가 코드 실측과 어긋나 있었다(문서 162/구현 59 ↔ 코드 153/51). 실측값으로 정정: **154종 / 구현 52 / 스텁 3 / 미구현 99**.
+* **빌드 스크립트 결함 수정 (`E-MAC-BUILD-0001`)** — `build_and_run.sh` 4단계의 `mdls`가 **Spotlight 인덱싱이 꺼진 머신에서 항상 exit 1**을 내고, `set -e` 때문에 스크립트가 **5단계(앱 종료·재시작) 전에 조용히 종료**됐다. 실측: `mdutil -s /` = `Indexing and searching disabled`, 수정 전 실행에서 pid가 바뀌지 않음(10-16 시작 프로세스가 계속 실행). → `mdls` 실패를 삼키지 않고 `PlistBuddy` 대체 읽기 + 실패 시 경고 후 **재시작은 항상 진행**. 수정 후 재시작 확인(신규 PID).
+
 ## 2026-10-15 macos — 워크플로우 3종 (T-187 메뉴 피커·T-188 특정앱 열기·T-189 최소화)
 
 * **T-187 메뉴 명령 피커 (T-036 실구현)** — `Views/StepSettings/MenuCommandSettingsView.swift` 신규. 앱 피커 → 메뉴 트리 선택으로 `target=번들ID`+`title`+`menuPath` 저장. `StepSettingsView`에 `.menuCommand` 배선. `MenuCommandSelection.apply` 순수 로직 + 테스트 2건.

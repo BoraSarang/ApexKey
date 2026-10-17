@@ -51,6 +51,7 @@ extension ActionType {
         .readTable: ActionMetadata(displayNameKey: "action.readTable", systemImage: "tablecells", category: .essential),
         .emailData: ActionMetadata(displayNameKey: "action.emailData", systemImage: "envelope", category: .essential),
         .date: ActionMetadata(displayNameKey: "action.date", systemImage: "calendar", category: .essential),
+        .openInTerminal: ActionMetadata(displayNameKey: "action.openInTerminal", systemImage: "terminal.fill", category: .essential),
         .appleScript: ActionMetadata(displayNameKey: "action.appleScript", systemImage: "applelogo", category: .scripting),
         .javaScriptForAutomation: ActionMetadata(displayNameKey: "action.javaScriptForAutomation", systemImage: "chevron.left.forwardslash.chevron.right", category: .scripting),
         .quickLook: ActionMetadata(displayNameKey: "action.quickLook", systemImage: "eye", category: .media),
