@@ -34,7 +34,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | 버전 | 1.5.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
 | 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
-| user 실동작 대기 | **72건** (8-1~8-12) | `FUNCTIONAL_CHECKLIST.md` §8 |
+| user 실동작 대기 | **85건** (확인 3건 / 전체 88건 — 2026-10-17 §8-13 3항목 확인) | `FUNCTIONAL_CHECKLIST.md` §8 |
 | 브랜치 | `fix/macos-audit-p0` — **main에 병합됨**(PR #7, `3664d99`) | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
 | 미배포 배치 | 없음 — 메뉴 Hub 배치 PR #16 머지됨 | — |
@@ -45,7 +45,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 작업 | 결과 |
 |---|---|
-| **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AppleScript(Finder 자동화)** 로 읽는다(`target of front window`+`selection`, NUL 구분) — AX 초판은 실측 후 폐기(창 `AXDocument` = `-25212`, 행/셀에 `AXURL` 속성 없음 → 절대 경로 불가). **근본 원인 수정: 하드닝 런타임에 `com.apple.security.automation.apple-events` 엔타이틀먼트가 없어 AppleEvent가 프롬프트 없이 `-1743`으로 거부**되고 있었다(tccd: `Policy disallows prompt`) — 메뉴 클릭·AppleScript/JXA·새 탭도 같은 원인으로 깨져 있었고 함께 살아났다. 규칙: 선택 우선 → 현재 창. 스키마 무변경(`actionParameters`). 573건 0실패·i18n 1033키. 라이브 실측 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`, ⌥⌃T) — **실동작 확인 대기** |
+| **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AppleScript(Finder 자동화)** 로 읽는다(`target of front window`+`selection`, NUL 구분) — AX 초판은 실측 후 폐기(창 `AXDocument` = `-25212`, 행/셀에 `AXURL` 속성 없음 → 절대 경로 불가). **근본 원인 수정: 하드닝 런타임에 `com.apple.security.automation.apple-events` 엔타이틀먼트가 없어 AppleEvent가 프롬프트 없이 `-1743`으로 거부**되고 있었다(tccd: `Policy disallows prompt`) — 메뉴 클릭·AppleScript/JXA·새 탭도 같은 원인으로 깨져 있었고 함께 살아났다. 규칙: 선택 우선 → 현재 창. 스키마 무변경(`actionParameters`). 573건 0실패·i18n 1033키. 라이브 실측 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`) — **사용자 실동작 확인 완료(2026-10-17, 선택 폴더 3건·현재 창 1건), 단축키는 사용자가 ⌥E로 변경** |
 | **2026-10-13 키캡 표시 방법 (T-185)** | Studio 6종 코드 이식 + 설정 Picker·미리보기 + 13곳 `KeycapView` 통일 + 검색 정규화. 525건 0실패·i18n 967키 |
 | **2026-10-13 지정됨 강조 (T-186)** | 단일 캡슐+엑센트 `highlighted` + 목록 뱃지 강화. v1.5.0 릴리스 |
 

@@ -1,6 +1,6 @@
 # PLAN_v0.32_open-in-terminal_macos — 터미널에서 열기 (T-195)
 
-> status: in-progress (2026-10-17 착수 · 구현·실측 완료 · 사용자 실동작 확인 대기)
+> status: **완료 (2026-10-17)** — 구현·실측·사용자 실동작 확인까지 끝. 단축키는 사용자가 ⌥E로 변경해 사용 중.
 > 전제: `docs/STATUS.md` 2026-10-15 (552건·v1.5.0) · 카탈로그에 터미널 계열 액션 **없음**(grep 확인)
 > 사용자 요청: "파인더에서 선택한 디렉토리를 iTerm2로 열리게" → **워크플로우 단계로 등록**
 
@@ -104,7 +104,8 @@
 - **AppleScript 문법**: 추출한 스크립트를 `osacompile`로 컴파일 검증(권한 없이 가능).
 - **라이브 실측**(임시 프로브 → 삭제): 엔타이틀먼트 추가 후 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`,
   원시 출력 `[/Users/lee/Documents/Files/ | /Users/lee/Documents/Files/Qwen2.5-32B/ | ]` — 선택 우선 규칙 일치.
-- 사용자 실동작 확인: `FUNCTIONAL_CHECKLIST.md` §8-13 (권한 승인 포함).
+- 사용자 실동작 확인: **완료(2026-10-17)** — `FUNCTIONAL_CHECKLIST.md` §8-13 중 3항목 실측(자동화 승인,
+  선택 폴더 3건, 선택 없이 현재 창 1건). 사용자는 단축키를 **⌥E**로 바꿔 사용 중(등록 시 제공값은 ⌥⌃T).
 - 게이트: `check-localizable.py` 통과(1033키 ko/en 일치) · `check-version.py` 무변경 ·
   클린 빌드 신규 경고 0 · `./build_and_run.sh test macos unit`.
 
