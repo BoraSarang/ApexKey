@@ -1,8 +1,36 @@
 # PLAN_v0.32_open-in-terminal_macos — 터미널에서 열기 (T-195)
 
-> status: in-progress (2026-10-17 착수)
+> status: in-progress (2026-10-17 착수 · 구현·실측 완료 · 사용자 실동작 확인 대기)
 > 전제: `docs/STATUS.md` 2026-10-15 (552건·v1.5.0) · 카탈로그에 터미널 계열 액션 **없음**(grep 확인)
 > 사용자 요청: "파인더에서 선택한 디렉토리를 iTerm2로 열리게" → **워크플로우 단계로 등록**
+
+## 0. 최종 결론 (2026-10-17 실측 — 먼저 읽을 것)
+
+파인더 폴더 읽기는 **AppleScript(Finder 자동화)** 로 한다. AX(접근성)로는 **이 macOS에서 불가능**함을 실측했다.
+
+그리고 그 AppleScript가 T-194에서 실패한 **진짜 원인**은 권한 승인이 아니라 **하드닝 런타임
+자동화 엔타이틀먼트 누락**이었다:
+
+| 시점 | 관측 | 해석 |
+|---|---|---|
+| 엔타이틀먼트 이전 | `-1743` + **프롬프트 없음** | tccd: `Policy disallows prompt for com.borasarang.ApexKey` |
+| 엔타이틀먼트 이전 | tccd에 AppleEvents 요청 기록 **없음** | TCC 이전 단계(AE 계층)에서 거부 |
+| `com.apple.security.automation.apple-events` 추가 후 | 프롬프트 표시 → 승인 → `TCCDEvent: type=Create` | 정상 |
+| 추가 후 실측 | `folder=/Users/lee/Documents/Files/Qwen2.5-32B` (선택 우선 OK) | 경로 정확 |
+
+**파급**: 이 엔타이틀먼트 누락은 T-195만의 문제가 아니라 **System Events 메뉴 클릭·AppleScript/JXA
+액션·새 탭 열기 전부**를 조용히 깨뜨리고 있었다(프로브: `System Events`·`Finder` 둘 다 `-1743`).
+`ENABLE_HARDENED_RUNTIME: YES`인 동안은 "프롬프트도 안 뜨고 그냥 실패"하는 상태였다.
+
+### AX 실측 근거 (왜 AX를 버렸는가)
+
+| 확인 | 결과 |
+|---|---|
+| 창 `AXDocument` (현재 폴더) | `kAXErrorNoValue(-25212)` — **값 없음** |
+| 목록 행/셀 | `AXURL`·`AXDocument`·`AXFilename` **속성 자체 없음** |
+| 얻을 수 있는 것 | 폴더 **표시 이름**(`AXTitle` = "Files")·파일 이름뿐 → 절대 경로 불가 |
+| `AXSections` | 속성 0개(불투명) |
+| 접근성 권한 | `Allowed (System Set)` — 권한은 있으나 위 이유로 무용 |
 
 ## 1. 목표
 
@@ -22,17 +50,25 @@
 - **`ShortcutStep` 필드를 추가하지 않는다.** `stepsData` blob의 키 누락 내성(E-MAC-STORE-5008)을
   깨지 않기 위해 부가설정은 전부 `actionParameters` JSON(`TerminalOpenConfig{appBundleID, openInNewTab}`)에 넣는다.
   `FileOpenConfig`(T-188)와 동일 패턴. `target`은 "명시 경로(비우면 Finder)" 한 줄로 재사용.
-- **Finder 경로는 AppleScript가 아니라 접근성(AX)으로 읽는다.** T-194에서 `Finder` AppleScript가
-  Automation 권한 부족으로 실패한 전례가 있고, ApexKey는 이미 접근성 권한을 필수로 받는다.
-  → `Services/FinderPathProvider.swift`. 실패는 `nil` + `E-MAC-TERM-810x` 로그, 호출부가 사용자 문구로 표면화.
+- **Finder 경로는 AppleScript(Finder 자동화)로 읽는다** (§0 실측). AX는 이 macOS에서 현재 폴더도
+  선택 항목 경로도 노출하지 않아 대안이 될 수 없다 — `resolveFolderURL()`을 AX로 구현한 초판은 폐기했다.
+  → `Services/FinderPathProvider.swift`: `target of front window`(현재 폴더) + `selection`(선택)을
+  **NUL 구분자 한 번의 스크립트**로 받아 파싱한다. 구분자가 NUL인 이유: 경로에 `\n`이 들어갈 수 있다.
+  실패는 `Outcome{folder,failure}`로 돌려주고 호출부가 문구로 표면화(`automationDenied` / `notFound`).
+- **하드닝 런타임 자동화 엔타이틀먼트를 추가한다** (§0): `Sources/ApexKey/ApexKey.entitlements`
+  (`com.apple.security.automation.apple-events` = `<true/>` — 문자열 `YES`는 invalid로 실패)
+  + `project.yml`의 `CODE_SIGN_ENTITLEMENTS`. 이 한 줄이 메뉴 클릭·AppleScript 액션·새 탭까지 함께 살린다.
+  첫 사용 시 "Finder를 제어하려고 합니다" 승인 1회가 필요하고, 거부되면 `toast.reason.terminal_permission`
+  으로 시스템 설정 경로를 안내한다.
 - 순수 로직 분리(테스트 대상): `resolveFolder(selection:currentFolder:isDirectory:)`,
   `TerminalApp.resolve(bundleID:isInstalled:)`, `AppleScriptLiteral.quoted(_:)`.
 - 실행 경로 2개를 모두 배선한다 (`FileOpenConfig`의 비대칭을 답습하되 문서화):
   - 워크플로우 단계 → `ExecutionEngine.executeOpenInTerminal` (actionParameters 사용)
   - 핫키 직접 바인딩 → `ActionExecutor.executeWithDetail` `case .openInTerminal` (config 없음 → 자동 앱·새 창)
 - 여는 방식:
-  - **새 창**: `NSWorkspace.open([folder], withApplicationAt:)` — Automation 권한 불필요.
-  - **새 탭**: AppleScript(`create tab`/`do script`) — **Automation 권한 필요**. 실패 시
+  - **새 창**: `NSWorkspace.open([folder], withApplicationAt:)` — **터미널에는** AppleEvent를 보내지 않는다.
+    (Finder 폴더 읽기는 AppleScript라 자동화 권한이 필요하다 — §0. 이 점이 초판 설계와 달라졌다.)
+  - **새 탭**: AppleScript(`create tab`/`do script`) — 자동화 권한 필요. 실패 시
     `toast.reason.terminal_tab_failed`로 정직하게 실패(무음 폴백 없음).
 
 ## 4. 변경 파일
@@ -43,7 +79,9 @@
 | `Models/ActionMetadata.swift` | 메타데이터 1줄 (`action.openInTerminal`, `terminal.fill`) |
 | `Models/ActionType+Implementation.swift` | `.implemented` 등재 (컴파일 강제 지점) |
 | `Models/TerminalOpenConfig.swift` | 신규 — `appBundleID?`, `openInNewTab` (관대 디코딩) |
-| `Services/FinderPathProvider.swift` | 신규 — AX로 선택/현재 폴더 해석 |
+| `Services/FinderPathProvider.swift` | 신규 — AppleScript로 선택/현재 폴더 해석 (NUL 구분 파싱은 순수 함수) |
+| `Sources/ApexKey/ApexKey.entitlements` | **신규 — 하드닝 런타임 자동화 엔타이틀먼트 (근본 원인 수정)** |
+| `project.yml` | `CODE_SIGN_ENTITLEMENTS` + `NSAppleEventsUsageDescription` 문구 확장 |
 | `Services/TerminalLauncher.swift` | 신규 — 앱 선택·새 창/새 탭 열기 |
 | `Utils/AppleScriptLiteral.swift` | 신규 — AppleScript 문자열 인용 단일 출처 (`MenuEnumerator` 중복 제거) |
 | `Services/ActionExecutor.swift` | `case .openInTerminal` + `openInTerminal(path:appBundleID:newTab:)` |
@@ -55,18 +93,20 @@
 
 ## 5. 오류 코드 (신규 대역 `E-MAC-TERM-81xx`)
 
-- `8101` 접근성 권한 없음 · `8102` Finder에서 폴더를 찾을 수 없음 · `8103` 터미널 앱 없음 ·
-  `8104` 폴더 열기 실패 · `8105` 새 탭 열기 실패(Automation)
+- `8101` 자동화 권한 없음(`-1743` — 시스템 설정 경로 안내) · `8102` Finder에서 폴더를 찾을 수 없음 ·
+  `8103` 터미널 앱 없음 · `8104` 폴더 열기 실패 · `8105` 새 탭 열기 실패
 
 ## 6. 검증
 
-- 신규 테스트 `OpenInTerminalTests`: config 라운드트립·구버전 JSON 내성, `resolveFolder` 4분기,
-  `TerminalApp.resolve` 3분기, AppleScript 인용(따옴표/역슬래시/작은따옴표), 없는 경로 실패 시
-  엔진이 `toast.reason.unimplemented`를 내지 않을 것.
-- AX 순회 자체는 이 환경에서 **단위 테스트 불가** → 사용자 실동작 확인 항목으로 남긴다
-  (`FUNCTIONAL_CHECKLIST.md` §8). 접근성 권한 없는 CI는 기존 T-184 패턴대로 스킵.
-- 게이트: `check-localizable.py` 통과 · `check-version.py` 무변경 · `xcodebuild clean build` 경고 0 ·
-  `./build_and_run.sh test macos unit`.
+- 신규 테스트 `OpenInTerminalTests`(21건): config 라운드트립·구버전 JSON 내성, `resolveFolder` 4분기,
+  AppleScript 출력 파싱 4건(NUL 구분·현재폴더 없음·빈 출력·경로 내 줄바꿈), `TerminalApp.resolve` 3분기,
+  AppleScript 인용, 없는 경로 실패 시 엔진이 `toast.reason.unimplemented`를 내지 않을 것.
+- **AppleScript 문법**: 추출한 스크립트를 `osacompile`로 컴파일 검증(권한 없이 가능).
+- **라이브 실측**(임시 프로브 → 삭제): 엔타이틀먼트 추가 후 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`,
+  원시 출력 `[/Users/lee/Documents/Files/ | /Users/lee/Documents/Files/Qwen2.5-32B/ | ]` — 선택 우선 규칙 일치.
+- 사용자 실동작 확인: `FUNCTIONAL_CHECKLIST.md` §8-13 (권한 승인 포함).
+- 게이트: `check-localizable.py` 통과(1033키 ko/en 일치) · `check-version.py` 무변경 ·
+  클린 빌드 신규 경고 0 · `./build_and_run.sh test macos unit`.
 
 ## 7. 범위 밖
 

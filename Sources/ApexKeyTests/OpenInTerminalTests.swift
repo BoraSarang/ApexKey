@@ -4,7 +4,8 @@ import XCTest
 /// PLAN_v0.32 — 터미널에서 열기 (T-195).
 ///
 /// **부작용 없는 검증만** 한다: 터미널을 실제로 띄우면 테스트가 창을 연다.
-/// 경로 결정·앱 선택·인용은 순수 함수로 분리해 검증하고, AX 순회는 사용자 실동작 항목이다.
+/// 경로 결정·AppleScript 출력 파싱·앱 선택·인용은 순수 함수로 분리해 검증하고,
+/// Finder 자동화 권한이 필요한 실제 읽기는 사용자 실동작 항목이다.
 final class OpenInTerminalTests: XCTestCase {
     // MARK: - TerminalOpenConfig 코덱
 
@@ -82,6 +83,35 @@ final class OpenInTerminalTests: XCTestCase {
 
     func testResolveReturnsNilWhenNothingKnown() {
         XCTAssertNil(FinderPathProvider.resolveFolder(selection: [], currentFolder: nil, isDirectory: { _ in false }))
+    }
+
+    // MARK: - AppleScript 출력 파싱 (현재폴더 NUL 선택…)
+
+    func testParseReadsCurrentFolderAndSelection() {
+        let parsed = FinderPathProvider.parseAppleScriptOutput(
+            "/Users/lee/Files/\u{0}/Users/lee/Files/하위\u{0}"
+        )
+        XCTAssertEqual(parsed.currentFolder?.path, "/Users/lee/Files")
+        XCTAssertEqual(parsed.selection.map(\.path), ["/Users/lee/Files/하위"])
+    }
+
+    func testParseHandlesMissingCurrentFolder() {
+        let parsed = FinderPathProvider.parseAppleScriptOutput("\u{0}/Users/lee/Files/하위\u{0}")
+        XCTAssertNil(parsed.currentFolder)
+        XCTAssertEqual(parsed.selection.map(\.path), ["/Users/lee/Files/하위"])
+    }
+
+    func testParseEmptyOutput() {
+        let parsed = FinderPathProvider.parseAppleScriptOutput("")
+        XCTAssertNil(parsed.currentFolder)
+        XCTAssertTrue(parsed.selection.isEmpty)
+    }
+
+    /// 구분자가 NUL인 이유 — 경로에 줄바꿈이 들어가도 한 항목으로 유지된다.
+    func testParseKeepsNewlineInsidePath() {
+        let weird = "/Users/lee/we\nird"
+        let parsed = FinderPathProvider.parseAppleScriptOutput("\(weird)\u{0}")
+        XCTAssertEqual(parsed.currentFolder?.path, weird)
     }
 
     // MARK: - 터미널 앱 결정

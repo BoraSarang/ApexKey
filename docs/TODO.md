@@ -645,9 +645,16 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 ## v0.32 — 터미널에서 열기 (2026-10-17, PLAN_v0.32)
 
 - [ ] **T-195 터미널에서 열기** — 카탈로그에 `openInTerminal` 신규. 파인더 선택(없으면 현재 창) 폴더를
-  iTerm2/터미널에서 연다. 여는 방식 새 창(권한 불필요)/새 탭(Automation 필요).
-  Finder 경로는 **AX**로 읽는다 — AppleScript는 T-194에서 Automation 권한으로 깨진 경로다.
+  iTerm2/터미널에서 연다. 여는 방식 새 창/새 탭(둘 다 동작, 자동화 권한 필요).
+  Finder 경로는 **AppleScript(Finder 자동화)** 로 읽는다 — **AX는 폐기**: 실측 결과 이 macOS의 Finder는
+  창 `AXDocument`에 `kAXErrorNoValue(-25212)`, 행/셀에 `AXURL` 속성 자체가 없어 절대 경로가 안 나온다.
   저장 스키마 변경 없음(`actionParameters`의 `TerminalOpenConfig`). 상세: `docs/plans/PLAN_v0.32_open-in-terminal_macos.md`
-  - [x] 코드·테스트·i18n 완료 (unit 569건 0실패 · 커밋 `aa8b127`)
+  - [x] 코드·테스트·i18n 완료 (unit 573건 0실패 · 커밋 `aa8b127`/`b8d805e`)
   - [x] 사용자 저장소에 워크플로우 1건 직접 등록 (이름 `터미널에서 열기`, 단축키 ⌥⌃T, DB 백업 후 삽입)
-  - [ ] **사용자 실동작 확인** — `docs/FUNCTIONAL_CHECKLIST.md` §8-13 (8항목). 확인 후 PR.
+  - [x] **AX 실패 원인 규명 → 경로 읽기를 AppleScript로 교체** (2026-10-17)
+  - [x] **하드닝 런타임 자동화 엔타이틀먼트 추가** — T-194에서 "권한 부족"으로 진단했던 실패의 진짜 원인.
+    `com.apple.security.automation.apple-events` 누락 시 프롬프트 없이 `-1743`으로 거부된다(tccd:
+    `Policy disallows prompt`). 메뉴 클릭·AppleScript/JXA 액션·새 탭도 같은 원인으로 깨져 있었다.
+    라이브 실측: `folder=/Users/lee/Documents/Files/Qwen2.5-32B` ✅
+  - [ ] **사용자 실동작 확인** — `docs/FUNCTIONAL_CHECKLIST.md` §8-13 (10항목, 자동화 승인 + 엔타이틀먼트
+    영향권 회귀 확인 포함). 확인 후 PR.

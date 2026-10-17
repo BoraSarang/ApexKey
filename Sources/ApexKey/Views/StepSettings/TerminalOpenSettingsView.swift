@@ -52,11 +52,19 @@ struct TerminalOpenSettingsView: View {
             }
             .pickerStyle(.radioGroup)
 
-            Text(step.target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                 ? "terminal.open.source_finder".localized
-                 : "terminal.open.source_path".localized)
-                .font(.caption)
-                .foregroundColor(theme.secondaryText)
+            if step.target.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("terminal.open.source_finder".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                // 파인더 경로 읽기는 AppleScript(자동화)라 첫 사용에 승인이 필요하다 — 미리 알린다
+                Text("terminal.open.finder_permission".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+            } else {
+                Text("terminal.open.source_path".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+            }
 
             if config.openInNewTab {
                 Text("terminal.open.tab_notice".localized)

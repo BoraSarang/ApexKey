@@ -26,11 +26,11 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **569건 0실패**(3 skip, 2026-10-17 — 터미널에서 열기 T-195 포함) | `./build_and_run.sh test macos unit` |
+| 테스트 | **573건 0실패**(3 skip, 2026-10-17 — 터미널에서 열기 T-195 포함) | `./build_and_run.sh test macos unit` |
 | 스모크 | 75건 0실패 | `test macos smoke` |
 | 빌드 | 클린 빌드 경고 **4건(기존 파일 2곳)** — 신규 코드 경고 0 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
 | 액션 구현 | **52 / 154** (스텁 3, 미구현 99) | `ActionType.implementationCounts()` — 2026-10-17 실측 정정(문서 162/59 ↔ 코드 153/51이던 불일치) |
-| i18n | ko/en **1032키 일치** | `*.lproj/Localizable.strings` |
+| i18n | ko/en **1033키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.5.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
 | 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
@@ -45,7 +45,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 작업 | 결과 |
 |---|---|
-| **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AX**로 읽는다(`AXDocument`+`AXSelectedChildren`) — AppleScript는 T-194에서 Automation 권한으로 깨진 경로. 규칙: 선택 우선 → 현재 창. 새 창은 권한 불필요(`NSWorkspace.open withApplicationAt`), 새 탭은 AppleScript(권한 필요·실패 시 사유 토스트). 스키마 무변경(`actionParameters`). 569건 0실패·i18n 1032키. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`, ⌥⌃T) — **실동작 확인 대기** |
+| **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AppleScript(Finder 자동화)** 로 읽는다(`target of front window`+`selection`, NUL 구분) — AX 초판은 실측 후 폐기(창 `AXDocument` = `-25212`, 행/셀에 `AXURL` 속성 없음 → 절대 경로 불가). **근본 원인 수정: 하드닝 런타임에 `com.apple.security.automation.apple-events` 엔타이틀먼트가 없어 AppleEvent가 프롬프트 없이 `-1743`으로 거부**되고 있었다(tccd: `Policy disallows prompt`) — 메뉴 클릭·AppleScript/JXA·새 탭도 같은 원인으로 깨져 있었고 함께 살아났다. 규칙: 선택 우선 → 현재 창. 스키마 무변경(`actionParameters`). 573건 0실패·i18n 1033키. 라이브 실측 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`, ⌥⌃T) — **실동작 확인 대기** |
 | **2026-10-13 키캡 표시 방법 (T-185)** | Studio 6종 코드 이식 + 설정 Picker·미리보기 + 13곳 `KeycapView` 통일 + 검색 정규화. 525건 0실패·i18n 967키 |
 | **2026-10-13 지정됨 강조 (T-186)** | 단일 캡슐+엑센트 `highlighted` + 목록 뱃지 강화. v1.5.0 릴리스 |
 

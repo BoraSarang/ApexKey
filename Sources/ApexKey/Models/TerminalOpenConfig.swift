@@ -7,7 +7,8 @@ import Foundation
 struct TerminalOpenConfig: Codable, Hashable {
     /// 터미널 앱 번들ID. 비어 있으면 **자동** (iTerm2가 있으면 iTerm2, 없으면 터미널).
     var appBundleID: String?
-    /// 새 탭으로 열기. false(기본)면 새 창 — 새 창은 Automation 권한이 필요 없다.
+    /// 새 탭으로 열기. false(기본)면 새 창 — 새 창은 **터미널 앱에** AppleEvent를 보내지 않는다
+    /// (Finder 폴더 읽기는 별개로 자동화 권한을 쓴다 — `FinderPathProvider` 참고).
     var openInNewTab: Bool
 
     init(appBundleID: String? = nil, openInNewTab: Bool = false) {

@@ -20,7 +20,8 @@ enum TerminalApp: String, CaseIterable, Identifiable {
 /// 폴더를 터미널에서 연다 (T-195).
 ///
 /// **새 창**은 `NSWorkspace.open(_:withApplicationAt:)`으로 연다 — 터미널 앱이
-/// "폴더 열기"를 직접 처리하므로 **Automation 권한이 필요 없다**.
+/// "폴더 열기"를 직접 처리하므로 **터미널에 AppleEvent를 보내지 않는다**
+/// (Finder 폴더 읽기는 별개로 자동화 권한을 쓴다 — `FinderPathProvider`).
 /// **새 탭**은 AppleScript가 필요하다(Automation 권한). 실패하면 성공으로 뭉개지 않고
 /// 사유를 돌려준다 — 조용한 실패는 조용할수록 오래 남는다.
 enum TerminalLauncher {

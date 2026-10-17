@@ -6,13 +6,16 @@
 ## 2026-10-17 macos — 터미널에서 열기 (T-195, `E-MAC-TERM-81xx`)
 
 * **신규 액션 `openInTerminal`** — 파인더에서 고른 폴더를 iTerm2/터미널에서 연다. 카탈로그 essential 1종 추가(153→154).
-* **Finder 경로는 AX로 읽는다** — `Services/FinderPathProvider.swift`. `AXDocument`(현재 창 폴더) + `AXSelectedChildren`/`AXSelectedRows`(선택). **AppleScript를 쓰지 않는다** — T-194에서 Finder Automation 권한 부족으로 깨진 경로다. 순회 상한(3000노드/깊이 12)으로 실행큐 점유를 막는다.
+* **Finder 경로는 AppleScript(Finder 자동화)로 읽는다** — `Services/FinderPathProvider.swift`. `target of front window`(현재 창 폴더) + `selection`(선택)을 **NUL 구분자 한 번의 스크립트**로 받는다(경로에 `\n`이 들어갈 수 있어 줄바꿈 구분은 unsafe). 초판의 AX 구현은 **폐기** — 실측 결과 이 macOS의 Finder 창은 현재 폴더를 `AXDocument`로 주지 않고(`kAXErrorNoValue(-25212)`) 행/셀에는 `AXURL`·`AXDocument`·`AXFilename` 속성이 **없어** 절대 경로를 만들 수 없다. 얻을 수 있는 것은 폴더 표시 이름(`AXTitle`="Files")과 파일 이름뿐이었다.
+* **근본 원인 수정 — 하드닝 런타임 자동화 엔타이틀먼트 누락 (`E-MAC-TERM-8101`, 프로젝트 전역)** — `ENABLE_HARDENED_RUNTIME: YES`인데 `com.apple.security.automation.apple-events`가 없어 AppleEvent 전송이 **사용자 프롬프트 없이** `-1743`(`errAEEventNotPermitted`)으로 거부되고 있었다. tccd 로그의 결정적 증거: `Policy disallows prompt for com.borasarang.ApexKey; access to kTCCServiceAppleEvents denied` — **요청이 TCC에 도달조차 못 했다.** 신규 `Sources/ApexKey/ApexKey.entitlements`(`<true/>` — 문자열 `"YES"`는 invalid entitlement로 실패) + `project.yml`의 `CODE_SIGN_ENTITLEMENTS`.
+  * **파급 범위(같은 원인으로 조용히 깨져 있던 기능)**: System Events 메뉴 클릭(T-187·T-194 타일링), AppleScript/JXA 액션, 새 탭 열기. 프로브 실측: 엔타이틀먼트 이전 `System Events`·`Finder` 둘 다 `-1743`, 이후 둘 다 성공. T-194가 "Finder 경유 타일링 실패 → NSScreen 우회"로 남긴 우회는 **원인을 잘못 짚은 것이 아니었지만 진단이 틀렸다** — 권한은 있었고 엔타이틀먼트가 없었다.
+* **`NSAppleEventsUsageDescription` 문구 확장** — "다른 앱의 메뉴 명령" → "파인더·터미널 등 다른 앱을 제어"(실제 사용 범위 반영, `project.yml` + `Info.plist` 동기화).
 * **규칙: 선택 우선 → 현재 창** — 선택에 폴더가 있으면 그 폴더, 파일만 있으면 상위 폴더, 선택이 없으면 현재 창 폴더 (`resolveFolder` 순수 함수 + 테스트 5건).
 * **여는 방식** — 새 창은 `NSWorkspace.open(_:withApplicationAt:)`(터미널 앱이 폴더 열기를 직접 처리 → **Automation 권한 불필요**), 새 탭은 AppleScript(`create tab`/`do script` → 권한 필요, 실패 시 사유 토스트).
 * **저장 스키마 무변경** — `Models/TerminalOpenConfig.swift`(`appBundleID`·`openInNewTab`)를 `actionParameters` JSON에 저장, 관대 디코딩 유지 (E-MAC-STORE-5008).
 * **중복 제거** — `Utils/AppleScriptLiteral.swift` 신설, `MenuEnumerator.appleScriptQuoted` 위임.
-* UI: `Views/StepSettings/TerminalOpenSettingsView.swift`(앱·방식·경로 + 안내) + `StepSettingsView` 라우팅. i18n 19키 추가(1013→1032, ko/en 일치).
-* 검증: unit **569건 0실패**(3 skip, 신규 17건) · smoke 75건 0실패 · `check-localizable` 통과 · 클린빌드 **신규 경고 0**(기존 AppIcon/Combine/NSEvent 경고 4건만, 이번 변경과 무관).
+* UI: `Views/StepSettings/TerminalOpenSettingsView.swift`(앱·방식·경로 + 안내) + `StepSettingsView` 라우팅. i18n 19키 추가 후 1키 추가(1013→1033, ko/en 일치) — 파인더 경로 읽기에 자동화 승인이 필요하다는 사전 안내.
+* 검증: unit **573건 0실패**(3 skip, 신규 21건) · smoke 75건 0실패 · `check-localizable` 통과 · 클린빌드 **신규 경고 0**(기존 AppIcon/Combine/NSEvent 경고 4건만, 이번 변경과 무관) · AppleScript는 `osacompile`로 문법 검증 · **라이브 실측** `folder=/Users/lee/Documents/Files/Qwen2.5-32B`(선택 우선 규칙 일치).
 * **문서 정정** — STATUS의 카탈로그 수치가 코드 실측과 어긋나 있었다(문서 162/구현 59 ↔ 코드 153/51). 실측값으로 정정: **154종 / 구현 52 / 스텁 3 / 미구현 99**.
 * **워크플로우 1건을 사용자 저장소에 직접 등록 (사용자 요청)** — 앱에서 30초에 만들 수도 있지만 사용자가 직접 수정을 선택. 작업 순서: **ApexKey 종료 → `sqlite3 .backup` + 파일 복사 백업 → 실제 행(Z_PK=25) 대조 → 삽입 → 검증 → 앱 재시작**.
   * 등록 내용: 이름 `터미널에서 열기`, 단계 1개(`openInTerminal`, `target=""`=파인더에서 읽기, `TerminalOpenConfig{appBundleID: com.googlecode.iterm2, openInNewTab: false}`), 단축키 **⌥⌃T**(keyCode 17 / modifiers 6144 = Carbon ⌥2048+⌃4096 — 기존 앱 콤보와 충돌 없음, ⌥ 단독 글로벌 핫키 5종과도 무관).
