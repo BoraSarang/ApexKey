@@ -1085,14 +1085,19 @@
                 items:['터미널에서 열기','클립보드 정리','창 레이아웃 정렬'] },
     hotkey:   { hint:'ApexKey에 등록된 단축키 중에서 고릅니다.', prefix:'단축키',
                 items:['⌘⇧4 (영역 캡처)','⌥E (터미널에서 열기)','⌃⌥T (새 탭)'] },
-    system:   { hint:'ApexKey가 직접 실행합니다. 설정이 필요한 동작은 워크플로우로 만드세요.', prefix:'시스템 액션',
+    system:   { hint:'ApexKey가 직접 실행합니다. "다음 버전" 항목은 아직 구현되지 않았습니다.', prefix:'시스템 액션',
                 groups:[
                   { label:'재생', items:['볼륨 올리기','볼륨 내리기','음소거 토글'] },
-                  { label:'화면', items:['화면 잠금','디스플레이 꺼짐','화면 보호기','화면 깨우기'] },
-                  { label:'모드', items:['다크 모드 토글','집중모드 토글','잠자기 방지'] },
+                  { label:'화면', items:['화면 잠금','디스플레이 꺼짐','화면 보호기','수면'] },
+                  { label:'모드', items:['다크 모드 토글'] },
                   { label:'창', items:['전면 창 최소화','왼쪽 40%','왼쪽 50%','왼쪽 60%','오른쪽 40%','오른쪽 50%','오른쪽 60%'] },
-                  { label:'정리', items:['최근 항목 지우기','Dock 재시작','Finder 재시작'] },
-                  { label:'기타', items:['스크린샷','배경화면','AirDrop','블루투스','Wi-Fi','새 메모','빠른 메모','앱 전면으로 이동','수면'] }
+                  { label:'정리', items:['Dock 재시작','Finder 재시작'] },
+                  { label:'다음 버전 (미구현)', items:[
+                    { t:'스크린샷', d:true }, { t:'배경화면', d:true }, { t:'화면 깨우기', d:true },
+                    { t:'집중모드 토글', d:true }, { t:'잠자기 방지', d:true }, { t:'앱 전면으로 이동', d:true },
+                    { t:'새 메모', d:true }, { t:'빠른 메모', d:true }, { t:'최근 항목 지우기', d:true },
+                    { t:'AirDrop', d:true }, { t:'블루투스', d:true }, { t:'Wi-Fi', d:true }
+                  ] }
                 ] }
   };
 
@@ -1134,13 +1139,18 @@
 
     const cfg = ACTIONS[type];
     const prev = $('#gTarget').value;
+    const optHTML = x => {
+      const it = typeof x === 'string' ? { t: x } : x;
+      return `<option${it.d ? ' disabled' : ''}>${it.t}${it.d ? ' — 다음 버전' : ''}</option>`;
+    };
     if (cfg.groups) {
       $('#gTarget').innerHTML = cfg.groups.map(g =>
-        `<optgroup label="${g.label}">` + g.items.map(x => `<option>${x}</option>`).join('') + `</optgroup>`).join('');
+        `<optgroup label="${g.label}">` + g.items.map(optHTML).join('') + `</optgroup>`).join('');
     } else {
-      $('#gTarget').innerHTML = cfg.items.map(x => `<option>${x}</option>`).join('');
+      $('#gTarget').innerHTML = cfg.items.map(optHTML).join('');
     }
-    const flat = cfg.groups ? cfg.groups.flatMap(g => g.items) : cfg.items;
+    const flat = (cfg.groups ? cfg.groups.flatMap(g => g.items) : cfg.items)
+      .map(x => typeof x === 'string' ? x : x.t);
     if (flat.includes(prev)) $('#gTarget').value = prev;
     $('#gTargetLabel').textContent = type === 'system' ? '시스템 동작' : '대상 선택';
     $('#gTargetHint').textContent = cfg.hint;
