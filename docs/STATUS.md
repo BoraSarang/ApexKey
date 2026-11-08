@@ -41,7 +41,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **96건** (확인 3건 / 전체 99건 — 2026-11-08 §8-14 트랙패드 11항목) | `FUNCTIONAL_CHECKLIST.md` §8 |
-| 브랜치 | `feat/macos-open-in-terminal` — **main에 병합됨**(PR #19, `7a41b2a`) | — |
+| 브랜치 | `feat/macos-trackpad-gestures` — **PR #21**(main 병합, v0.33·v0.33.1) | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
 | 미배포 배치 | **v1.5.0 이후 미릴리스** — T-187~T-195 (PR #17·#18·#19 머지됨) | — |
 
