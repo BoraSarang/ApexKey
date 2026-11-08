@@ -15,9 +15,12 @@ extension ConfigStore {
 
         trackpadEnabled = defaults.bool(forKey: PrefKeys.trackpadEnabled)
 
-        if let data = defaults.data(forKey: PrefKeys.trackpadSliders),
+        let savedSliderData = defaults.data(forKey: PrefKeys.trackpadSliders)
+        var slidersDecoded = false
+        if let data = savedSliderData,
            let rules = try? JSONDecoder().decode([EdgeSliderRule].self, from: data) {
             trackpadSliders = rules
+            slidersDecoded = true
         }
         if let data = defaults.data(forKey: PrefKeys.trackpadGestures),
            let rules = try? JSONDecoder().decode([GestureRule].self, from: data) {
@@ -26,7 +29,12 @@ extension ConfigStore {
 
         // 첫 실행 — 기본 규칙 1개(오른쪽 에지 · 두 손가락 · 볼륨)를 넣어 둔다.
         // 사용자가 지우면 다시 넣지 않는다(플래그).
-        let needsSeed = trackpadSliders.isEmpty && !defaults.bool(forKey: PrefKeys.trackpadDidSeed)
+        //
+        // `slidersDecoded` 조건이 없으면 구버전 버그 상태를 복구하지 못한다:
+        // 시드가 저장되지 않은 채 `didSeed`만 1이 되어, 재실행해도 규칙이 0개로 남는다.
+        // 사용자가 **직접 비운** 경우에는 빈 배열(`[]`)이 저장되어 디코드되므로 재시드하지 않는다.
+        let needsSeed = trackpadSliders.isEmpty
+            && (!defaults.bool(forKey: PrefKeys.trackpadDidSeed) || !slidersDecoded)
         if needsSeed {
             trackpadSliders = [EdgeSliderRule()]
             defaults.set(true, forKey: PrefKeys.trackpadDidSeed)

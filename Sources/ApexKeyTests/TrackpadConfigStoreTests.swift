@@ -67,6 +67,21 @@ final class TrackpadConfigStoreTests: XCTestCase {
         XCTAssertTrue(second.trackpadSliders.isEmpty, "사용자가 지운 규칙을 다시 만들면 안 된다")
     }
 
+    /// **구버전 버그 상태 복구** — `didSeed=1`인데 저장된 배열이 아예 없는 경우
+    /// (시드는 메모리에만 들어가고 저장되지 않던 버그). 규칙 0개로 굳지 않고 다시 시드한다.
+    func testLegacySeedFlagWithoutDataReseedsOnceAndPersists() {
+        defaults.set(true, forKey: ConfigStore.PrefKeys.trackpadDidSeed)
+        XCTAssertNil(defaults.data(forKey: ConfigStore.PrefKeys.trackpadSliders))
+
+        let recovered = makeStore()
+        XCTAssertEqual(recovered.trackpadSliders.count, 1, "구버전 버그 상태에서 기본 규칙이 복구돼야 한다")
+
+        let next = makeStore()
+        XCTAssertEqual(next.trackpadSliders.count, 1, "복구된 규칙이 저장돼야 한다")
+        XCTAssertEqual(next.trackpadSliders[0].id, recovered.trackpadSliders[0].id, "재시드로 중복되면 안 된다")
+        XCTAssertNotNil(defaults.data(forKey: ConfigStore.PrefKeys.trackpadSliders))
+    }
+
     func testSliderEditsPersist() {
         let first = makeStore()
         var rule = first.trackpadSliders[0]
