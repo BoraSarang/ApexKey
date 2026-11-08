@@ -1,7 +1,8 @@
 import Foundation
 import CoreFoundation
 
-/// 트랙패드 원시 접점 한 개 (정규화 좌표, 좌상단 0,0 → 우하단 1,1)
+/// 트랙패드 원시 접점 한 개 (정규화 좌표, **좌하단 0,0 → 우상단 1,1**)
+/// `y`는 위로 갈수록 커진다(실기 확정 — 화면 표시는 `1 - y`로 뒤집는다).
 struct TrackpadTouch: Equatable, Codable {
     var x: Float
     var y: Float
@@ -63,8 +64,8 @@ final class MTBridge {
     //  20     state          Int32
     //  24     fingerCount    Int32
     //  28     (예약)         Int32
-    //  32     normalized.pos.x  Float   ← 0..1
-    //  36     normalized.pos.y  Float   ← 0..1
+    //  32     normalized.pos.x  Float   ← 0..1 (왼쪽 → 오른쪽)
+    //  36     normalized.pos.y  Float   ← 0..1 (아래 → 위)
     //  40     normalized.vel.x  Float
     //  44     normalized.vel.y  Float
     //  48     size           Float

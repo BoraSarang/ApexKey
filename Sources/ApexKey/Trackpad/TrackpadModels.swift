@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - 좌표 공간
 
-/// 트랙패드 가장자리. 정규화 좌표는 좌상단(0,0) → 우하단(1,1).
+/// 트랙패드 가장자리. 정규화 좌표는 **좌하단(0,0) → 우상단(1,1)** — y는 위로 갈수록 커진다.
 enum TrackpadEdge: String, Codable, CaseIterable, Identifiable, Hashable {
     case right, left, top, bottom
 
@@ -160,9 +160,9 @@ struct EdgeSliderRule: Identifiable, Codable, Hashable {
         target: SliderTarget = .volume,
         sensitivity: Double = 1.0,
         inverted: Bool = false,
-        edgeWidth: Double = 0.12,
-        startThreshold: Double = 0.06,
-        cooldown: Double = 0.25,
+        edgeWidth: Double = 0.15,
+        startThreshold: Double = 0.07,
+        cooldown: Double = 0.12,
         ignoreThumb: Bool = true,
         suppressScroll: Bool = true,
         shortcutID: UUID? = nil
@@ -224,6 +224,16 @@ struct GestureRule: Identifiable, Codable, Hashable {
 // MARK: - 표시용 요약
 
 extension EdgeSliderRule {
+    /// v0.33.0 시드 기본값 그대로인가 — 사용자가 값을 만지지 않은 규칙만
+    /// 기본값 보정(v0.33.1) 대상으로 삼기 위한 판별.
+    var isLegacySeedDefault: Bool {
+        edgeWidth == 0.12
+            && startThreshold == 0.06
+            && cooldown == 0.25
+            && sensitivity == 1.0
+            && !inverted
+    }
+
     /// "오른쪽 에지 · 두 손가락 · 세로"
     var gestureSummary: String {
         let axis = edge.isVertical ? "trackpad.axis.vertical".localized : "trackpad.axis.horizontal".localized

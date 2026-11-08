@@ -142,4 +142,37 @@ final class TrackpadConfigStoreTests: XCTestCase {
         let store = makeStore()
         XCTAssertEqual(store.trackpadSliders.count, 1, "깨진 저장값이면 빈 목록 + 시드여야 한다")
     }
+
+    // MARK: - v0.33.1 기본값 보정
+
+    /// 실기 피드백(너무 예민함 · 두 손가락이 띠에 안 들어감)으로 권장값을 한 번 보정한다.
+    func testLegacySeedDefaultsAreTunedOnce() throws {
+        let legacy = EdgeSliderRule(edgeWidth: 0.12, startThreshold: 0.06, cooldown: 0.25)
+        defaults.set(try JSONEncoder().encode([legacy]), forKey: ConfigStore.PrefKeys.trackpadSliders)
+        defaults.set(true, forKey: ConfigStore.PrefKeys.trackpadDidSeed)
+
+        let store = makeStore()
+        XCTAssertEqual(store.trackpadSliders[0].edgeWidth, 0.15, accuracy: 0.0001)
+        XCTAssertEqual(store.trackpadSliders[0].startThreshold, 0.07, accuracy: 0.0001)
+        XCTAssertEqual(store.trackpadSliders[0].cooldown, 0.12, accuracy: 0.0001)
+        XCTAssertEqual(store.trackpadSliders[0].id, legacy.id, "규칙 ID는 유지")
+
+        // 두 번째 실행에서는 다시 바꾸지 않는다(사용자가 이후에 만진 값 보존).
+        var edited = store.trackpadSliders[0]
+        edited.cooldown = 0.4
+        store.upsertTrackpadSlider(edited)
+        let next = makeStore()
+        XCTAssertEqual(next.trackpadSliders[0].cooldown, 0.4, accuracy: 0.0001)
+    }
+
+    /// 사용자가 값을 만진 규칙은 보정 대상에서 통째로 제외한다.
+    func testTuningLeavesEditedRulesAlone() throws {
+        let edited = EdgeSliderRule(edgeWidth: 0.12, startThreshold: 0.06, cooldown: 0.4)
+        defaults.set(try JSONEncoder().encode([edited]), forKey: ConfigStore.PrefKeys.trackpadSliders)
+        defaults.set(true, forKey: ConfigStore.PrefKeys.trackpadDidSeed)
+        defaults.set(1, forKey: ConfigStore.PrefKeys.trackpadTuningVersion)
+
+        let store = makeStore()
+        XCTAssertEqual(store.trackpadSliders[0], edited, "만진 규칙은 그대로 둔다")
+    }
 }

@@ -173,6 +173,13 @@ struct TrackpadView: View {
             }
             .frame(height: 190)
 
+            if let hint = previewDirectionHint {
+                Text(hint)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(theme.accentColor)
+            }
+
             HStack(spacing: 6) {
                 Circle()
                     .fill(store.trackpadEnabled && engine.status == .running
@@ -208,6 +215,20 @@ struct TrackpadView: View {
             ? "trackpad.preview.hint".localized
             : "trackpad.preview.hint.horizontal".localized
         return "\(rule.edge.displayName) · \(hint)"
+    }
+
+    /// 지금 방향이 어느 쪽인지 한 줄로 못 박아 준다 — 실기에서 "방향을 모르겠다"는 피드백.
+    private var previewDirectionHint: String? {
+        guard let rule = store.trackpadSliders.first(where: { $0.enabled }) ?? store.trackpadSliders.first,
+              rule.target == .volume else { return nil }
+        if rule.edge.isVertical {
+            return (rule.inverted
+                    ? "trackpad.preview.dir.volume.down"
+                    : "trackpad.preview.dir.volume.up").localized
+        }
+        return (rule.inverted
+                ? "trackpad.preview.dir.volume.left"
+                : "trackpad.preview.dir.volume.right").localized
     }
 
     private func trackpadPreview(size: CGSize) -> some View {
@@ -246,8 +267,9 @@ struct TrackpadView: View {
                         .frame(width: 12, height: 12)
                         .overlay(Circle().stroke(Color.white.opacity(0.8), lineWidth: 1))
                         .position(
+                            // 원시 y는 위로 갈수록 커진다 — 화면 좌표(위가 0)로 뒤집는다.
                             x: CGFloat(touch.x) * size.width,
-                            y: CGFloat(touch.y) * size.height
+                            y: (1 - CGFloat(touch.y)) * size.height
                         )
                 }
             }
@@ -292,25 +314,41 @@ struct TrackpadView: View {
     }
 
     private func edgeBand(edge: TrackpadEdge, edgeWidth: Double, size: CGSize) -> some View {
-        let thickness = max(10, (edge.isVertical ? size.width : size.height) * edgeWidth)
+        // 인식은 "손가락 평균 위치" 기준이라 두 손가락이 조금 벌어져도 된다.
+        // 진한 띠 = 기준 폭, 옅은 띠 = 손가락이 벗어나도 허용되는 폭.
+        let core = max(10, (edge.isVertical ? size.width : size.height) * edgeWidth)
+        let halo = max(core + 6, (edge.isVertical ? size.width : size.height)
+                       * (edgeWidth + EdgeSliderRecognizer.fingerSpread))
         return Group {
             switch edge {
             case .right:
+                Rectangle().fill(theme.accentColor.opacity(0.07))
+                    .frame(width: halo)
+                    .position(x: size.width - halo / 2, y: size.height / 2)
                 Rectangle().fill(theme.accentColor.opacity(0.16))
-                    .frame(width: thickness)
-                    .position(x: size.width - thickness / 2, y: size.height / 2)
+                    .frame(width: core)
+                    .position(x: size.width - core / 2, y: size.height / 2)
             case .left:
+                Rectangle().fill(theme.accentColor.opacity(0.07))
+                    .frame(width: halo)
+                    .position(x: halo / 2, y: size.height / 2)
                 Rectangle().fill(theme.accentColor.opacity(0.16))
-                    .frame(width: thickness)
-                    .position(x: thickness / 2, y: size.height / 2)
+                    .frame(width: core)
+                    .position(x: core / 2, y: size.height / 2)
             case .top:
+                Rectangle().fill(theme.accentColor.opacity(0.07))
+                    .frame(height: halo)
+                    .position(x: size.width / 2, y: halo / 2)
                 Rectangle().fill(theme.accentColor.opacity(0.16))
-                    .frame(height: thickness)
-                    .position(x: size.width / 2, y: thickness / 2)
+                    .frame(height: core)
+                    .position(x: size.width / 2, y: core / 2)
             case .bottom:
+                Rectangle().fill(theme.accentColor.opacity(0.07))
+                    .frame(height: halo)
+                    .position(x: size.width / 2, y: size.height - halo / 2)
                 Rectangle().fill(theme.accentColor.opacity(0.16))
-                    .frame(height: thickness)
-                    .position(x: size.width / 2, y: size.height - thickness / 2)
+                    .frame(height: core)
+                    .position(x: size.width / 2, y: size.height - core / 2)
             }
         }
     }
@@ -637,11 +675,12 @@ struct TrackpadView: View {
     }
 
     private func resetAdvanced() {
+        let defaults = EdgeSliderRule()
         for rule in store.trackpadSliders {
             var updated = rule
-            updated.edgeWidth = 0.12
-            updated.startThreshold = 0.06
-            updated.cooldown = 0.25
+            updated.edgeWidth = defaults.edgeWidth
+            updated.startThreshold = defaults.startThreshold
+            updated.cooldown = defaults.cooldown
             updated.ignoreThumb = true
             updated.suppressScroll = true
             store.upsertTrackpadSlider(updated)

@@ -42,8 +42,26 @@ extension ConfigStore {
 
         // 로드 중 저장을 막았으므로(무한 되쓰기 방지) 시드는 여기서 한 번 명시적으로 저장한다.
         // 이 줄이 없으면 앱을 껐다 켤 때 기본 규칙이 사라진다(플래그만 남아 재시드도 안 됨).
+        //
+        // v0.33.1: 실기 피드백(너무 예민함 · 두 손가락이 띠에 안 들어감)으로 권장값을
+        // 넓고 둔감하게 바꿨다. **시드 기본값 그대로인 규칙만** 한 번 보정한다.
+        // 사용자가 직접 만진 값(감도·폭·임계값·쿨다운)은 덮어쓰지 않는다.
+        var tuningMigrated = false
+        if defaults.integer(forKey: PrefKeys.trackpadTuningVersion) < 2 {
+            let recommended = EdgeSliderRule()
+            for index in trackpadSliders.indices where trackpadSliders[index].isLegacySeedDefault {
+                var rule = trackpadSliders[index]
+                rule.edgeWidth = recommended.edgeWidth
+                rule.startThreshold = recommended.startThreshold
+                rule.cooldown = recommended.cooldown
+                trackpadSliders[index] = rule
+                tuningMigrated = true
+            }
+            defaults.set(2, forKey: PrefKeys.trackpadTuningVersion)
+        }
+
         isLoadingTrackpad = false
-        if needsSeed {
+        if needsSeed || tuningMigrated {
             saveTrackpadSliders()
         }
     }

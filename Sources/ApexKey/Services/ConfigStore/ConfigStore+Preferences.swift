@@ -55,6 +55,8 @@ extension ConfigStore {
         static let trackpadSliders = "pref.trackpad.sliders"
         static let trackpadGestures = "pref.trackpad.gestures"
         static let trackpadDidSeed = "pref.trackpad.didSeed"
+        /// 기본값 보정 버전 — 실기 피드백으로 권장값이 바뀔 때 한 번만 적용한다.
+        static let trackpadTuningVersion = "pref.trackpad.tuningVersion"
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")

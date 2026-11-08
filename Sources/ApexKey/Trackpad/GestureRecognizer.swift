@@ -107,8 +107,8 @@ final class GestureRecognizer {
         if horizontal {
             direction = dominant > 0 ? .right : .left
         } else {
-            // 좌표는 아래로 갈수록 커진다 — 위로 민 것이 dy < 0
-            direction = dominant > 0 ? .down : .up
+            // 원시 좌표는 아래가 0, 위가 1 — 위로 민 것이 dy > 0
+            direction = dominant > 0 ? .up : .down
         }
 
         // 다음 1회를 위해 그 방향 성분만 소비

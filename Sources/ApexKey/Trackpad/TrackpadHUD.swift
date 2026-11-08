@@ -9,8 +9,10 @@ final class TrackpadHUD {
     private var panel: NSPanel?
     private var bar: HUDVolumeBar?
     private var iconView: NSImageView?
+    private var directionView: NSImageView?
     private var valueLabel: NSTextField?
     private var hideTimer: Timer?
+    private var lastValue: Float?
 
     private static let size = NSSize(width: 214, height: 54)
 
@@ -23,6 +25,19 @@ final class TrackpadHUD {
             systemSymbolName: Self.iconName(for: clamped),
             accessibilityDescription: nil
         )
+        // 방향 표시 — 위/아래 어느 쪽으로 움직였는지 즉시 보이게 한다.
+        let direction: Int
+        if let lastValue, abs(clamped - lastValue) > 0.001 {
+            direction = clamped > lastValue ? 1 : -1
+        } else {
+            direction = 0
+        }
+        self.lastValue = clamped
+        directionView?.image = direction == 0 ? nil : NSImage(
+            systemSymbolName: direction > 0 ? "chevron.up" : "chevron.down",
+            accessibilityDescription: nil
+        )
+        directionView?.isHidden = direction == 0
         positionPanel()
         panel?.alphaValue = 1
         panel?.orderFront(nil)
@@ -38,6 +53,7 @@ final class TrackpadHUD {
     func hide() {
         hideTimer?.invalidate()
         hideTimer = nil
+        lastValue = nil
         panel?.orderOut(nil)
     }
 
@@ -86,20 +102,27 @@ final class TrackpadHUD {
         icon.imageScaling = .scaleProportionallyUpOrDown
         effect.addSubview(icon)
 
-        let bar = HUDVolumeBar(frame: NSRect(x: 46, y: 24, width: 118, height: 6))
+        let bar = HUDVolumeBar(frame: NSRect(x: 46, y: 24, width: 104, height: 6))
         effect.addSubview(bar)
+
+        let direction = NSImageView(frame: NSRect(x: 152, y: 17, width: 14, height: 20))
+        direction.contentTintColor = .secondaryLabelColor
+        direction.imageScaling = .scaleProportionallyDown
+        direction.isHidden = true
+        effect.addSubview(direction)
 
         let label = NSTextField(labelWithString: "0%")
         label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         label.textColor = .secondaryLabelColor
         label.alignment = .right
-        label.frame = NSRect(x: 170, y: 17, width: 32, height: 20)
+        label.frame = NSRect(x: 168, y: 17, width: 34, height: 20)
         effect.addSubview(label)
 
         win.contentView = effect
         panel = win
         self.bar = bar
         self.iconView = icon
+        self.directionView = direction
         self.valueLabel = label
     }
 
