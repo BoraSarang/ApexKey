@@ -1,6 +1,6 @@
 # ApexKey — 현황 (STATUS)
 
-> 최종 갱신: **2026-10-17**
+> 최종 갱신: **2026-11-08**
 > 이 문서가 "지금 어디까지 왔고, 무엇이 막혔고, 무엇을 안 했는지"의 단일 출처다.
 > 작업 목록은 [`TODO.md`](TODO.md), 문서 색인은 [`README.md`](README.md).
 
@@ -19,9 +19,10 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 > 메뉴바 상주 가벼움 유지는 기능과 동급 (리소스 회귀 = 버그).
 > 진입장벽 낮추기(온보딩·도움말·가이드)는 새 기능이 아니라 이 방향 안의 일이다.
 
-> **예외 1건 승인 (2026-11-08)** — 트랙패드 입력 소스(`v0.33`): 에지 슬라이더(볼륨/밝기) + 제스처→액션.
-> 방향 문장의 "트랙패드" 절반을 완성하는 작업으로 범위를 한정한다. 동결 자체는 유지되며,
-> 이 예외는 v0.33 완료와 함께 종료된다. 근거·실측: `docs/plans/SPIKE_v0.33_trackpad.md`.
+> **예외 1건 — 종료됨 (2026-11-08)** — 트랙패드 입력 소스(`v0.33`): 에지 슬라이더(볼륨/밝기) + 제스처→액션.
+> 방향 문장의 "트랙패드" 절반을 완성하는 작업으로 범위를 한정했고, v0.33 구현 완료와 함께 **예외도 끝났다**.
+> 동결은 다시 원래대로다(버그 수정 + 실사용 마찰 개선만). 근거·실측: `docs/plans/SPIKE_v0.33_trackpad.md`,
+> 설계: `docs/plans/PLAN_v0.33_trackpad-gestures.md`.
 
 > 유료화 전제 조건: Developer ID 서명·공증 (TODO 미해결 1번).
 
@@ -31,25 +32,26 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **573건 0실패**(3 skip, 2026-10-17 — 터미널에서 열기 T-195 포함, main 병합 후 재실행 통과) | `./build_and_run.sh test macos unit` |
+| 테스트 | **601건 0실패**(2 skip, 2026-11-08 — v0.33 트랙패드 인식기 18·리플레이 3·저장 7 포함) | `./build_and_run.sh test macos unit` |
 | 스모크 | 75건 0실패 | `test macos smoke` |
-| 빌드 | 클린 빌드 경고 **4건(기존 파일 2곳)** — 신규 코드 경고 0 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
+| 빌드 | 성공, **신규 코드 경고 0**(2026-11-08 v0.33) — 클린 빌드 기준 잔여 4건은 2026-10-15 측정값 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
 | 액션 구현 | **52 / 154** (스텁 3, 미구현 99) | `ActionType.implementationCounts()` — 2026-10-17 실측 정정(문서 162/59 ↔ 코드 153/51이던 불일치) |
-| i18n | ko/en **1033키 일치** | `*.lproj/Localizable.strings` |
+| i18n | ko/en **1237키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.5.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
 | 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 57개) | `OPEN_ITEMS.md` |
-| user 실동작 대기 | **85건** (확인 3건 / 전체 88건 — 2026-10-17 §8-13 3항목 확인) | `FUNCTIONAL_CHECKLIST.md` §8 |
+| user 실동작 대기 | **92건** (확인 3건 / 전체 95건 — 2026-11-08 §8-14 트랙패드 7항목 추가) | `FUNCTIONAL_CHECKLIST.md` §8 |
 | 브랜치 | `feat/macos-open-in-terminal` — **main에 병합됨**(PR #19, `7a41b2a`) | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
 | 미배포 배치 | **v1.5.0 이후 미릴리스** — T-187~T-195 (PR #17·#18·#19 머지됨) | — |
 
 ---
 
-## 3. 최근 완료분 (2026-09-27 ~ 10-13)
+## 3. 최근 완료분 (2026-09-27 ~ 11-08)
 
 | 작업 | 결과 |
 |---|---|
+| **2026-11-08 트랙패드 제스처 (v0.33, T-196~T-208)** | 에지 슬라이더(우측 두 손가락 위/아래 → 볼륨) + 탭·스와이프 → 워크플로우·단축키·**메뉴 항목**·시스템 액션. **모듈 격리**(`Trackpad/`, 기본 꺼짐), **새 권한 없음**(기존 Accessibility 재사용, Input Monitoring 요구하지 않음). 비공개 `MultitouchSupport`는 `MTBridge.swift` 한 파일에만 두고 `scripts/check-trackpad-boundary.py`가 빌드 게이트(0/6c)로 강제. 저장은 **UserDefaults JSON** — SwiftData 스키마 무변경. 시스템 액션 15→23(볼륨 올리기/내리기 + 스크린샷·새 메모·빠른 메모·배경화면·화면 깨우기·앱 전면으로). 인식기 18 + 리플레이 3 + 저장 7 + 액션 카탈로그 36건 통과, 10,000프레임 처리 1초 미만. **실기 에지 감도·스크롤 억제 체감은 사용자 30초 확인 대기** |
 | **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AppleScript(Finder 자동화)** 로 읽는다(`target of front window`+`selection`, NUL 구분) — AX 초판은 실측 후 폐기(창 `AXDocument` = `-25212`, 행/셀에 `AXURL` 속성 없음 → 절대 경로 불가). **근본 원인 수정: 하드닝 런타임에 `com.apple.security.automation.apple-events` 엔타이틀먼트가 없어 AppleEvent가 프롬프트 없이 `-1743`으로 거부**되고 있었다(tccd: `Policy disallows prompt`) — 메뉴 클릭·AppleScript/JXA·새 탭도 같은 원인으로 깨져 있었고 함께 살아났다. 규칙: 선택 우선 → 현재 창. 스키마 무변경(`actionParameters`). 573건 0실패·i18n 1033키. 라이브 실측 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`) — **사용자 실동작 확인 완료(2026-10-17, 선택 폴더 3건·현재 창 1건), 단축키는 사용자가 ⌥E로 변경. PR #19 main 머지(`7a41b2a`)** |
 | **2026-10-13 키캡 표시 방법 (T-185)** | Studio 6종 코드 이식 + 설정 Picker·미리보기 + 13곳 `KeycapView` 통일 + 검색 정규화. 525건 0실패·i18n 967키 |
 | **2026-10-13 지정됨 강조 (T-186)** | 단일 캡슐+엑센트 `highlighted` + 목록 뱃지 강화. v1.5.0 릴리스 |
@@ -126,6 +128,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 | **미구현 액션 100종** | 대부분 Apple 앱 연동 (`Photos`·`Music`·`Mail`·`Calendar`·`Reminders`·`Podcasts`) | 앱별 API 조사 필요. ScriptingBridge 또는 URL scheme |
 | **macOS 14 실기 검증** | 이 세션은 macOS 26에서만 실행 | macOS 14 기기 또는 가상머신 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월 | `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
+| **트랙패드 실기 감도** | 30초짜리 손 동작이 필요하다 — 에이전트가 대신할 수 없다 | 우측 에지 2손가락 스와이프 + 스크롤 억제 체감을 사용자가 확인 (`FUNCTIONAL_CHECKLIST.md` §8-14). 필요하면 에지 폭(기본 12%)·시작 임계(6%)·감도 조정 |
 
 ---
 

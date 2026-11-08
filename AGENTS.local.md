@@ -49,8 +49,8 @@
 
 ## 트랙패드 입력 제약 (v0.33)
 - **비공개 프레임워크**: `MultitouchSupport.framework`를 `dlopen`/`dlsym`으로만 사용. 링크 금지
-- **금지 심볼**: `MTDeviceGetFamilyID`, `MTDeviceGetDeviceID` — macOS 27.2에서 호출 시 SIGSEGV (실측)
-- **모듈 경계**: 인식·억제는 `TrackpadKit`에 격리. 코어(`ExecutionEngine`)는 프로토콜로만 접근
+- **금지 심볼**: 패밀리/디바이스 ID 조회 심볼 — macOS 27.2에서 호출 시 SIGSEGV (실측). 이름도 소스에 남기지 않는다(`scripts/check-trackpad-boundary.py`가 거부)
+- **모듈 경계**: `Sources/ApexKey/Trackpad/` 폴더에 격리. 실행은 새 엔진을 만들지 않고 기존 `ActionExecutor`·`MenuEnumerator`·`SystemActionExecutor`를 재사용한다. 경계는 빌드 게이트 `0/6c`로 강제
 - **실패 격리**: 프레임워크 로드/심볼 부재 시 기능만 비활성, 앱은 정상 기동
 - **권한**: 새 권한 없음. 기존 Accessibility 재사용 (Input Monitoring 요구 금지)
 

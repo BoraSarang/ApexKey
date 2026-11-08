@@ -1,6 +1,6 @@
 # PLAN_v0.33_trackpad-gestures — 트랙패드 제스처 (에지 슬라이더 + 제스처→액션)
 
-> status: **계획 (2026-11-08)** — 스파이크 완료, 사용자 승인 대기
+> status: **구현 완료 (2026-11-08)** — T-196~T-208 완료, 실기 감도 확인만 대기
 > 근거: `docs/plans/SPIKE_v0.33_trackpad.md` (실측 7항목 통과)
 > 사용자 요청: "트랙패드 오른쪽에서 두 손가락으로 볼륨", "특정 동작을 단축키/행위와 연결"
 > 제약(사용자 확정): **서명·공증 없음(영구)**, **무료 + MIT**, **GitHub Releases 배포**
@@ -18,7 +18,7 @@ ApexKey에 **입력 소스 하나**를 추가한다. 액션·워크플로우·�
 **핵심 결정 3개**
 1. **새 권한 없음** — 읽기는 비공개 프레임워크(TCC 불필요), 억제·합성은 기존 Accessibility 재사용. Input Monitoring 요구 금지.
 2. **기본 꺼짐** — 사용자가 켜야 권한·기능이 활성. 꺼진 상태에서 유휴 비용 0.
-3. **폴더 격리 + 경계 검사** — `Sources/ApexKey/Trackpad/`만 비공개 API를 만진다. 코어는 `GestureEvent` 프로토콜만 안다. `scripts/check-trackpad-boundary.py`로 강제.
+3. **폴더 격리 + 경계 검사** — `Sources/ApexKey/Trackpad/`만 비공개 API를 만진다. 실행은 새 엔진을 만들지 않고 기존 `ActionExecutor`·`MenuEnumerator`·`SystemActionExecutor`를 재사용한다. 경계는 `scripts/check-trackpad-boundary.py`로 강제.
 
 ## 1. 사용자 시나리오 (P0 완료 기준)
 
@@ -145,10 +145,10 @@ struct GestureRule: Codable, Identifiable {
 
 | 대상 | 구현 | 새 코드 |
 |---|---|---|
-| 워크플로우 | `ExecutionEngine.execute(steps:)` | 없음 |
-| 단축키 | `ExecutionEngine.execute(shortcut)` | 없음 |
-| **메뉴 항목** | `ShortcutStep(type: .menuCommand, target: 번들ID, title: 항목명, menuPath: [...])` → 기존 `MenuEnumerator.performAction` | **없음** (설정 UI만 추가) |
-| 시스템 액션 | `SystemActionExecutor.execute(type)` | 볼륨 ±만 추가 |
+| 워크플로우 | `ActionExecutor.executeWithDetail(ShortcutItem)` | 없음 |
+| 단축키 | `ActionExecutor.executeWithDetail(HotKeyBinding)` | 없음 |
+| **메뉴 항목** | `MenuItem(title:menuPath:)` → 기존 `MenuEnumerator.performAction` | **없음** (설정 UI만 추가) |
+| 시스템 액션 | `SystemActionExecutor.execute(type, parameter:)` | 볼륨 ± + 활용 6개 |
 
 - **메뉴 항목이 핵심**: Safari › 보기 › 번역 › 한국어로 번역 같은 메뉴를 **워크플로우/단축키를 만들지 않고** 바로 연결한다.
   `MenuCommandSettingsView`와 같은 UX(앱 피커 → 메뉴 트리)를 시트에 내장한다.
@@ -161,13 +161,14 @@ struct GestureRule: Codable, Identifiable {
 
 | 구분 | 항목 | 상태 |
 |---|---|---|
-| 구현됨 | 화면 잠금 · 음소거 토글 · 다크 모드 토글 · 수면 · 디스플레이 꺼짐 · 화면 보호기 · Dock 재시작 · Finder 재시작 · 전면 창 최소화 · 창 40/50/60% (좌·우) | `SystemActionExecutor` 15개 |
-| **이번 추가** | **볼륨 올리기 · 볼륨 내리기** | T-200에서 신규 (`SystemVolume` 공유) |
-| 이름만 있음 | 스크린샷 · 배경화면 · 화면 깨우기 · 집중모드 · 잠자기 방지 · 앱 전면으로 · 새 메모 · 빠른 메모 · 최근 항목 지우기 · AirDrop · 블루투스 · Wi-Fi | `ActionType`에 케이스는 있으나 `ActionExecutor`가 `default:`로 "미구현" 반환 |
+| 기존 구현 | 화면 잠금 · 음소거 토글 · 다크 모드 토글 · 수면 · 디스플레이 꺼짐 · 화면 보호기 · Dock 재시작 · Finder 재시작 · 전면 창 최소화 · 창 40/50/60% (좌·우) | 15개 |
+| **이번 추가 (볼륨)** | **볼륨 올리기 · 볼륨 내리기** | T-200 — `SystemVolume` 공유 |
+| **이번 추가 (활용, 사용자 승인)** | **스크린샷 · 새 메모 · 빠른 메모 · 배경화면 · 화면 깨우기 · 앱 전면으로** | 6개 — 각 0.1~0.2d로 실제 구현 |
+| 아직 미구현 | 집중모드 토글 · 잠자기 방지 · 최근 항목 지우기 · AirDrop · 블루투스 · Wi-Fi | 목록에 비활성("다음 버전")으로만 표시 |
 
-- 목업에서는 위 세 번째 줄을 **"다음 버전 (미구현)"** 그룹으로 비활성 표시해, 실제로 동작하는 항목과 섞이지 않게 했다.
-- 저비용으로 실제 구현 가능한 후보(각 0.1~0.2d): 스크린샷(`screencapture`) · 새 메모/빠른 메모(Notes AppleScript) · 배경화면(`NSWorkspace.setDesktopImageURL`) · 화면 깨우기(`caffeinate -u`) · 앱 전면으로(`NSRunningApplication.activate`).
-- **결정 필요**: 이 5개를 v0.33에 포함할지, P1로 미룰지. (현재 계획서 기본값은 P1)
+- **최종 23개** = 15 + 2(볼륨) + 6(활용). `SystemActionType.allCases`가 단일 출처다.
+- 목업 v4는 승인 시점(활용 6개 이전) 그림이라 "다음 버전 (미구현)" 그룹에 그 6개가 들어가 있다. 실제 구현은 그 6개를 **활용** 그룹에서 선택할 수 있고, 진짜 미구현 6개만 비활성으로 남는다.
+- 남은 6개를 안 넣은 이유: 집중모드는 단축어/AppleScript 의존, 잠자기 방지는 전용 헬퍼 필요, 최근 항목·AirDrop·블루투스·Wi-Fi는 공개 API가 없다(사설 API 또는 UI 자동화).
 
 ## 7. 설정 UI (트랙패드 스테이션)
 
