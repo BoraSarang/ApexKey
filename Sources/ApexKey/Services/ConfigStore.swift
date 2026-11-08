@@ -14,6 +14,20 @@ final class ConfigStore: ObservableObject {
     @Published var bindings: [HotKeyBinding] = []
     @Published var scripts: [ScriptItem] = []
     @Published var shortcuts: [ShortcutItem] = []
+    /// 트랙패드 마스터 토글 — 기본 꺼짐 (모듈 격리 원칙)
+    @Published var trackpadEnabled: Bool = false {
+        didSet { defaults.set(trackpadEnabled, forKey: PrefKeys.trackpadEnabled) }
+    }
+    /// 에지 슬라이더 규칙
+    @Published var trackpadSliders: [EdgeSliderRule] = [] {
+        didSet { saveTrackpadSliders() }
+    }
+    /// 제스처 규칙
+    @Published var trackpadGestures: [GestureRule] = [] {
+        didSet { saveTrackpadGestures() }
+    }
+    /// 로드 중에는 didSet 저장을 건너뛴다 (읽은 값을 그대로 되쓰지 않도록)
+    var isLoadingTrackpad = false
     /// 숨김 앱 표시 여부 — 설정 토글이 매 실행 리셋되지 않도록 영속화한다 (E-MAC-STORE-5008)
     /// 다른 모든 표시 설정과 동일한 `didSet` + `PrefKeys` + `init()` 복원 패턴을 따른다.
     @Published var showHiddenApps: Bool {
@@ -302,6 +316,9 @@ final class ConfigStore: ObservableObject {
                 }
             }
         }
+
+        // 트랙패드 규칙 로드 (UserDefaults JSON — SwiftData 스키마 변경 없이 격리)
+        loadTrackpadState()
 
         // 전역 통합(핫키·자동화)은 테스트에서 오염을 남기므로 통째로 건너뛴다
         guard registerSystemIntegrations else {

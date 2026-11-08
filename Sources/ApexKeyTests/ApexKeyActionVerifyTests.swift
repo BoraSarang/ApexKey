@@ -113,9 +113,13 @@ final class ApexKeyActionVerifyTests: XCTestCase {
 
     // MARK: - SYSTEM (시스템 프리셋)
 
-    /// V-SYS-02: 시스템 액션 15종이 타입·이름·아이콘을 모두 갖춤 (목록 누락 방지)
+    /// V-SYS-02: 시스템 액션이 타입·이름·아이콘을 모두 갖춤 (목록 누락 방지)
+    ///
+    /// v0.33(T-200)에서 트랙패드 제스처용 8종을 추가했다:
+    /// 볼륨 올리기/내리기 + 스크린샷·새 메모·빠른 메모·배경화면·화면 깨우기·앱 전면으로.
+    /// 15 + 8 = 23.
     func testVerifySystemActionCatalogComplete() {
-        XCTAssertEqual(SystemActionType.allCases.count, 15)
+        XCTAssertEqual(SystemActionType.allCases.count, 23)
         for type in SystemActionType.allCases {
             XCTAssertFalse(type.displayName.isEmpty, "\(type.rawValue) 이름 누락")
             XCTAssertFalse(type.systemImage.isEmpty, "\(type.rawValue) 아이콘 누락")

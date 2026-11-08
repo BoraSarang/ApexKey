@@ -12,6 +12,7 @@ struct MainWindowView: View {
 
     enum ToolSelection: Hashable {
         case shortcut
+        case trackpad
         case automation
     }
 
@@ -119,6 +120,9 @@ struct MainWindowView: View {
             switch tool {
             case .shortcut:
                 ShortcutStationView()
+                    .environmentObject(store)
+            case .trackpad:
+                TrackpadView()
                     .environmentObject(store)
             case .automation:
                 AutomationBrowserView()
