@@ -50,6 +50,11 @@ extension ConfigStore {
         static let didMigrateLegacyStore = "pref.didMigrateLegacyStore"
         /// 워크플로우 목록 순서 (UUID 문자열 배열, T-192)
         static let shortcutOrder = "pref.shortcutOrder"
+        // 트랙패드 (v0.33) — SwiftData 스키마를 건드리지 않도록 UserDefaults JSON으로 격리
+        static let trackpadEnabled = "pref.trackpad.enabled"
+        static let trackpadSliders = "pref.trackpad.sliders"
+        static let trackpadGestures = "pref.trackpad.gestures"
+        static let trackpadDidSeed = "pref.trackpad.didSeed"
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")

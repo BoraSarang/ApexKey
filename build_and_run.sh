@@ -32,6 +32,9 @@ python3 "$PROJECT_DIR/scripts/check-localizable.py" || error "현지화 가드 �
 info "0/6b: 버전 단일 출처 가드 (project.yml)..."
 python3 "$PROJECT_DIR/scripts/check-version.py" || error "버전 가드 실패 — project.yml의 MARKETING_VERSION을 확인하세요"
 
+info "0/6c: 트랙패드 경계 가드 (비공개 API 격리·새 권한 없음)..."
+python3 "$PROJECT_DIR/scripts/check-trackpad-boundary.py" || error "트랙패드 경계 가드 실패 — Trackpad/ 밖으로 비공개 API가 새지 않았는지 확인하세요"
+
 # ── 0. 테스트 서브커맨드 ─────────────────────────────
 if [ "$MODE" = "test" ]; then
   TEST_SCOPE="${3:-unit}"

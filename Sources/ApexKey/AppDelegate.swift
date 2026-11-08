@@ -192,6 +192,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             .store(in: &cancellables)
+
+        // 트랙패드 (v0.33) — 기본 꺼짐. 켜져 있을 때만 엔진을 올린다.
+        store.$trackpadEnabled
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                guard let store = self?.store else { return }
+                TrackpadEngine.shared.apply(enabled: enabled, store: store)
+            }
+            .store(in: &cancellables)
+        store.$trackpadSliders
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { _ in
+                TrackpadEngine.shared.refreshRules()
+            }
+            .store(in: &cancellables)
+        // 시작 시점 상태 반영 (위 sink는 이후 변경만 받는다)
+        TrackpadEngine.shared.apply(enabled: store.trackpadEnabled, store: store)
     }
 
     // MARK: - 실행 취소/다시 실행 (Edit 메뉴 — 텍스트 필드 미처리 시 위임)
