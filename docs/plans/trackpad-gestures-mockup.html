@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ApexKey — 트랙패드 목업 v3 (규칙 편집 시트)</title>
+<title>ApexKey — 트랙패드 목업 v4 (메뉴 항목·시스템 액션)</title>
 <style>
   /* ApexKey Dark 테마 토큰 (CustomTheme+Presets.swift darkDefault) */
   :root{
@@ -243,6 +243,8 @@
   .note svg{width:12px;height:12px;flex:0 0 12px;margin-top:1px;color:var(--accent)}
   .note.warn{background:rgba(255,159,10,.09); border-color:rgba(255,159,10,.24); color:#ffc266}
   .note.warn svg{color:var(--warning)}
+  .note .grow{min-width:0}
+  #gSummary,#sSummary{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
   .chips.tight{margin:0; gap:5px}
   .chips.tight .chip{padding:4px 8px; font-size:10.5px}
@@ -452,6 +454,13 @@
             <div class="item" data-kind="swipe" data-fingers="4" data-dir="left" data-action="system" data-name="시스템 액션 · 이전 데스크탑" data-scope="global" data-repeat="0">
               <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M9 8l-4 4 4 4"/><path d="M15 8l4 4-4 4"/></svg></span>
               <div class="grow"><div class="t">네 손가락 스와이프 ←</div><div class="d">시스템 액션 · 이전 데스크탑</div></div>
+              <span class="tag">전역</span>
+              <button class="btn plain" onclick="openGestureSheet(this)">편집</button>
+              <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>
+            </div>
+            <div class="item" data-kind="swipe" data-fingers="4" data-dir="down" data-action="menu" data-app="com.apple.Safari" data-menuPath="보기 › 번역 › 한국어로 번역" data-name="메뉴 · Safari · 보기 › 번역 › 한국어로 번역" data-scope="global" data-repeat="0">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></span>
+              <div class="grow"><div class="t">네 손가락 스와이프 ↓</div><div class="d">메뉴 · Safari · 보기 › 번역 › 한국어로 번역</div></div>
               <span class="tag">전역</span>
               <button class="btn plain" onclick="openGestureSheet(this)">편집</button>
               <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>
@@ -802,21 +811,51 @@
               <div class="seg" id="gActionType">
                 <button data-v="workflow" class="on">워크플로우</button>
                 <button data-v="hotkey">단축키</button>
+                <button data-v="menu">메뉴 항목</button>
                 <button data-v="system">시스템 액션</button>
               </div>
             </div>
           </div>
-          <div class="hint">워크플로우를 고르면 여러 단계를 한 번에 실행합니다.</div>
+          <div class="hint">메뉴 항목을 고르면 다른 앱의 메뉴를 그대로 실행합니다(예: Safari › 보기 › 번역 › 한국어로 번역).</div>
         </div>
 
-        <div class="frow">
+        <div class="frow" id="gTargetRow">
           <div class="top">
-            <span class="lab">대상 선택</span>
+            <span class="lab" id="gTargetLabel">대상 선택</span>
             <div class="ctl">
               <select class="compact" id="gTarget"></select>
             </div>
           </div>
           <div class="hint" id="gTargetHint">저장된 워크플로우 9개에서 고릅니다.</div>
+        </div>
+
+        <div class="frow" id="gMenuAppRow" style="display:none">
+          <div class="top">
+            <span class="lab">앱</span>
+            <div class="ctl">
+              <select class="compact" id="gMenuApp"></select>
+              <button class="btn small" onclick="reloadMenus()">새로 고침</button>
+            </div>
+          </div>
+          <div class="hint">지금 실행 중인 앱만 나옵니다. 메뉴는 AX로 실시간 열거합니다.</div>
+        </div>
+
+        <div class="frow" id="gMenuPathRow" style="display:none">
+          <div class="top">
+            <span class="lab">메뉴</span>
+            <div class="ctl">
+              <select class="compact" id="gMenuPath" style="max-width:360px"></select>
+            </div>
+          </div>
+          <div class="hint">회색으로 비활성된 메뉴는 실행되지 않습니다. 하위 메뉴는 › 로 표시됩니다.</div>
+        </div>
+
+        <div class="frow" id="gSystemRow" style="display:none">
+          <div class="top">
+            <span class="lab">볼륨 올리기 · 내리기</span>
+            <div class="ctl"><span class="tag blue">이번 버전 신규</span></div>
+          </div>
+          <div class="hint">지금은 음소거만 있었습니다. 올리기·내리기를 시스템 액션으로 새로 추가하고, 에지 슬라이더와 같은 볼륨 제어를 씁니다.</div>
         </div>
       </div>
 
@@ -1046,21 +1085,87 @@
                 items:['터미널에서 열기','클립보드 정리','창 레이아웃 정렬'] },
     hotkey:   { hint:'ApexKey에 등록된 단축키 중에서 고릅니다.', prefix:'단축키',
                 items:['⌘⇧4 (영역 캡처)','⌥E (터미널에서 열기)','⌃⌥T (새 탭)'] },
-    system:   { hint:'ApexKey가 직접 실행하는 시스템 동작입니다.', prefix:'시스템 액션',
-                items:['이전 데스크탑','화면 잠금','음소거 토글','실행 취소'] }
+    system:   { hint:'ApexKey가 직접 실행합니다. 설정이 필요한 동작은 워크플로우로 만드세요.', prefix:'시스템 액션',
+                groups:[
+                  { label:'재생', items:['볼륨 올리기','볼륨 내리기','음소거 토글'] },
+                  { label:'화면', items:['화면 잠금','디스플레이 꺼짐','화면 보호기','화면 깨우기'] },
+                  { label:'모드', items:['다크 모드 토글','집중모드 토글','잠자기 방지'] },
+                  { label:'창', items:['전면 창 최소화','왼쪽 40%','왼쪽 50%','왼쪽 60%','오른쪽 40%','오른쪽 50%','오른쪽 60%'] },
+                  { label:'정리', items:['최근 항목 지우기','Dock 재시작','Finder 재시작'] },
+                  { label:'기타', items:['스크린샷','배경화면','AirDrop','블루투스','Wi-Fi','새 메모','빠른 메모','앱 전면으로 이동','수면'] }
+                ] }
   };
-  const DIR_KO = { up:'↑', down:'↓', left:'←', right:'→' };
-  const DIR_WORD = { up:'위', down:'아래', left:'왼쪽', right:'오른쪽' };
-  const BIG_FINGERS = { 2:'두', 3:'세', 4:'네', 5:'다섯' };
+
+  /* 실행 중인 앱의 메뉴 — 이 맥에서 AX로 실제 열거한 항목 */
+  const MENUS = {
+    'com.apple.Safari': { name:'Safari', items:[
+      '보기 › 번역 › 한국어로 번역',
+      '보기 › 번역 › 영어로 번역',
+      '파일 › PDF로 내보내기…',
+      '파일 › 프린트…',
+      '편집 › 이모지 및 기호',
+      '북마크 › 이 탭을 북마크에 추가…'
+    ]},
+    'com.apple.finder': { name:'Finder', items:[
+      '파일 › 새로운 폴더',
+      '파일 › 똑같이 복제',
+      '파일 › 휴지통으로 이동',
+      '보기 › 갤러리',
+      '보기 › 목록'
+    ]},
+    'com.colliderli.iina': { name:'IINA', items:[
+      '오디오 › 음량 +10%',
+      '오디오 › 음량 -10%',
+      '오디오 › 소리 끔',
+      '재생 › 스크린샷',
+      '재생 › 속도: 1배속'
+    ]}
+  };
 
   function fillTargets(){
     const type = segVal('#gActionType') || 'workflow';
+    const isMenu = type === 'menu';
+    $('#gTargetRow').style.display = isMenu ? 'none' : 'flex';
+    $('#gMenuAppRow').style.display = isMenu ? 'flex' : 'none';
+    $('#gMenuPathRow').style.display = isMenu ? 'flex' : 'none';
+    $('#gSystemRow').style.display = type === 'system' ? 'flex' : 'none';
+
+    if (isMenu) { fillMenuApps(); return; }
+
     const cfg = ACTIONS[type];
     const prev = $('#gTarget').value;
-    $('#gTarget').innerHTML = cfg.items.map(x => `<option>${x}</option>`).join('');
-    if (cfg.items.includes(prev)) $('#gTarget').value = prev;
+    if (cfg.groups) {
+      $('#gTarget').innerHTML = cfg.groups.map(g =>
+        `<optgroup label="${g.label}">` + g.items.map(x => `<option>${x}</option>`).join('') + `</optgroup>`).join('');
+    } else {
+      $('#gTarget').innerHTML = cfg.items.map(x => `<option>${x}</option>`).join('');
+    }
+    const flat = cfg.groups ? cfg.groups.flatMap(g => g.items) : cfg.items;
+    if (flat.includes(prev)) $('#gTarget').value = prev;
+    $('#gTargetLabel').textContent = type === 'system' ? '시스템 동작' : '대상 선택';
     $('#gTargetHint').textContent = cfg.hint;
   }
+
+  function fillMenuApps(){
+    const sel = $('#gMenuApp');
+    const prev = sel.value;
+    sel.innerHTML = Object.keys(MENUS).map(id => `<option value="${id}">${MENUS[id].name}</option>`).join('');
+    if (prev && MENUS[prev]) sel.value = prev;
+    fillMenuPaths();
+  }
+
+  function fillMenuPaths(){
+    const items = MENUS[$('#gMenuApp').value]?.items || [];
+    $('#gMenuPath').innerHTML = items.map(x => `<option>${x}</option>`).join('');
+  }
+
+  function reloadMenus(){
+    fillMenuApps();
+    $('#gMenuApp').closest('.frow').querySelector('.hint').textContent = '메뉴를 다시 읽었습니다 — 실행 중인 앱 3개';
+  }
+  const DIR_KO = { up:'↑', down:'↓', left:'←', right:'→' };
+  const DIR_WORD = { up:'위', down:'아래', left:'왼쪽', right:'오른쪽' };
+  const BIG_FINGERS = { 2:'두', 3:'세', 4:'네', 5:'다섯' };
 
   function syncGestureSheet(){
     const kind = segVal('#gKind') || 'tap';
@@ -1082,7 +1187,13 @@
     const gesture = kind === 'tap'
       ? `${BIG_FINGERS[fingers]} 손가락 탭`
       : `${BIG_FINGERS[fingers]} 손가락 스와이프 ${DIR_WORD[dir]}`;
-    const action = `${ACTIONS[type].prefix} · ${$('#gTarget').value}`;
+    let action;
+    if (type === 'menu') {
+      const appName = MENUS[$('#gMenuApp').value]?.name || '앱';
+      action = `메뉴 · ${appName} · ${$('#gMenuPath').value}`;
+    } else {
+      action = `${ACTIONS[type].prefix} · ${$('#gTarget').value}`;
+    }
     $('#gSummary').textContent = `${gesture} → ${action}`;
   }
 
@@ -1097,8 +1208,13 @@
     setSeg('#gActionType', d.action || 'workflow');
     setSeg('#gScope', d.scope || 'global');
     fillTargets();
-    const name = (d.name || '').split('·').pop().trim();
-    if (name) $('#gTarget').value = name;
+    if (d.action === 'menu') {
+      if (d.app && MENUS[d.app]) { $('#gMenuApp').value = d.app; fillMenuPaths(); }
+      if (d.menuPath) $('#gMenuPath').value = d.menuPath;
+    } else {
+      const name = (d.name || '').split('·').pop().trim();
+      if (name) $('#gTarget').value = name;
+    }
     $('#gRepeat').checked = d.repeat === '1';
     $('#gestureTitle').textContent = row ? '제스처 편집' : '제스처 추가';
     $('#gDelete').style.display = row ? 'inline-block' : 'none';
@@ -1112,16 +1228,25 @@
     const dir = segVal('#gDir') || 'left';
     const type = segVal('#gActionType') || 'workflow';
     const scope = segVal('#gScope') || 'global';
-    const name = $('#gTarget').value;
     const gesture = kind === 'tap'
       ? `${BIG_FINGERS[fingers]} 손가락 탭`
       : `${BIG_FINGERS[fingers]} 손가락 스와이프 ${DIR_KO[dir]}`;
-    const action = `${ACTIONS[type].prefix} · ${name}`;
     const scopeText = scope === 'global' ? '전역' : `앱 ${$$('#gApps .chip.on').length}개`;
+    const data = { kind, fingers, dir, action: type, scope, repeat: $('#gRepeat').checked ? '1' : '0' };
+    let action;
+    if (type === 'menu') {
+      const appId = $('#gMenuApp').value;
+      const menuPath = $('#gMenuPath').value;
+      action = `메뉴 · ${MENUS[appId]?.name || '앱'} · ${menuPath}`;
+      data.app = appId; data.menuPath = menuPath;
+    } else {
+      action = `${ACTIONS[type].prefix} · ${$('#gTarget').value}`;
+    }
+    data.name = action;
 
     let row = gestureEditing;
     if (!row) { row = document.createElement('div'); row.className = 'item'; $('#gestureList').appendChild(row); }
-    Object.assign(row.dataset, { kind, fingers, dir, action: type, name: action, scope, repeat: $('#gRepeat').checked ? '1' : '0' });
+    Object.assign(row.dataset, data);
     row.innerHTML = `
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M9 8l-4 4 4 4"/><path d="M15 8l4 4-4 4"/></svg></span>
       <div class="grow"><div class="t">${gesture}</div><div class="d">${action}</div></div>
@@ -1157,6 +1282,8 @@
     syncSliderSheet();
   }));
   $('#gTarget').addEventListener('change', syncGestureSheet);
+  $('#gMenuApp').addEventListener('change', () => { fillMenuPaths(); syncGestureSheet(); });
+  $('#gMenuPath').addEventListener('change', syncGestureSheet);
   $$('#gApps .chip').forEach(c => c.addEventListener('click', () => { c.classList.toggle('on'); syncGestureSheet(); }));
 
   /* 시트 안 미니 트랙패드 — 클릭으로 에지 선택, 드래그로 볼륨 데모 */

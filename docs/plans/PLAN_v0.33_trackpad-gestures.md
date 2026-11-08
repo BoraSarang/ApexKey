@@ -141,6 +141,22 @@ struct GestureRule: Codable, Identifiable {
 - 볼륨 HUD: 기존 HUD 스타일 재사용. 0.8초 후 자동 소멸.
 - 실행 실패는 **무음 금지** — 기존 토스트 경로로 사유 표시.
 
+### 6.1 제스처 실행 대상 — 기존 자산 재사용
+
+| 대상 | 구현 | 새 코드 |
+|---|---|---|
+| 워크플로우 | `ExecutionEngine.execute(steps:)` | 없음 |
+| 단축키 | `ExecutionEngine.execute(shortcut)` | 없음 |
+| **메뉴 항목** | `ShortcutStep(type: .menuCommand, target: 번들ID, title: 항목명, menuPath: [...])` → 기존 `MenuEnumerator.performAction` | **없음** (설정 UI만 추가) |
+| 시스템 액션 | `SystemActionExecutor.execute(type)` | 볼륨 ±만 추가 |
+
+- **메뉴 항목이 핵심**: Safari › 보기 › 번역 › 한국어로 번역 같은 메뉴를 **워크플로우/단축키를 만들지 않고** 바로 연결한다.
+  `MenuCommandSettingsView`와 같은 UX(앱 피커 → 메뉴 트리)를 시트에 내장한다.
+- 실행 전제: 대상 앱 실행 중 + Accessibility. 비활성 메뉴는 실행 실패 → 토스트로 사유 표시.
+- **시스템 액션 확장**: `SystemActionType`에 `volumeUp`/`volumeDown` 추가(현재 `mute`만 있음).
+  구현은 `SystemVolume`(T-200) 하나로 공유 — 에지 슬라이더와 제스처가 같은 코드를 쓴다.
+- 설정이 필요한 액션(URL·파일·스크립트·텍스트)은 제스처에 직접 붙이지 않고 **워크플로우로 감싼다**(입력은 단계에서 받는다).
+
 ## 7. 설정 UI (트랙패드 스테이션)
 
 ```
@@ -190,8 +206,8 @@ struct GestureRule: Codable, Identifiable {
 | T-197 | `Trackpad/` 뼈대: 소스·프레임·실패 격리 | 1d |
 | T-198 | `EdgeZone` + `GestureRecognizer` 상태머신 | 2d |
 | T-199 | `ScrollSuppressor` (탭 수명주기·타임아웃 복구) | 1d |
-| T-200 | `SystemVolume` (CoreAudio 증분) | 0.5d |
-| T-201 | `GestureRouter` → `ExecutionEngine` 연결 | 1d |
+| T-200 | `SystemVolume` (CoreAudio 증분) + `SystemActionType.volumeUp/volumeDown` | 0.75d |
+| T-201 | `GestureRouter` → `ExecutionEngine` 연결 (메뉴 명령 포함) | 1.25d |
 | T-202 | `GestureConfig` + `ConfigStore` 저장 | 0.5d |
 | T-203 | 트랙패드 스테이션 UI (미리보기·목록·권한 카드) | 2d |
 | T-203b | 슬라이더·제스처 편집 시트 (+ 상세 옵션) | 1.5d |
@@ -200,7 +216,7 @@ struct GestureRule: Codable, Identifiable {
 | T-206 | 경계 검사 스크립트 + 빌드 게이트 연결 | 0.5d |
 | T-207 | fixture 리플레이 + 단위 테스트 | 1d |
 | T-208 | 성능 예산 측정 + 문서화 | 0.5d |
-| | **합계** | **약 13일 (2.7주)** |
+| | **합계** | **약 13.5일 (2.8주)** |
 
 P1(v0.34): 밝기·다이얼·TipTap·앱별 프로필·프리셋 — 약 7일.
 
