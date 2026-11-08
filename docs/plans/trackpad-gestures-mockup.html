@@ -123,7 +123,7 @@
   /* HUD */
   .hud{position:absolute;left:50%;top:16px;transform:translate(-50%,-6px) scale(.96);opacity:0;
     display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:13px;
-    background:rgba(20,21,26,.82);backdrop-filter:blur(18px);color:#fff;
+    background:rgba(20,21,26,.82);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);color:#fff;
     box-shadow:0 10px 30px rgba(0,0,0,.35);transition:.16s; pointer-events:none}
   .hud.on{opacity:1;transform:translate(-50%,0) scale(1)}
   .hud svg{width:16px;height:16px;opacity:.95}
@@ -156,7 +156,7 @@
   .empty{padding:26px;text-align:center;color:var(--text-2);font-size:11.5px;line-height:1.6}
 
   /* 모달 */
-  .overlay{position:fixed;inset:0;background:rgba(8,8,12,.42);backdrop-filter:blur(3px);
+  .overlay{position:fixed;inset:0;background:rgba(8,8,12,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
     display:none;align-items:center;justify-content:center;padding:24px;z-index:20}
   .overlay.on{display:flex}
   .modal{width:min(520px,100%);background:var(--panel);border-radius:16px;box-shadow:var(--shadow);
