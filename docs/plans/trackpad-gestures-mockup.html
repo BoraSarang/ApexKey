@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ApexKey — 트랙패드 설정 목업 v2</title>
+<title>ApexKey — 트랙패드 목업 v3 (규칙 편집 시트)</title>
 <style>
   /* ApexKey Dark 테마 토큰 (CustomTheme+Presets.swift darkDefault) */
   :root{
@@ -180,6 +180,88 @@
 
   .fade{opacity:.4; pointer-events:none; filter:grayscale(.5); transition:.2s}
 
+  /* ── 세부 설정 시트 ─────────────────────── */
+  .sheet{width:min(700px,100%); max-height:92vh; display:flex; flex-direction:column;
+         background:#232427; border:1px solid var(--border2); border-radius:12px;
+         box-shadow:0 40px 100px rgba(0,0,0,.65); overflow:hidden}
+  .sheet-head{display:flex; align-items:flex-start; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border)}
+  .sheet-head .t{font-size:14px; font-weight:600; letter-spacing:-.1px}
+  .sheet-head .d{font-size:11px; color:var(--text3); margin-top:2px; line-height:1.45}
+  .sheet-head .close{margin-left:auto; flex:0 0 24px; width:24px; height:24px; border-radius:50%; border:0;
+                     background:rgba(255,255,255,.08); color:var(--text2); display:grid; place-items:center;
+                     cursor:pointer; font-size:11px; line-height:1}
+  .sheet-head .close:hover{background:rgba(255,255,255,.16); color:var(--text)}
+  .sheet-body{overflow:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px}
+  .sheet-body::-webkit-scrollbar{width:9px}
+  .sheet-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:9px;border:2px solid transparent;background-clip:content-box}
+  .sheet-foot{display:flex; align-items:center; gap:8px; padding:12px 16px;
+              border-top:1px solid var(--border); background:rgba(255,255,255,.025)}
+  .sheet-foot .grow{flex:1}
+
+  .grp{border:1px solid var(--border); border-radius:10px; overflow:hidden; background:rgba(255,255,255,.02)}
+  .grp-title{font-size:10px; font-weight:600; color:var(--text3); letter-spacing:.4px;
+             padding:7px 11px; background:rgba(255,255,255,.035); border-bottom:1px solid var(--border)}
+  .frow{display:flex; flex-direction:column; gap:6px; padding:10px 11px; border-bottom:1px solid rgba(255,255,255,.05)}
+  .frow:last-child{border-bottom:0}
+  .frow .top{display:flex; align-items:center; gap:10px}
+  .frow .lab{font-size:12px; flex:1; min-width:0}
+  .frow .ctl{display:flex; align-items:center; gap:7px; justify-content:flex-end; flex-wrap:wrap}
+  .frow .hint{font-size:10.5px; color:var(--text3); line-height:1.5}
+  .frow.off{opacity:.42}
+  .frow.off .hint{opacity:.9}
+
+  .val{font-size:11px; color:var(--text2); font-variant-numeric:tabular-nums; min-width:42px; text-align:right}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:172px; height:4px; border-radius:99px;
+    background:linear-gradient(90deg,var(--accent) 0%,var(--accent) var(--p,50%),rgba(255,255,255,.16) var(--p,50%));
+    outline:none; cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.5); cursor:pointer}
+
+  .edge-pick{display:grid; grid-template-columns:repeat(3,26px); grid-template-rows:repeat(3,26px); gap:3px;
+             padding:3px; background:rgba(255,255,255,.05); border-radius:8px}
+  .edge-pick button{border:0; border-radius:5px; background:rgba(255,255,255,.07); color:var(--text3);
+                    cursor:pointer; display:grid; place-items:center; padding:0}
+  .edge-pick button svg{width:12px;height:12px}
+  .edge-pick button:hover{background:rgba(255,255,255,.14); color:var(--text2)}
+  .edge-pick button.on{background:var(--accent); color:#fff}
+  .edge-pick .mid{background:transparent; pointer-events:none; display:grid; place-items:center}
+  .edge-pick .mid span{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.18)}
+
+  .pad.mini{aspect-ratio:1.7/1; max-width:280px; margin:0 auto; cursor:crosshair}
+  .pad.mini .zone.right{width:15%}
+  .pad.mini .zone.left{width:15%}
+  .pad.mini .zone.top{height:15%}
+  .pad.mini .zone.bottom{height:15%}
+  .pad.mini .finger{width:18px;height:18px}
+  .pad.mini .hud{top:auto; bottom:10px; padding:6px 9px; gap:7px}
+  .pad.mini .hud .bar{width:74px;height:3px}
+  .pad.mini .pad-hint{font-size:9.5px; bottom:5px}
+
+  .note{display:flex; gap:7px; align-items:flex-start; font-size:10.5px; line-height:1.5;
+        color:var(--text2); background:rgba(10,132,255,.08); border:1px solid rgba(10,132,255,.2);
+        border-radius:8px; padding:8px 10px}
+  .note svg{width:12px;height:12px;flex:0 0 12px;margin-top:1px;color:var(--accent)}
+  .note.warn{background:rgba(255,159,10,.09); border-color:rgba(255,159,10,.24); color:#ffc266}
+  .note.warn svg{color:var(--warning)}
+
+  .chips.tight{margin:0; gap:5px}
+  .chips.tight .chip{padding:4px 8px; font-size:10.5px}
+
+  .choice{display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:9px;
+          background:rgba(255,255,255,.04); border:1px solid var(--border); cursor:pointer; text-align:left; color:var(--text)}
+  .choice:hover{background:rgba(255,255,255,.08); border-color:var(--border2)}
+  .choice .ico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:0 0 30px;
+               background:rgba(10,132,255,.16); color:var(--accent)}
+  .choice .ico svg{width:16px;height:16px}
+  .choice .t{font-size:12.5px; font-weight:600}
+  .choice .d{font-size:10.5px; color:var(--text3); margin-top:1px; line-height:1.4}
+  .choice .chev{margin-left:auto;color:var(--text3);width:13px;height:13px}
+
+  select.compact{width:auto; min-width:148px; max-width:100%; padding:5px 8px; font-size:11.5px}
+  .btn.small{padding:4px 9px; font-size:11px}
+  .btn.danger{background:transparent; border-color:transparent; color:var(--error)}
+  .btn.danger:hover{background:rgba(255,69,58,.14)}
+
   /* 모달 */
   .overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px);
            display:none; align-items:center; justify-content:center; padding:24px; z-index:30}
@@ -228,8 +310,8 @@
 
       <div class="sec">도구</div>
       <div class="row"><span class="ico c-blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 16l9 5 9-5" stroke="currentColor" stroke-width="1.6" fill="none"/></svg></span><span class="label">워크플로우</span><span class="count">9</span></div>
-      <div class="row"><span class="ico c-blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span><span class="label">자동화</span><span class="count">0</span></div>
       <div class="row active"><span class="ico" style="color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M12 5v9"/></svg></span><span class="label">트랙패드</span><span class="new">NEW</span></div>
+      <div class="row"><span class="ico c-blue"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span><span class="label">자동화</span><span class="count">0</span></div>
     </div>
 
     <div class="side-foot"><span class="status-dot"></span>단축키 1개 · 워크플로우 9개</div>
@@ -259,7 +341,7 @@
       <label class="switch" title="트랙패드 기능 켜기/끄기">
         <input type="checkbox" id="master" checked><span class="track"></span><span class="thumb"></span>
       </label>
-      <button class="round-add" onclick="openModal()" title="규칙 추가">
+      <button class="round-add" onclick="openChooser()" title="규칙 추가">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
       </button>
     </div>
@@ -332,19 +414,19 @@
               <h3>에지 슬라이더</h3>
               <div class="desc">가장자리를 슬라이더로 씁니다. 동작 중에는 앱 스크롤을 잠시 막습니다.</div>
             </div>
-            <button class="btn" onclick="addSlider()">+ 추가</button>
+            <button class="btn" onclick="openSliderSheet()">+ 추가</button>
           </div>
           <div class="list" id="sliderList">
-            <div class="item">
+            <div class="item" data-edge="right" data-fingers="2" data-axis="v" data-target="volume" data-sens="1" data-invert="0" data-suppress="1">
               <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/></svg></span>
               <div class="grow"><div class="t">오른쪽 에지 · 두 손가락 · 세로</div><div class="d">볼륨 · 감도 1.0x · 반전 없음</div></div>
-              <button class="btn plain" onclick="alert('목업 — 규칙 편집 시트')">편집</button>
+              <button class="btn plain" onclick="openSliderSheet(this)">편집</button>
               <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>
             </div>
-            <div class="item">
+            <div class="item" data-edge="top" data-fingers="1" data-axis="h" data-target="brightness" data-sens="1" data-invert="0" data-suppress="1">
               <span class="ico" style="background:rgba(255,255,255,.07);color:var(--text3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></span>
               <div class="grow"><div class="t">위 에지 · 한 손가락 · 가로</div><div class="d">밝기 · 다음 버전</div></div>
-              <button class="btn plain" onclick="alert('밝기는 P1 범위입니다.')">편집</button>
+              <button class="btn plain" onclick="openSliderSheet(this)">편집</button>
               <label class="switch"><input type="checkbox"><span class="track"></span><span class="thumb"></span></label>
             </div>
           </div>
@@ -357,19 +439,21 @@
               <h3>제스처</h3>
               <div class="desc">탭·스와이프를 기존 워크플로우나 시스템 액션에 연결합니다.</div>
             </div>
-            <button class="btn primary" onclick="openModal()">+ 제스처 추가</button>
+            <button class="btn primary" onclick="openGestureSheet()">+ 제스처 추가</button>
           </div>
           <div class="list" id="gestureList">
-            <div class="item">
+            <div class="item" data-kind="tap" data-fingers="3" data-dir="" data-action="workflow" data-name="워크플로우 · 터미널에서 열기" data-scope="global" data-repeat="0">
               <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V6a2 2 0 1 1 4 0v5"/><path d="M11 11V4a2 2 0 1 1 4 0v7"/><path d="M15 11V6a2 2 0 1 1 4 0v7a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-1a2 2 0 1 1 4 0"/></svg></span>
               <div class="grow"><div class="t">세 손가락 탭</div><div class="d">워크플로우 · 터미널에서 열기</div></div>
               <span class="tag">전역</span>
+              <button class="btn plain" onclick="openGestureSheet(this)">편집</button>
               <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>
             </div>
-            <div class="item">
+            <div class="item" data-kind="swipe" data-fingers="4" data-dir="left" data-action="system" data-name="시스템 액션 · 이전 데스크탑" data-scope="global" data-repeat="0">
               <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M9 8l-4 4 4 4"/><path d="M15 8l4 4-4 4"/></svg></span>
               <div class="grow"><div class="t">네 손가락 스와이프 ←</div><div class="d">시스템 액션 · 이전 데스크탑</div></div>
               <span class="tag">전역</span>
+              <button class="btn plain" onclick="openGestureSheet(this)">편집</button>
               <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>
             </div>
           </div>
@@ -398,34 +482,387 @@
   </main>
 </div>
 
-<!-- 제스처 추가 -->
-<div class="overlay" id="overlay">
-  <div class="modal">
-    <h2>규칙 추가</h2>
-    <div class="desc">제스처를 고르고 실행할 대상을 선택하세요.</div>
+<!-- 규칙 추가 선택 -->
+<div class="overlay" id="chooser">
+  <div class="sheet" style="width:min(470px,100%)">
+    <div class="sheet-head">
+      <div class="grow">
+        <div class="t">무엇을 추가할까요?</div>
+        <div class="d">에지 슬라이더와 제스처는 설정 항목이 다릅니다.</div>
+      </div>
+      <button class="close" onclick="closeSheets()">✕</button>
+    </div>
+    <div class="sheet-body">
+      <button class="choice" onclick="closeSheets(); openSliderSheet()">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M8 9l4-4 4 4"/></svg></span>
+        <span class="grow">
+          <span class="t" style="display:block">에지 슬라이더</span>
+          <span class="d" style="display:block">가장자리 스와이프로 볼륨 같은 값을 연속으로 바꿉니다.</span>
+        </span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <button class="choice" onclick="closeSheets(); openGestureSheet()">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V6a2 2 0 1 1 4 0v5"/><path d="M11 11V4a2 2 0 1 1 4 0v7"/><path d="M15 11V6a2 2 0 1 1 4 0v7a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-1a2 2 0 1 1 4 0"/></svg></span>
+        <span class="grow">
+          <span class="t" style="display:block">제스처</span>
+          <span class="d" style="display:block">탭·스와이프를 워크플로우나 단축키에 연결합니다.</span>
+        </span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
 
-    <div style="margin-top:14px;font-size:11px;font-weight:600;color:var(--text3)">제스처</div>
-    <div class="chips" id="gestureChips">
-      <span class="chip on" data-g="세 손가락 탭">세 손가락 탭</span>
-      <span class="chip" data-g="네 손가락 탭">네 손가락 탭</span>
-      <span class="chip" data-g="세 손가락 스와이프 ←">세 손가락 스와이프 ←</span>
-      <span class="chip" data-g="세 손가락 스와이프 →">세 손가락 스와이프 →</span>
-      <span class="chip" data-g="네 손가락 스와이프 ↑">네 손가락 스와이프 ↑</span>
-      <span class="chip" data-g="네 손가락 스와이프 ↓">네 손가락 스와이프 ↓</span>
+<!-- 에지 슬라이더 시트 -->
+<div class="overlay" id="sliderSheet">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="grow">
+        <div class="t" id="sliderTitle">에지 슬라이더 추가</div>
+        <div class="d">가장자리에서 손가락을 움직여 값을 연속으로 바꿉니다.</div>
+      </div>
+      <button class="close" onclick="closeSheets()">✕</button>
     </div>
 
-    <div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--text3)">실행</div>
-    <select id="actionSelect" style="margin-top:6px">
-      <option>워크플로우 · 터미널에서 열기</option>
-      <option>워크플로우 · 클립보드 정리</option>
-      <option>시스템 액션 · 이전 데스크탑</option>
-      <option>시스템 액션 · 화면 잠금</option>
-      <option>단축키 · ⌘⇧4 (영역 캡처)</option>
-    </select>
+    <div class="sheet-body">
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <span class="grow" id="sSummary">오른쪽 에지 · 두 손가락 · 세로 · 볼륨</span>
+      </div>
 
-    <div class="actions">
-      <button class="btn" onclick="closeModal()">취소</button>
-      <button class="btn primary" onclick="confirmAdd()">추가</button>
+      <div class="pad mini" id="miniPad">
+        <div class="grid"></div>
+        <div class="zone right" id="mz-right"></div>
+        <div class="zone left off" id="mz-left"></div>
+        <div class="zone top off" id="mz-top"></div>
+        <div class="zone bottom off" id="mz-bottom"></div>
+        <div class="finger" id="mf1"></div>
+        <div class="finger" id="mf2"></div>
+        <div class="hud" id="miniHud">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h3l4-3v12l-4-3H4z"/><path d="M15.5 8.5a4 4 0 0 1 0 7" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+          <div class="bar"><div class="fill" id="miniFill"></div></div>
+          <span class="val" id="miniVal">25%</span>
+        </div>
+        <div class="pad-hint" id="miniHint">에지를 누르거나 드래그해 보세요</div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-title">동작</div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">위치</span>
+            <div class="ctl">
+              <div class="edge-pick" id="sEdge">
+                <span></span>
+                <button data-v="top" title="위"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+                <span></span>
+                <button data-v="left" title="왼쪽"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+                <span class="mid"><span></span></span>
+                <button data-v="right" class="on" title="오른쪽"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+                <span></span>
+                <button data-v="bottom" title="아래"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+                <span></span>
+              </div>
+            </div>
+          </div>
+          <div class="hint">손가락이 전부 이 영역 안에 있어야 슬라이더로 인식합니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">손가락 수</span>
+            <div class="ctl">
+              <div class="seg" id="sFingers">
+                <button data-v="1">1</button>
+                <button data-v="2" class="on">2</button>
+                <button data-v="3">3</button>
+              </div>
+            </div>
+          </div>
+          <div class="hint">두 손가락을 권장합니다. 한 손가락은 커서 이동과 겹칩니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">축</span>
+            <div class="ctl">
+              <span class="tag blue" id="sAxisTag">세로</span>
+              <span class="tag">자동</span>
+            </div>
+          </div>
+          <div class="hint">오른쪽·왼쪽 에지는 세로, 위·아래 에지는 가로로 정해집니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">대상</span>
+            <div class="ctl">
+              <select class="compact" id="sTarget">
+                <option value="volume">볼륨</option>
+                <option value="brightness">밝기 (다음 버전)</option>
+                <option value="shortcut">워크플로우 실행</option>
+              </select>
+            </div>
+          </div>
+          <div class="hint" id="sTargetHint">시스템 출력 볼륨을 1% 단위로 바꿉니다. 방향은 위로 밀면 커집니다.</div>
+        </div>
+
+        <div class="frow" id="sShortcutRow" style="display:none">
+          <div class="top">
+            <span class="lab">실행할 워크플로우</span>
+            <div class="ctl">
+              <select class="compact" id="sShortcut">
+                <option>터미널에서 열기</option>
+                <option>클립보드 정리</option>
+                <option>창 레이아웃 정렬</option>
+              </select>
+            </div>
+          </div>
+          <div class="hint">임계값을 넘을 때마다 1회 실행합니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">감도</span>
+            <div class="ctl">
+              <input type="range" id="sSens" min="0.5" max="2" step="0.1" value="1">
+              <span class="val" id="sSensVal">1.0x</span>
+            </div>
+          </div>
+          <div class="hint">조금 움직여도 크게 변하게 하려면 올리세요. 1.0x는 기본값입니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">반전</span>
+            <div class="ctl">
+              <label class="switch"><input type="checkbox" id="sInvert"><span class="track"></span><span class="thumb"></span></label>
+            </div>
+          </div>
+          <div class="hint">켜면 위로 밀 때 값이 줄어듭니다.</div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-title">인식 · 억제</div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">에지 폭</span>
+            <div class="ctl">
+              <input type="range" id="sWidth" min="6" max="25" step="1" value="12">
+              <span class="val" id="sWidthVal">12%</span>
+            </div>
+          </div>
+          <div class="hint">트랙패드 너비 대비 비율입니다. 넓히면 인식은 쉬워지고 오탐이 늘어납니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">시작 임계값</span>
+            <div class="ctl">
+              <input type="range" id="sThresh" min="2" max="15" step="1" value="6">
+              <span class="val" id="sThreshVal">6%</span>
+            </div>
+          </div>
+          <div class="hint">이만큼 움직여야 슬라이더가 켜집니다. 작을수록 민감합니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">재트리거 간격</span>
+            <div class="ctl">
+              <input type="range" id="sCool" min="100" max="600" step="25" value="250">
+              <span class="val" id="sCoolVal">250ms</span>
+            </div>
+          </div>
+          <div class="hint">값이 다시 바뀌기까지의 최소 간격입니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">엄지 무시</span>
+            <div class="ctl">
+              <label class="switch"><input type="checkbox" id="sThumb" checked><span class="track"></span><span class="thumb"></span></label>
+            </div>
+          </div>
+          <div class="hint">하단 15%에서 시작한 터치는 무시합니다(팜 리젝트).</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">스크롤 억제</span>
+            <div class="ctl">
+              <label class="switch"><input type="checkbox" id="sSuppress" checked><span class="track"></span><span class="thumb"></span></label>
+            </div>
+          </div>
+          <div class="hint">이 슬라이더가 동작하는 동안에만 문서 스크롤을 막습니다.</div>
+        </div>
+      </div>
+
+      <div class="note warn" id="sBrightWarn" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M12 9v4M12 16h.01"/></svg>
+        <span>밝기는 다음 버전 범위입니다. 지금 저장해도 실제로는 동작하지 않습니다.</span>
+      </div>
+    </div>
+
+    <div class="sheet-foot">
+      <button class="btn danger" id="sDelete" style="display:none" onclick="deleteEditing('slider')">삭제</button>
+      <button class="btn small" onclick="runSliderTest()">테스트</button>
+      <span class="grow"></span>
+      <button class="btn" onclick="closeSheets()">취소</button>
+      <button class="btn primary" onclick="saveSlider()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 제스처 시트 -->
+<div class="overlay" id="gestureSheet">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="grow">
+        <div class="t" id="gestureTitle">제스처 추가</div>
+        <div class="d">탭·스와이프를 기존 워크플로우나 단축키에 연결합니다.</div>
+      </div>
+      <button class="close" onclick="closeSheets()">✕</button>
+    </div>
+
+    <div class="sheet-body">
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <span class="grow" id="gSummary">세 손가락 탭 → 워크플로우 · 터미널에서 열기</span>
+      </div>
+
+      <div class="grp">
+        <div class="grp-title">제스처</div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">종류</span>
+            <div class="ctl">
+              <div class="seg" id="gKind">
+                <button data-v="tap" class="on">탭</button>
+                <button data-v="swipe">스와이프</button>
+                <button data-v="tiptap" disabled style="opacity:.4">TipTap</button>
+              </div>
+            </div>
+          </div>
+          <div class="hint">탭은 댔다 떼기, 스와이프는 방향이 있는 이동입니다. TipTap은 다음 버전입니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">손가락 수</span>
+            <div class="ctl">
+              <div class="seg" id="gFingers">
+                <button data-v="2">2</button>
+                <button data-v="3" class="on">3</button>
+                <button data-v="4">4</button>
+                <button data-v="5">5</button>
+              </div>
+            </div>
+          </div>
+          <div class="hint" id="gFingerHint">3~4개를 권장합니다. 2개는 스크롤과 겹칠 수 있습니다.</div>
+        </div>
+
+        <div class="frow" id="gDirRow" style="display:none">
+          <div class="top">
+            <span class="lab">방향</span>
+            <div class="ctl">
+              <div class="seg" id="gDir">
+                <button data-v="up">↑</button>
+                <button data-v="down">↓</button>
+                <button data-v="left" class="on">←</button>
+                <button data-v="right">→</button>
+              </div>
+            </div>
+          </div>
+          <div class="hint">시스템의 앱 전환 제스처와 겹치면 둘 다 동작합니다. 겹치면 손가락 수를 바꾸세요.</div>
+        </div>
+
+        <div class="frow" id="gRepeatRow" style="display:none">
+          <div class="top">
+            <span class="lab">반복 실행</span>
+            <div class="ctl">
+              <label class="switch"><input type="checkbox" id="gRepeat"><span class="track"></span><span class="thumb"></span></label>
+            </div>
+          </div>
+          <div class="hint">스와이프를 이어서 하면 간격마다 계속 실행합니다.</div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-title">실행</div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">실행 대상</span>
+            <div class="ctl">
+              <div class="seg" id="gActionType">
+                <button data-v="workflow" class="on">워크플로우</button>
+                <button data-v="hotkey">단축키</button>
+                <button data-v="system">시스템 액션</button>
+              </div>
+            </div>
+          </div>
+          <div class="hint">워크플로우를 고르면 여러 단계를 한 번에 실행합니다.</div>
+        </div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">대상 선택</span>
+            <div class="ctl">
+              <select class="compact" id="gTarget"></select>
+            </div>
+          </div>
+          <div class="hint" id="gTargetHint">저장된 워크플로우 9개에서 고릅니다.</div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-title">범위</div>
+
+        <div class="frow">
+          <div class="top">
+            <span class="lab">적용 범위</span>
+            <div class="ctl">
+              <div class="seg" id="gScope">
+                <button data-v="global" class="on">전역</button>
+                <button data-v="apps">특정 앱</button>
+              </div>
+            </div>
+          </div>
+          <div class="hint" id="gScopeHint">모든 앱에서 동작합니다.</div>
+        </div>
+
+        <div class="frow" id="gAppsRow" style="display:none">
+          <div class="top">
+            <span class="lab">앱</span>
+            <div class="ctl">
+              <div class="chips tight" id="gApps">
+                <span class="chip on">Finder</span>
+                <span class="chip">Xcode</span>
+                <span class="chip">Safari</span>
+                <span class="chip">터미널</span>
+              </div>
+            </div>
+          </div>
+          <div class="hint">선택한 앱이 앞에 있을 때만 실행합니다.</div>
+        </div>
+      </div>
+
+      <div class="note warn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M12 9v4M12 16h.01"/></svg>
+        <span>같은 제스처를 두 규칙에 지정하면 나중에 만든 규칙만 실행됩니다.</span>
+      </div>
+    </div>
+
+    <div class="sheet-foot">
+      <button class="btn danger" id="gDelete" style="display:none" onclick="deleteEditing('gesture')">삭제</button>
+      <span class="grow"></span>
+      <button class="btn" onclick="closeSheets()">취소</button>
+      <button class="btn primary" onclick="saveGesture()">저장</button>
     </div>
   </div>
 </div>
@@ -491,36 +928,316 @@
     if (e && e.target) e.target.textContent = open ? '접기' : '펼치기';
   }
 
-  /* 모달 */
-  function openModal(){ $('#overlay').classList.add('on'); }
-  function closeModal(){ $('#overlay').classList.remove('on'); }
-  function refreshCount(){ $('#ruleCount').textContent = '규칙 ' + ($$('#gestureList .item').length + $$('#sliderList .item').length) + '개'; }
-  $$('#gestureChips .chip').forEach(c => c.addEventListener('click', () => {
-    $$('#gestureChips .chip').forEach(x => x.classList.remove('on')); c.classList.add('on');
-  }));
-  function confirmAdd(){
-    const g = $('#gestureChips .chip.on')?.dataset.g || '세 손가락 탭';
-    const a = $('#actionSelect').value;
-    const row = document.createElement('div');
-    row.className = 'item';
-    row.innerHTML = `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12l4 4L19 6"/></svg></span>
-      <div class="grow"><div class="t">${g}</div><div class="d">${a}</div></div>
-      <span class="tag">전역</span>
-      <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>`;
-    $('#gestureList').appendChild(row); closeModal(); refreshCount();
-  }
-  $('#overlay').addEventListener('click', e => { if (e.target === $('#overlay')) closeModal(); });
-  window.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  /* ── 시트 공통 ─────────────────────────── */
+  const SHEETS = ['chooser', 'sliderSheet', 'gestureSheet'];
+  function closeSheets(){ SHEETS.forEach(id => $('#'+id).classList.remove('on')); }
+  function openChooser(){ closeSheets(); $('#chooser').classList.add('on'); }
+  SHEETS.forEach(id => $('#'+id).addEventListener('click', e => { if (e.target.id === id) closeSheets(); }));
+  window.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
 
-  function addSlider(){
-    const row = document.createElement('div');
-    row.className = 'item';
-    row.innerHTML = `<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M8 9l4-4 4 4"/></svg></span>
-      <div class="grow"><div class="t">왼쪽 에지 · 두 손가락 · 세로</div><div class="d">볼륨 · 감도 1.0x</div></div>
-      <button class="btn plain" onclick="alert('목업 — 규칙 편집 시트')">편집</button>
-      <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>`;
-    $('#sliderList').appendChild(row); refreshCount();
+  const segVal = sel => $(sel + ' .on')?.dataset.v;
+  function setSeg(sel, v){
+    $$(sel + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
   }
+  function updateRangeFill(el){
+    const p = ((el.value - el.min) / (el.max - el.min)) * 100;
+    el.style.setProperty('--p', p + '%');
+  }
+
+  /* 세그먼트 클릭 → 상태 동기화 */
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.seg button');
+    if (!b || b.disabled) return;
+    [...b.parentElement.children].forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    if (b.parentElement.id === 'edgeSeg') return;   // 본문 미리보기는 기존 핸들러가 처리
+    if (b.parentElement.id.startsWith('s')) syncSliderSheet();
+    if (b.parentElement.id.startsWith('g')) {
+      if (b.parentElement.id === 'gActionType') fillTargets();
+      syncGestureSheet();
+    }
+  });
+
+  /* ── 에지 슬라이더 시트 ─────────────────── */
+  let sliderEditing = null;
+  const EDGE_KO = { right:'오른쪽', left:'왼쪽', top:'위', bottom:'아래' };
+  const FINGER_KO = { 1:'한', 2:'두', 3:'세' };
+  const axisOf = edge => (edge === 'right' || edge === 'left') ? 'v' : 'h';
+
+  function syncSliderSheet(){
+    const edge = segVal('#sEdge') || 'right';
+    const axis = axisOf(edge);
+    const fingers = segVal('#sFingers') || '2';
+    const target = $('#sTarget').value;
+    const sens = parseFloat($('#sSens').value);
+    const invert = $('#sInvert').checked;
+
+    ['right','left','top','bottom'].forEach(e => $('#mz-'+e).classList.toggle('off', e !== edge));
+    $('#sAxisTag').textContent = axis === 'v' ? '세로' : '가로';
+
+    const targetText = target === 'shortcut'
+      ? '워크플로우 · ' + $('#sShortcut').value
+      : target === 'brightness' ? '밝기' : '볼륨';
+    $('#sSummary').textContent = `${EDGE_KO[edge]} 에지 · ${FINGER_KO[fingers]} 손가락 · ${axis === 'v' ? '세로' : '가로'} · ${targetText}${invert ? ' · 반전' : ''}`;
+    $('#sSensVal').textContent = sens.toFixed(1) + 'x';
+
+    $('#sShortcutRow').style.display = target === 'shortcut' ? 'flex' : 'none';
+    $('#sBrightWarn').style.display = target === 'brightness' ? 'flex' : 'none';
+    $('#sTargetHint').textContent =
+      target === 'volume' ? '시스템 출력 볼륨을 1% 단위로 바꿉니다. 위로 밀면 커집니다.'
+      : target === 'brightness' ? '내장 디스플레이 밝기를 바꿉니다. 다음 버전에서 동작합니다.'
+      : '임계값을 넘을 때마다 1회 실행합니다.';
+
+    $('#miniHint').textContent = `${EDGE_KO[edge]} 에지 · ${fingers}손가락 · ${axis === 'v' ? '위/아래' : '좌/우'}`;
+  }
+
+  function openSliderSheet(btn){
+    closeSheets();
+    const row = btn ? btn.closest('.item') : null;
+    sliderEditing = row;
+    const d = row ? row.dataset : {};
+    setSeg('#sEdge', d.edge || 'right');
+    setSeg('#sFingers', d.fingers || '2');
+    $('#sTarget').value = d.target || 'volume';
+    $('#sSens').value = d.sens || '1';
+    $('#sWidth').value = d.width || 12;
+    $('#sThresh').value = d.thresh || 6;
+    $('#sCool').value = d.cool || 250;
+    $('#sInvert').checked = d.invert === '1';
+    $('#sSuppress').checked = d.suppress !== '0';
+    $('#sThumb').checked = d.thumb !== '0';
+    ['sSens','sWidth','sThresh','sCool'].forEach(id => updateRangeFill($('#'+id)));
+    $('#sliderTitle').textContent = row ? '에지 슬라이더 편집' : '에지 슬라이더 추가';
+    $('#sDelete').style.display = row ? 'inline-block' : 'none';
+    syncSliderSheet();
+    $('#sliderSheet').classList.add('on');
+  }
+
+  function saveSlider(){
+    const edge = segVal('#sEdge') || 'right';
+    const fingers = segVal('#sFingers') || '2';
+    const axis = axisOf(edge);
+    const target = $('#sTarget').value;
+    const sens = parseFloat($('#sSens').value);
+    const invert = $('#sInvert').checked;
+    const targetText = target === 'shortcut' ? '워크플로우 · ' + $('#sShortcut').value
+      : target === 'brightness' ? '밝기 · 다음 버전' : '볼륨';
+
+    let row = sliderEditing;
+    if (!row) { row = document.createElement('div'); row.className = 'item'; $('#sliderList').appendChild(row); }
+    Object.assign(row.dataset, { edge, fingers, axis, target, sens: sens.toFixed(1), invert: invert ? '1' : '0',
+      suppress: $('#sSuppress').checked ? '1' : '0',
+      width: $('#sWidth').value, thresh: $('#sThresh').value, cool: $('#sCool').value,
+      thumb: $('#sThumb').checked ? '1' : '0' });
+    row.innerHTML = `
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/></svg></span>
+      <div class="grow"><div class="t">${EDGE_KO[edge]} 에지 · ${FINGER_KO[fingers]} 손가락 · ${axis === 'v' ? '세로' : '가로'}</div>
+        <div class="d">${targetText} · 감도 ${sens.toFixed(1)}x${invert ? ' · 반전' : ''}</div></div>
+      <button class="btn plain" onclick="openSliderSheet(this)">편집</button>
+      <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>`;
+    sliderEditing = null;
+    closeSheets(); refreshCount();
+  }
+
+  /* ── 제스처 시트 ───────────────────────── */
+  let gestureEditing = null;
+  const ACTIONS = {
+    workflow: { hint:'저장된 워크플로우 9개에서 고릅니다.', prefix:'워크플로우',
+                items:['터미널에서 열기','클립보드 정리','창 레이아웃 정렬'] },
+    hotkey:   { hint:'ApexKey에 등록된 단축키 중에서 고릅니다.', prefix:'단축키',
+                items:['⌘⇧4 (영역 캡처)','⌥E (터미널에서 열기)','⌃⌥T (새 탭)'] },
+    system:   { hint:'ApexKey가 직접 실행하는 시스템 동작입니다.', prefix:'시스템 액션',
+                items:['이전 데스크탑','화면 잠금','음소거 토글','실행 취소'] }
+  };
+  const DIR_KO = { up:'↑', down:'↓', left:'←', right:'→' };
+  const DIR_WORD = { up:'위', down:'아래', left:'왼쪽', right:'오른쪽' };
+  const BIG_FINGERS = { 2:'두', 3:'세', 4:'네', 5:'다섯' };
+
+  function fillTargets(){
+    const type = segVal('#gActionType') || 'workflow';
+    const cfg = ACTIONS[type];
+    const prev = $('#gTarget').value;
+    $('#gTarget').innerHTML = cfg.items.map(x => `<option>${x}</option>`).join('');
+    if (cfg.items.includes(prev)) $('#gTarget').value = prev;
+    $('#gTargetHint').textContent = cfg.hint;
+  }
+
+  function syncGestureSheet(){
+    const kind = segVal('#gKind') || 'tap';
+    const fingers = segVal('#gFingers') || '3';
+    const dir = segVal('#gDir') || 'left';
+    const type = segVal('#gActionType') || 'workflow';
+    const scope = segVal('#gScope') || 'global';
+
+    $('#gDirRow').style.display = kind === 'swipe' ? 'flex' : 'none';
+    $('#gRepeatRow').style.display = kind === 'swipe' ? 'flex' : 'none';
+    $('#gFingerHint').textContent = kind === 'tap'
+      ? '탭은 3~4개를 권장합니다. 2개는 스크롤과 겹칩니다.'
+      : '스와이프는 3~4개를 권장합니다. 2개는 스크롤과 겹칩니다.';
+    $('#gAppsRow').style.display = scope === 'apps' ? 'flex' : 'none';
+    $('#gScopeHint').textContent = scope === 'apps'
+      ? '선택한 앱이 앞에 있을 때만 실행합니다.'
+      : '모든 앱에서 동작합니다.';
+
+    const gesture = kind === 'tap'
+      ? `${BIG_FINGERS[fingers]} 손가락 탭`
+      : `${BIG_FINGERS[fingers]} 손가락 스와이프 ${DIR_WORD[dir]}`;
+    const action = `${ACTIONS[type].prefix} · ${$('#gTarget').value}`;
+    $('#gSummary').textContent = `${gesture} → ${action}`;
+  }
+
+  function openGestureSheet(btn){
+    closeSheets();
+    const row = btn ? btn.closest('.item') : null;
+    gestureEditing = row;
+    const d = row ? row.dataset : {};
+    setSeg('#gKind', d.kind || 'tap');
+    setSeg('#gFingers', d.fingers || '3');
+    setSeg('#gDir', d.dir || 'left');
+    setSeg('#gActionType', d.action || 'workflow');
+    setSeg('#gScope', d.scope || 'global');
+    fillTargets();
+    const name = (d.name || '').split('·').pop().trim();
+    if (name) $('#gTarget').value = name;
+    $('#gRepeat').checked = d.repeat === '1';
+    $('#gestureTitle').textContent = row ? '제스처 편집' : '제스처 추가';
+    $('#gDelete').style.display = row ? 'inline-block' : 'none';
+    syncGestureSheet();
+    $('#gestureSheet').classList.add('on');
+  }
+
+  function saveGesture(){
+    const kind = segVal('#gKind') || 'tap';
+    const fingers = segVal('#gFingers') || '3';
+    const dir = segVal('#gDir') || 'left';
+    const type = segVal('#gActionType') || 'workflow';
+    const scope = segVal('#gScope') || 'global';
+    const name = $('#gTarget').value;
+    const gesture = kind === 'tap'
+      ? `${BIG_FINGERS[fingers]} 손가락 탭`
+      : `${BIG_FINGERS[fingers]} 손가락 스와이프 ${DIR_KO[dir]}`;
+    const action = `${ACTIONS[type].prefix} · ${name}`;
+    const scopeText = scope === 'global' ? '전역' : `앱 ${$$('#gApps .chip.on').length}개`;
+
+    let row = gestureEditing;
+    if (!row) { row = document.createElement('div'); row.className = 'item'; $('#gestureList').appendChild(row); }
+    Object.assign(row.dataset, { kind, fingers, dir, action: type, name: action, scope, repeat: $('#gRepeat').checked ? '1' : '0' });
+    row.innerHTML = `
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M9 8l-4 4 4 4"/><path d="M15 8l4 4-4 4"/></svg></span>
+      <div class="grow"><div class="t">${gesture}</div><div class="d">${action}</div></div>
+      <span class="tag">${scopeText}</span>
+      <button class="btn plain" onclick="openGestureSheet(this)">편집</button>
+      <label class="switch"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label>`;
+    gestureEditing = null;
+    closeSheets(); refreshCount();
+  }
+
+  function deleteEditing(kind){
+    const row = kind === 'slider' ? sliderEditing : gestureEditing;
+    if (row) row.remove();
+    sliderEditing = gestureEditing = null;
+    closeSheets(); refreshCount();
+  }
+
+  /* 시트 입력 → 요약 갱신 */
+  ['sSens','sWidth','sThresh','sCool'].forEach(id => {
+    const el = $('#'+id);
+    el.addEventListener('input', () => {
+      updateRangeFill(el);
+      if (id === 'sWidth') $('#sWidthVal').textContent = el.value + '%';
+      if (id === 'sThresh') $('#sThreshVal').textContent = el.value + '%';
+      if (id === 'sCool') $('#sCoolVal').textContent = el.value + 'ms';
+      syncSliderSheet();
+    });
+  });
+  ['sTarget','sShortcut','sInvert','sSuppress','sThumb'].forEach(id =>
+    $('#'+id).addEventListener('change', syncSliderSheet));
+  $$('#sEdge button').forEach(b => b.addEventListener('click', () => {
+    setSeg('#sEdge', b.dataset.v);
+    syncSliderSheet();
+  }));
+  $('#gTarget').addEventListener('change', syncGestureSheet);
+  $$('#gApps .chip').forEach(c => c.addEventListener('click', () => { c.classList.toggle('on'); syncGestureSheet(); }));
+
+  /* 시트 안 미니 트랙패드 — 클릭으로 에지 선택, 드래그로 볼륨 데모 */
+  const miniPad = $('#miniPad');
+  let miniDrag = false, miniLast = 0, miniVol = 0.25, miniTimer = null;
+  const miniPos = e => { const r = miniPad.getBoundingClientRect(); return { x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height }; };
+  function placeMiniFingers(p){
+    const edge = segVal('#sEdge') || 'right';
+    let x = p.x, y = p.y;
+    if (edge === 'right') x = 0.93; else if (edge === 'left') x = 0.07;
+    else if (edge === 'top') y = 0.07; else if (edge === 'bottom') y = 0.93;
+    const a = $('#mf1'), b = $('#mf2');
+    a.style.left = x*100 + '%'; a.style.top = y*100 + '%';
+    if (edge === 'right' || edge === 'left') {
+      b.style.left = x*100 + '%'; b.style.top = Math.min(97, y*100 + 7) + '%';
+    } else {
+      b.style.left = Math.min(97, x*100 + 6) + '%'; b.style.top = y*100 + '%';
+    }
+    a.classList.add('on'); b.classList.add('on');
+  }
+  function miniHudShow(){
+    $('#miniHud').classList.add('on');
+    $('#miniFill').style.width = Math.round(miniVol*100) + '%';
+    $('#miniVal').textContent = Math.round(miniVol*100) + '%';
+    clearTimeout(miniTimer);
+    miniTimer = setTimeout(() => $('#miniHud').classList.remove('on'), 800);
+  }
+  function nearestEdge(p){
+    const d = [['left', p.x], ['right', 1-p.x], ['top', p.y], ['bottom', 1-p.y]];
+    d.sort((a,b) => a[1]-b[1]);
+    return d[0][1] < 0.28 ? d[0][0] : null;
+  }
+  miniPad.addEventListener('mousedown', e => {
+    const p = miniPos(e);
+    const hit = nearestEdge(p);
+    if (hit) { setSeg('#sEdge', hit); syncSliderSheet(); }
+    miniDrag = true;
+    placeMiniFingers(p);
+    const axis = axisOf(segVal('#sEdge') || 'right');
+    miniLast = axis === 'v' ? p.y : p.x;
+    miniHudShow();
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!miniDrag) return;
+    const p = miniPos(e);
+    placeMiniFingers(p);
+    const axis = axisOf(segVal('#sEdge') || 'right');
+    const cur = axis === 'v' ? p.y : p.x;
+    const sens = parseFloat($('#sSens').value);
+    const inv = $('#sInvert').checked ? -1 : 1;
+    const delta = axis === 'v' ? (miniLast - cur) : (cur - miniLast);
+    miniVol = Math.min(1, Math.max(0, miniVol + delta * 1.6 * sens * inv));
+    miniLast = cur;
+    miniHudShow();
+  });
+  window.addEventListener('mouseup', () => {
+    if (!miniDrag) return;
+    miniDrag = false;
+    $('#mf1').classList.remove('on'); $('#mf2').classList.remove('on');
+    setTimeout(() => $('#miniHud').classList.remove('on'), 500);
+  });
+
+  function runSliderTest(){
+    let v = 0.2;
+    const target = $('#sTarget').value;
+    $('#miniHud').classList.add('on');
+    const timer = setInterval(() => {
+      v = Math.min(0.9, v + 0.07);
+      $('#miniFill').style.width = Math.round(v*100) + '%';
+      $('#miniVal').textContent = Math.round(v*100) + '%';
+      if (v >= 0.9) {
+        clearInterval(timer);
+        setTimeout(() => $('#miniHud').classList.remove('on'), 700);
+      }
+    }, 40);
+    $('#miniHint').textContent = target === 'volume' ? '테스트: 볼륨이 90%까지 올라갑니다' : '테스트: 대상 값이 올라갑니다';
+  }
+
+  function refreshCount(){ $('#ruleCount').textContent = '규칙 ' + ($$('#gestureList .item').length + $$('#sliderList .item').length) + '개'; }
+
   refreshCount();
 </script>
 </body>
