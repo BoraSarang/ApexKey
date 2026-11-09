@@ -743,6 +743,140 @@ final class ExecutionEngine {
         )
     }
 
+    // MARK: - T-214 Apple 앱 1 — Notes·Reminders·Calendar
+
+    /// Notes·Reminders·Calendar 실행.
+    ///
+    /// 모든 텍스트 필드는 Magic Variable을 해석한 뒤 넘긴다. 날짜는 절대 시각이 아니라
+    /// "지금부터 몇 분"으로 전달한다 — 로케일 의존 파싱을 피하기 위해서다.
+    private func executeAppleApp(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = AppleAppConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let text: (String?) -> String = { value in
+            VariableResolver.resolveText(value ?? "", context: ctx)
+        }
+        let title = text(config.title)
+        let body = text(config.body)
+
+        switch step.type {
+        case .createNote:
+            return appleOutcome(
+                AppleApps.createNote(title: title, body: body),
+                step: step,
+                context: &context
+            )
+
+        case .noteActions:
+            return appleOutcome(
+                AppleApps.noteAction(
+                    config.resolvedNoteOperation,
+                    title: title,
+                    text: body,
+                    folderName: text(config.folderName)
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .reminders:
+            switch config.resolvedReminderOperation {
+            case .add:
+                return appleOutcome(
+                    AppleApps.addReminder(
+                        title: title,
+                        listName: text(config.listName),
+                        notes: body,
+                        dueOffsetMinutes: config.dueOffsetMinutes
+                    ),
+                    step: step,
+                    context: &context
+                )
+            case .listLists:
+                return appleListOutcome(
+                    AppleApps.reminderLists(),
+                    step: step,
+                    context: &context
+                )
+            }
+
+        case .calendar:
+            switch config.resolvedCalendarOperation {
+            case .addEvent:
+                return appleOutcome(
+                    AppleApps.addEvent(
+                        title: title,
+                        calendarName: text(config.calendarName),
+                        startOffsetMinutes: config.resolvedStartOffset,
+                        durationMinutes: config.resolvedDuration,
+                        location: text(config.location),
+                        notes: body
+                    ),
+                    step: step,
+                    context: &context
+                )
+            case .listCalendars:
+                return appleListOutcome(
+                    AppleApps.calendarNames(),
+                    step: step,
+                    context: &context
+                )
+            }
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func appleOutcome(
+        _ outcome: AppleApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(value.count)자")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-APPLE-6300", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    /// 목록 결과는 `.list`로 남겨 다음 단계가 선택·반복할 수 있게 한다
+    private func appleListOutcome(
+        _ outcome: AppleApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let values = lines.map { VariableValue.text($0) }
+            context.setOutput(.list(values), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(lines.count)개")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-APPLE-6300", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -785,6 +919,10 @@ final class ExecutionEngine {
         case .getFiles, .moveFiles, .renameFiles, .extractArchive,
              .externalStorage, .fileActions, .getAttachment:
             return executeFileAction(step, context: &context)
+
+        // === T-214 Apple 앱 1 — Notes·Reminders·Calendar ===
+        case .createNote, .noteActions, .reminders, .calendar:
+            return executeAppleApp(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

@@ -99,12 +99,15 @@
   주입 클로저로 검증, 실패 사유 14종 구분. `FileActionsTests` 25건, unit 676건 0실패(2 skip),
   i18n 1360키 일치. 구현 73→80, planned 78→71.
 
-### 3-2. T-214 Apple 앱 연동 1 — Notes·Reminders·Calendar (3d)
+### 3-2. T-214 Apple 앱 연동 1 — Notes·Reminders·Calendar (3d) — **완료 (2026-11-09)**
 
 `createNote` · `noteActions` · `reminders` · `calendar`
 
 - 공개 AppleScript 딕셔너리가 안정적인 앱부터. 자동화 승인은 앱별 1회.
 - 실패 시 사유 토스트(권한/앱 미실행/스크립트 오류 구분).
+- **결과**: `osascript on run argv`로 인자를 넘겨 인젝션·따옴표 문제를 없앴다. Notes 본문은
+  HTML escape 후 `<br>`, 날짜는 로케일 독립적인 분 오프셋. `AppleAppsTests` 21건,
+  unit 698건 0실패(2 skip), i18n 1399키 일치. 구현 80→84, planned 71→67.
 
 ### 3-3. T-215 Apple 앱 연동 2 — Mail·Music·Podcasts·Photos (5d + 스파이크 1d)
 

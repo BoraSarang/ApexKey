@@ -55,7 +55,9 @@ extension ActionType {
              .listActions, .saveOutput,
              // 파일 액션 7종 — T-213 (ExecutionEngine.executeFileAction)
              .getFiles, .moveFiles, .renameFiles, .extractArchive,
-             .externalStorage, .fileActions, .getAttachment:
+             .externalStorage, .fileActions, .getAttachment,
+             // Apple 앱 1 — Notes·Reminders·Calendar — T-214 (ExecutionEngine.executeAppleApp)
+             .createNote, .noteActions, .reminders, .calendar:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -69,11 +71,11 @@ extension ActionType {
              .rotateImage, .cropImage, .trimVideo, .takeScreenshot,
              .setVolumeMedia, .moveMedia, .bookmark, .podcasts,
              .news, .stocks, .videoDownloader, .editDocument, .translate,
-             .textEditShortcut, .noteActions, .createNote,
+             .textEditShortcut,
              .setParagraphStyle, .newDocument, .viewDocument, .mail,
              .setMailBody, .setMailRecipients, .drive, .oneDrive, .box,
              .map,
-             .transportation, .message, .email, .calendar, .reminders,
+             .transportation, .message, .email,
              .webContent, .presentation, .webIntegration, .documentsAndFiles,
              .devicesAndSheet, .createShortcutIcon, .variableDetail,
              .clipboardAction, .appIntent, .appAction, .findApp,

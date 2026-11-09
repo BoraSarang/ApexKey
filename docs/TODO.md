@@ -700,7 +700,11 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - `externalStorage`(외부 볼륨 목록/복사) · `fileActions`(copy/move/duplicate/trash/reveal) · `getAttachment`(Mail 선택 메시지 첨부 저장)
   - 데이터 변경은 `confirmBeforeChange` 기본 켜짐 — 확인/취소 경로를 주입 클로저로 테스트. 실패 사유 14종 구분(경로 없음·폴더 아님·충돌·권한·압축 형식 등)
   - 결과: 구현 **73→80**, planned **78→71**(스텁 3 포함 UI "준비 중" 79→74). unit **676건 0실패**(2 skip) · i18n **1360키 일치**
-- [ ] **T-214** 2차 — Apple 앱 1: Notes·Reminders·Calendar (3d)
+- [x] **T-214** 2차 — Apple 앱 1: Notes·Reminders·Calendar (3d) — **완료**
+  - `createNote`(Notes 메모 생성) · `noteActions`(덧붙이기·열기·폴더 만들기) · `reminders`(추가·목록 이름) · `calendar`(일정 추가·캘린더 이름)
+  - `osascript`에 **argv로 인자를 넘긴다** — 제목·본문의 따옴표·줄바꿈이 스크립트가 되지 않는다. Notes `body`는 HTML이므로 escape 후 `<br>`로 변환
+  - 실패 사유 구분: 자동화 권한 거부(-1743)·메모/목록/캘린더 없음·잘못된 길이·스크립트 오류. 날짜는 로케일 의존 문자열 대신 **지금부터 분 오프셋**
+  - 결과: 구현 **80→84**, planned **71→67**(스텁 3 포함 UI "준비 중" 74→70). unit **698건 0실패**(2 skip) · i18n **1399키 일치**
 - [ ] **T-215** 2차 — Apple 앱 2: Mail·Music·Podcasts·Photos (스파이크 1d + 5d)
 - [ ] **T-216** 2차 — 문서 앱: Pages·Numbers·TextEdit (2d)
 - [ ] **T-217** 2차 — 자동화 트리거 4종: 파일·외장 드라이브·디스플레이·앱 (3d)

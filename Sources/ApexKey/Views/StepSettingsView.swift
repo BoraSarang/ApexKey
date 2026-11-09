@@ -190,6 +190,9 @@ struct StepSettingsView: View {
         case .getFiles, .moveFiles, .renameFiles, .extractArchive,
              .externalStorage, .fileActions, .getAttachment:
             FileActionSettingsView(step: $draft)
+        // T-214 Apple 앱 1 — Notes·Reminders·Calendar
+        case .createNote, .noteActions, .reminders, .calendar:
+            AppleAppSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)
