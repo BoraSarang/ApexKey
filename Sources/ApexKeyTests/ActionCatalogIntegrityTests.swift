@@ -126,6 +126,26 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
+    /// T-221에서 구현한 콘텐츠·위치·웹 8종
+    func testContentLinkActionsAreImplemented() {
+        let implemented: [ActionType] = [
+            .message, .email, .map, .transportation,
+            .webContent, .presentation, .webIntegration, .createShortcutIcon,
+        ]
+        for type in implemented {
+            XCTAssertEqual(type.implementation, .implemented, type.rawValue)
+            XCTAssertTrue(type.isSelectable, type.rawValue)
+            XCTAssertTrue(type.hasStepSettingsUI, type.rawValue)
+        }
+    }
+
+    /// 공개 경로가 없어 planned로 남기는 콘텐츠 액션
+    func testContentActionsWithoutPublicPathRemainPlanned() {
+        for type in [ActionType.documentsAndFiles, .devicesAndSheet] {
+            XCTAssertEqual(type.implementation, .planned, type.rawValue)
+        }
+    }
+
     /// T-220에서 구현한 미디어 편집·캡처 7종
     func testMediaEditingActionsAreImplemented() {
         let implemented: [ActionType] = [

@@ -68,7 +68,10 @@ extension ActionType {
              .network, .focusMode,
              // 미디어 편집·캡처 — T-220 (ExecutionEngine.executeMediaEditing)
              .rotateImage, .cropImage, .trimVideo, .camera,
-             .setVolumeMedia, .moveMedia, .musicAndVideo:
+             .setVolumeMedia, .moveMedia, .musicAndVideo,
+             // 콘텐츠·위치·웹 — T-221 (ExecutionEngine.executeContentLink)
+             .message, .email, .map, .transportation,
+             .webContent, .presentation, .webIntegration, .createShortcutIcon:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -83,10 +86,8 @@ extension ActionType {
              .news, .stocks, .videoDownloader, .translate,
              .textEditShortcut,
              .drive, .oneDrive, .box,
-             .map,
-             .transportation, .message, .email,
-             .webContent, .presentation, .webIntegration, .documentsAndFiles,
-             .devicesAndSheet, .createShortcutIcon, .variableDetail,
+             .documentsAndFiles,
+             .devicesAndSheet, .variableDetail,
              .clipboardAction, .appIntent, .appAction, .findApp,
              .automation, .findAutomation, .automationRun, .trigger:
             return .planned

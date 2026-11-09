@@ -1298,6 +1298,87 @@ final class ExecutionEngine {
         }
     }
 
+    // MARK: - 콘텐츠·위치·웹 (T-221)
+
+    private func executeContentLink(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = ContentLinkConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let resolve: (String?) -> String = { raw in
+            VariableResolver.resolveText(raw ?? "", context: ctx)
+        }
+
+        let outcome: ContentLinkActions.Outcome
+
+        switch step.type {
+        case .message:
+            outcome = ContentLinkActions.message(
+                recipients: resolve(config.recipients),
+                body: resolve(config.body),
+                preview: config.resolvedPreview
+            )
+        case .email:
+            var resolved = config
+            resolved.recipients = resolve(config.recipients)
+            resolved.subject = resolve(config.subject)
+            resolved.body = resolve(config.body)
+            outcome = ContentLinkActions.email(config: resolved)
+        case .map:
+            outcome = ContentLinkActions.openMap(
+                origin: resolve(config.origin),
+                destination: resolve(config.destination),
+                mode: config.resolvedTravelMode
+            )
+        case .transportation:
+            outcome = ContentLinkActions.openMap(
+                origin: resolve(config.origin),
+                destination: resolve(config.destination),
+                mode: .transit
+            )
+        case .webContent:
+            outcome = ContentLinkActions.webContent(
+                urlString: resolve(config.url),
+                mode: config.resolvedWebContentMode
+            )
+        case .webIntegration:
+            let action = config.resolvedWebAction
+            let input = action == .fetch ? resolve(config.url) : resolve(config.body)
+            outcome = ContentLinkActions.webIntegration(action: action, input: input)
+        case .presentation:
+            outcome = ContentLinkActions.presentation(action: config.resolvedPresentationAction)
+        case .createShortcutIcon:
+            outcome = ContentLinkActions.createIcon(
+                symbolName: resolve(config.symbolName),
+                colorHex: resolve(config.colorHex),
+                outputPath: resolve(config.outputPath)
+            )
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-CONTENT-6800", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -1363,6 +1444,11 @@ final class ExecutionEngine {
         case .rotateImage, .cropImage, .trimVideo, .camera,
              .setVolumeMedia, .moveMedia, .musicAndVideo:
             return executeMediaEditing(step, context: &context)
+
+        // === T-221 콘텐츠·위치·웹 ===
+        case .message, .email, .map, .transportation,
+             .webContent, .presentation, .webIntegration, .createShortcutIcon:
+            return executeContentLink(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

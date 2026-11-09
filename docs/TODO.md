@@ -729,8 +729,14 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - `release-notes/v1.7.0.md` 작성(v1.5.0 이후 전체), `v1.6.0.md`에 "배포되지 않음" 명시. `MARKETING_VERSION` 1.7.0
   - 검증: 버전 가드 1.7.0 통과, unit **755건 0실패**(2 skip), i18n **1477키 일치**
   - **태그 `v1.7.0` 생성(로컬)** — v1.6.0은 배포하지 않고 통합. push는 사용자 지시 대기
-- [ ] **T-219** 3차 — 시스템 액션 6종(집중 모드·최근 항목·AirDrop·Wi-Fi·블루투스, 일부 보류/제외) (4d)
-- [ ] **T-220** 3차 — 미디어 편집·캡처(카메라 권한 포함, `videoDownloader` 제외 권장) (5d)
+- [x] **T-219** 3차 — 시스템 액션 6종 — **완료** (`9f6fd1b`)
+  - 구현 2종: `network`(networksetup Wi-Fi 상태/켜기/끄기) · `focusMode`(사용자 Shortcuts 단축어 실행)
+  - 영구 제외 4종 확정(2026-11-09): `clearRecents` · `airDrop` · `bluetooth` · `videoDownloader` — `isCatalogHidden`으로 카탈로그에서 숨김(구현 상태는 planned 유지)
+  - 검증: unit **772건 0실패**(2 skip), i18n **1493키 일치**
+- [x] **T-220** 3차 — 미디어 편집·캡처 7종 — **완료** (`9a782fd`)
+  - 구현: `rotateImage` · `cropImage`(CoreImage, 원본 보존·파생 파일) · `trimVideo`(`/usr/bin/avconvert`) · `camera`(AVFoundation + `NSCameraUsageDescription`) · `setVolumeMedia` · `moveMedia`(확인 후 이동) · `musicAndVideo`(AppleScript)
+  - `slideshow`·`bookmark`는 공개 API 부재로 planned 유지, `takeScreenshot`은 `screenshot`과 중복이라 숨김 유지
+  - 검증: unit **795건 0실패**(2 skip), i18n **1539키 일치**
 - [ ] **T-221** 3차 — 콘텐츠·위치·웹 URL scheme 10종 (3d)
 - [ ] **T-222** 3차 — App Intents·자동화 카탈로그 7종 (스파이크 포함 4d)
 - [ ] **T-223** 3차 — 플랫폼 백로그: macOS 14 실기·서명·`{name}` 토큰·`error_message_ko.json` (2d)

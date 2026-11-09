@@ -208,6 +208,10 @@ struct StepSettingsView: View {
         case .rotateImage, .cropImage, .trimVideo, .camera,
              .setVolumeMedia, .moveMedia, .musicAndVideo:
             MediaEditingSettingsView(step: $draft)
+        // T-221 콘텐츠·위치·웹
+        case .message, .email, .map, .transportation,
+             .webContent, .presentation, .webIntegration, .createShortcutIcon:
+            ContentLinkSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)
