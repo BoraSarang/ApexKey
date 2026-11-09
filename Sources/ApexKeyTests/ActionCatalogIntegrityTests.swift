@@ -126,6 +126,19 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
+    /// T-220에서 구현한 미디어 편집·캡처 7종
+    func testMediaEditingActionsAreImplemented() {
+        let implemented: [ActionType] = [
+            .rotateImage, .cropImage, .trimVideo, .camera,
+            .setVolumeMedia, .moveMedia, .musicAndVideo,
+        ]
+        for type in implemented {
+            XCTAssertEqual(type.implementation, .implemented, type.rawValue)
+            XCTAssertTrue(type.isSelectable, type.rawValue)
+            XCTAssertTrue(type.hasStepSettingsUI, type.rawValue)
+        }
+    }
+
     /// T-216에서 구현한 문서 앱 — Pages·Numbers·TextEdit
     func testDocumentActionsAreImplemented() {
         let implemented: [ActionType] = [

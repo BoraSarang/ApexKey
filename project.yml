@@ -58,6 +58,7 @@ targets:
         LSHasLocalizedDisplayName: true
         LSUIElement: true
         NSAppleEventsUsageDescription: "ApexKey가 파인더·터미널 등 다른 앱을 제어하기 위해 자동화 접근이 필요합니다."
+        NSCameraUsageDescription: "카메라 액션이 사진을 촬영해 파일로 저장하기 위해 카메라 접근이 필요합니다."
         NSPrincipalClass: NSApplication
         CFBundleURLTypes:
           - CFBundleURLName: com.borasarang.ApexKey

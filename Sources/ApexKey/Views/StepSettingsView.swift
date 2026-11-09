@@ -204,6 +204,10 @@ struct StepSettingsView: View {
         // T-219 시스템 제어 — Wi-Fi·집중 모드
         case .network, .focusMode:
             SystemControlSettingsView(step: $draft)
+        // T-220 미디어 편집·캡처
+        case .rotateImage, .cropImage, .trimVideo, .camera,
+             .setVolumeMedia, .moveMedia, .musicAndVideo:
+            MediaEditingSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)

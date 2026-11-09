@@ -65,7 +65,10 @@ extension ActionType {
              // 문서 앱 — Pages·Numbers·TextEdit — T-216 (ExecutionEngine.executeDocumentApp)
              .newDocument, .viewDocument, .editDocument, .setParagraphStyle,
              // 시스템 제어 — Wi-Fi·집중 모드 — T-219 (ExecutionEngine.executeSystemControl)
-             .network, .focusMode:
+             .network, .focusMode,
+             // 미디어 편집·캡처 — T-220 (ExecutionEngine.executeMediaEditing)
+             .rotateImage, .cropImage, .trimVideo, .camera,
+             .setVolumeMedia, .moveMedia, .musicAndVideo:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -73,11 +76,10 @@ extension ActionType {
              .clearRecents,
              .pdf, .bluetooth, .timer, .stopwatch,
              .location, .airDrop, .readTable,
-             .date, .musicAndVideo,
+             .date,
              .tuneStation, .radio,
-             .slideshow, .camera,
-             .rotateImage, .cropImage, .trimVideo, .takeScreenshot,
-             .setVolumeMedia, .moveMedia, .bookmark,
+             .slideshow, .takeScreenshot,
+             .bookmark,
              .news, .stocks, .videoDownloader, .translate,
              .textEditShortcut,
              .drive, .oneDrive, .box,

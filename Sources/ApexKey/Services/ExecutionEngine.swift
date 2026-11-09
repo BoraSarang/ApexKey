@@ -1224,6 +1224,80 @@ final class ExecutionEngine {
         }
     }
 
+    // MARK: - 미디어 편집·캡처 (T-220)
+
+    private func executeMediaEditing(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = MediaEditingConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let resolve: (String?) -> String = { raw in
+            VariableResolver.resolveText(raw ?? "", context: ctx)
+        }
+
+        let path = resolve(config.path)
+        let output = resolve(config.outputPath)
+        let outcome: MediaEditing.Outcome
+
+        switch step.type {
+        case .rotateImage:
+            outcome = MediaEditing.rotateImage(
+                path: path,
+                outputPath: output,
+                angleDegrees: config.resolvedAngle
+            )
+        case .cropImage:
+            outcome = MediaEditing.cropImage(
+                path: path,
+                outputPath: output,
+                x: config.cropX ?? 0,
+                y: config.cropY ?? 0,
+                width: config.cropWidth ?? 0,
+                height: config.cropHeight ?? 0
+            )
+        case .trimVideo:
+            outcome = MediaEditing.trimVideo(
+                path: path,
+                outputPath: output,
+                startSeconds: config.resolvedStart,
+                endSeconds: config.resolvedEnd
+            )
+        case .camera:
+            outcome = MediaEditing.capturePhoto(outputPath: output)
+        case .setVolumeMedia:
+            outcome = MediaEditing.setVolume(percent: config.resolvedVolume)
+        case .moveMedia:
+            outcome = MediaEditing.moveCurrentTrack(
+                destination: resolve(config.destination),
+                confirmBeforeChange: config.resolvedConfirm
+            )
+        case .musicAndVideo:
+            outcome = MediaEditing.music(command: config.resolvedPlayback)
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-MEDIA-6700", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -1284,6 +1358,11 @@ final class ExecutionEngine {
         // === T-219 시스템 제어 — Wi-Fi·집중 모드 ===
         case .network, .focusMode:
             return executeSystemControl(step, context: &context)
+
+        // === T-220 미디어 편집·캡처 ===
+        case .rotateImage, .cropImage, .trimVideo, .camera,
+             .setVolumeMedia, .moveMedia, .musicAndVideo:
+            return executeMediaEditing(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:
