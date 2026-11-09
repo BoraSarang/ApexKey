@@ -61,7 +61,9 @@ extension ActionType {
              // Apple 앱 2 — Mail·Music·Podcasts·Photos — T-215 (ExecutionEngine.executeMediaApp)
              .mail, .setMailBody, .setMailRecipients, .emailData,
              .playMusic, .playPodcast, .podcasts,
-             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
+             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto,
+             // 문서 앱 — Pages·Numbers·TextEdit — T-216 (ExecutionEngine.executeDocumentApp)
+             .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -74,9 +76,8 @@ extension ActionType {
              .slideshow, .camera,
              .rotateImage, .cropImage, .trimVideo, .takeScreenshot,
              .setVolumeMedia, .moveMedia, .bookmark,
-             .news, .stocks, .videoDownloader, .editDocument, .translate,
+             .news, .stocks, .videoDownloader, .translate,
              .textEditShortcut,
-             .setParagraphStyle, .newDocument, .viewDocument,
              .drive, .oneDrive, .box,
              .map,
              .transportation, .message, .email,

@@ -1071,6 +1071,119 @@ final class ExecutionEngine {
         }
     }
 
+    // MARK: - T-216 문서 앱 — Pages·Numbers·TextEdit
+
+    /// 문서 앱 실행. 경로는 설정 → 이전 단계 파일 → 이전 단계 텍스트 순으로 찾는다.
+    /// 본문 편집·글꼴은 TextEdit 전용이며, 다른 앱은 사유를 돌려준다.
+    private func executeDocumentApp(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = DocumentConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let text: (String?) -> String = { value in
+            VariableResolver.resolveText(value ?? "", context: ctx)
+        }
+        let path = documentPath(config: config, context: context, resolveContext: ctx)
+
+        switch step.type {
+        case .newDocument:
+            let configured = text(config.content)
+            let content = configured.isEmpty ? (context.lastOutput.asText ?? "") : configured
+            return documentOutcome(
+                DocumentApps.createDocument(app: config.resolvedApp, content: content),
+                step: step,
+                context: &context
+            )
+
+        case .viewDocument:
+            return documentOutcome(
+                DocumentApps.viewDocument(
+                    path: path,
+                    app: config.app ?? .defaultApp
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .editDocument:
+            let configured = text(config.content)
+            let content = configured.isEmpty ? (context.lastOutput.asText ?? "") : configured
+            return documentOutcome(
+                DocumentApps.editDocument(
+                    path: path,
+                    text: content,
+                    mode: config.resolvedEditMode,
+                    app: config.app ?? .textEdit
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .setParagraphStyle:
+            return documentOutcome(
+                DocumentApps.setParagraphStyle(
+                    path: path,
+                    fontName: text(config.fontName),
+                    fontSize: config.resolvedFontSize,
+                    app: config.app ?? .textEdit
+                ),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func documentPath(
+        config: DocumentConfig,
+        context: UseModelExecutor.ExecutionContext,
+        resolveContext: VariableResolver.ResolveContext
+    ) -> String {
+        let configured = VariableResolver.resolveText(config.path ?? "", context: resolveContext)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !configured.isEmpty { return configured }
+        if let file = context.lastOutput.asFile { return file.path }
+        if let list = context.lastOutput.asList, case .file(let url) = list.first {
+            return url.path
+        }
+        if let text = context.lastOutput.asText {
+            return text
+                .split(whereSeparator: { $0 == "\n" || $0 == "\r" })
+                .first
+                .map(String.init)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        return ""
+    }
+
+    private func documentOutcome(
+        _ outcome: DocumentApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-DOC-6500", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -1123,6 +1236,10 @@ final class ExecutionEngine {
              .playMusic, .playPodcast, .podcasts,
              .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
             return executeMediaApp(step, context: &context)
+
+        // === T-216 문서 앱 — Pages·Numbers·TextEdit ===
+        case .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
+            return executeDocumentApp(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

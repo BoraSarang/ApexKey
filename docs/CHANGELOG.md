@@ -3,6 +3,16 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — 문서 앱: Pages·Numbers·TextEdit (T-216, v1.7 2차)
+
+* **문서 4종** — `newDocument`(새 문서 + 본문), `viewDocument`(기존 문서 열기), `editDocument`(본문 덧붙이기/바꾸기), `setParagraphStyle`(글꼴·크기).
+* **앱별 범위** — TextEdit은 문서 생성·열기·본문 편집·글꼴/크기까지 지원한다. Pages·Numbers는 표준 `open`/`make new document`만 사용한다. 본문 편집·글꼴 지정은 TextEdit 전용이며 다른 앱은 `unsupportedApp` 사유를 돌려준다.
+* **설치 확인** — 이 기기에는 Pages·Numbers가 설치되어 있지 않다(`sdef` -43). 실행 전에 번들 ID로 설치 여부를 확인해 "앱 미설치"를 명확히 알리고, 열기 전에 파일 존재도 확인한다.
+* **열린 문서** — 경로를 비우면 TextEdit의 열린 문서를 대상으로 한다. 열린 문서가 없으면 `APEX_NO_DOCUMENT` → `noOpenDocument` 사유.
+* **설정 UI** — `DocumentSettingsView`가 액션별 입력만 보여준다(앱 피커, 경로 피커, 본문, 편집 방식, 글꼴·크기). en/ko 26키 추가.
+* **테스트** — `DocumentAppsTests` 20건(설치 여부 주입, 인자 구성, 미지원 앱, 파일 없음, sentinel, 엔진 배선). unit **742건 0실패**(2 skip).
+* **결과** — 구현 **96→100**, planned **55→51**. 카탈로그 UI의 "준비 중"은 54종. i18n **1467키 일치**.
+
 ## 2026-11-09 macos — Apple 앱 2: Mail·Music·Podcasts·Photos (T-215, v1.7 2차)
 
 * **스파이크 실측** — Mail·Music·Photos는 스크립팅 사전이 있고, Photos는 `media item`·`export`·`spotlight`·`album`을 제공한다. **Podcasts는 사전이 없어**(-192) AppleScript 검색·재생이 불가능하다.

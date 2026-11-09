@@ -116,13 +116,28 @@ final class ActionCatalogIntegrityTests: XCTestCase {
     /// "카탈로그에는 노출되는데 실행은 안 되는" 상태(T-159)가 되돌아온다.
     func testKnownUnimplementedRemainPlanned() {
         let known: [ActionType] = [
-            .translate, .readTable, .editDocument,
+            .translate, .readTable,
         ]
         for type in known {
             XCTAssertEqual(
                 type.implementation, .planned,
                 "\(type.rawValue) 는 미구현이므로 planned여야 함"
             )
+        }
+    }
+
+    /// T-216에서 구현한 문서 앱 — Pages·Numbers·TextEdit
+    func testDocumentActionsAreImplemented() {
+        let implemented: [ActionType] = [
+            .newDocument, .viewDocument, .editDocument, .setParagraphStyle,
+        ]
+        for type in implemented {
+            XCTAssertEqual(
+                type.implementation, .implemented,
+                "\(type.rawValue) 는 T-216에서 구현했으므로 implemented여야 함"
+            )
+            XCTAssertTrue(type.isSelectable, "\(type.rawValue) 는 카탈로그에서 선택 가능해야 함")
+            XCTAssertTrue(type.hasStepSettingsUI, "\(type.rawValue) 는 설정 UI를 제공해야 함")
         }
     }
 

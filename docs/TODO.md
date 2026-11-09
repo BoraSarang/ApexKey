@@ -711,7 +711,12 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - Music: `playMusic`(곡/아티스트 검색·재생목록). Podcasts: `podcasts`(앱 열기)·`playPodcast`(URL만, 검색어는 정직한 실패)
   - Photos: `photos`(최근 목록)·`getLastPhoto`(원본 내보내기 → 파일 경로)·`viewPhotos`·`randomPhoto`·`album`(만들기/목록)
   - 결과: 구현 **84→96**, planned **67→55**(스텁 3 포함 UI "준비 중" 70→58). unit **721건 0실패**(2 skip) · i18n **1441키 일치**
-- [ ] **T-216** 2차 — 문서 앱: Pages·Numbers·TextEdit (2d)
+- [x] **T-216** 2차 — 문서 앱: Pages·Numbers·TextEdit (2d) — **완료**
+  - `newDocument`·`viewDocument`·`editDocument`·`setParagraphStyle`
+  - TextEdit은 문서 생성·열기·본문 편집(덧붙이기/바꾸기)·글꼴/크기 지정까지 지원. Pages·Numbers는 표준 `open`/`make new document`만 사용
+  - 이 기기에 Pages·Numbers 미설치(`sdef` -43) → **설치 여부를 먼저 확인**하고 "앱 미설치" 사유를 표시. 열기 전에 파일 존재도 확인
+  - 본문 편집·글꼴은 TextEdit 전용(`unsupportedApp`)으로 정직하게 제한. 열린 문서가 없으면 `APEX_NO_DOCUMENT` → `noOpenDocument`
+  - 결과: 구현 **96→100**, planned **55→51**(스텁 3 포함 UI "준비 중" 58→54). unit **742건 0실패**(2 skip) · i18n **1467키 일치**
 - [ ] **T-217** 2차 — 자동화 트리거 4종: 파일·외장 드라이브·디스플레이·앱 (3d)
 - [ ] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d)
 - [ ] **T-219** 3차 — 시스템 액션 6종(집중 모드·최근 항목·AirDrop·Wi-Fi·블루투스, 일부 보류/제외) (4d)

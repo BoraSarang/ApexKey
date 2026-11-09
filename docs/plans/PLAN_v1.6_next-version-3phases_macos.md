@@ -122,11 +122,16 @@
 - **결과**: 12종 구현. 메일은 기본 초안 열기(`sendImmediately`만 발송). `AppleMediaAppsTests` 22건,
   unit 721건 0실패(2 skip), i18n 1441키 일치. 구현 84→96, planned 67→55.
 
-### 3-4. T-216 문서 앱 연동 (2d)
+### 3-4. T-216 문서 앱 연동 (2d) — **완료 (2026-11-09)**
 
 `newDocument` · `viewDocument` · `editDocument` · `setParagraphStyle`
 
 - Pages/Numbers/TextEdit 대상. iWork가 없으면 "앱 미설치" 사유를 명확히 표시.
+- **실측**: 이 기기에는 Pages·Numbers가 없다(`sdef` -43). TextEdit은 문서·본문·글꼴 속성을 제공.
+  그래서 설치 여부를 먼저 확인하고, Pages·Numbers는 표준 `open`/`make new document`만 쓴다.
+  본문 편집·글꼴 지정은 TextEdit 전용으로 제한(`unsupportedApp`).
+- **결과**: 4종 구현, `DocumentAppsTests` 20건, unit 742건 0실패(2 skip), i18n 1467키 일치.
+  구현 96→100, planned 55→51.
 
 ### 3-5. T-217 자동화 트리거 4종 (3d)
 

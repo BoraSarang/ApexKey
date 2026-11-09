@@ -198,6 +198,9 @@ struct StepSettingsView: View {
              .playMusic, .playPodcast, .podcasts,
              .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
             AppleMediaSettingsView(step: $draft)
+        // T-216 문서 앱 — Pages·Numbers·TextEdit
+        case .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
+            DocumentSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)

@@ -10,7 +10,7 @@
 
 macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy**하지만
 **배포 서명이 없어 릴리스 사용자가 버전업마다 권한을 재승인해야 하고**,
-카탈로그 154종 중 58종은 아직 "준비 중"이다.
+카탈로그 154종 중 54종은 아직 "준비 중"이다.
 
 ## 2. 제품 방향 (2026-10-06 확정 — v1.4 이후)
 
@@ -32,18 +32,18 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **721건 0실패**(2 skip, 2026-11-09 — T-215 `AppleMediaAppsTests` 22건 포함) | `./build_and_run.sh test macos unit` |
+| 테스트 | **742건 0실패**(2 skip, 2026-11-09 — T-216 `DocumentAppsTests` 20건 포함) | `./build_and_run.sh test macos unit` |
 | 스모크 | 75건 0실패 | `test macos smoke` |
 | 빌드 | 성공, **신규 코드 경고 0**(2026-11-09 v1.6.0) — 클린 빌드 기준 잔여 4건은 2026-10-15 측정값 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
-| 액션 구현 | **96 / 154** (스텁 3, 미구현 55) | `ActionType.implementationCounts()` — 2026-11-09 T-215 반영 |
-| i18n | ko/en **1441키 일치** | `*.lproj/Localizable.strings` |
+| 액션 구현 | **100 / 154** (스텁 3, 미구현 51) | `ActionType.implementationCounts()` — 2026-11-09 T-216 반영 |
+| i18n | ko/en **1467키 일치** | `*.lproj/Localizable.strings` |
 | 버전 | 1.6.0 (`project.yml`이 유일한 출처) — **태그는 §8-14 실기 확인 후** | `scripts/check-version.py` |
-| 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) · **승인된 1차 3건**(T-210·T-211 완료, T-212 검증 완료·태그 대기) · **승인된 2차 6건**(T-213~T-215 완료, T-216~T-218 대기) | `TODO.md` |
+| 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) · **승인된 1차 3건**(T-210·T-211 완료, T-212 검증 완료·태그 대기) · **승인된 2차 6건**(T-213~T-216 완료, T-217·T-218 대기) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 14개 = 미확인 11 + 확인 3) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **96건** (확인 3건 / 전체 99건 — §8-14 트랙패드 11항목 포함) | `FUNCTIONAL_CHECKLIST.md` §8 |
-| 브랜치 | `feat/macos-v1.6-catalog-actions` — T-210~T-215 커밋, push 안 함 | — |
+| 브랜치 | `feat/macos-v1.6-catalog-actions` — T-210~T-216 커밋, push 안 함 | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
-| 미배포 배치 | **v1.5.0 이후 미릴리스** — v0.33·v0.33.1 트랙패드(PR #21 머지) + T-210·T-211. T-213~T-215는 2차(v1.7) 묶음. **v1.6.0 태그는 §8-14 확인 후** | — |
+| 미배포 배치 | **v1.5.0 이후 미릴리스** — v0.33·v0.33.1 트랙패드(PR #21 머지) + T-210·T-211. T-213~T-216은 2차(v1.7) 묶음. **v1.6.0 태그는 §8-14 확인 후** | — |
 
 ---
 
@@ -126,7 +126,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 |---|---|---|
 | **Developer ID 서명 + notarization** | Apple Developer Program(연 $99) 가입이 선행 | 사용자 가입. 코드(`release.yml`)는 그 다음 |
 | **`saveContext` → `Bool`** | **검증 수단이 없음.** chmod는 소유자에게 통하지 않고, SQLite 배타 락은 저장 실패가 아니라 **무한 대기**를 유발 | SwiftData 저장 실패를 결정적으로 재현하는 수단 (예: 읽기 전용 볼륨 위의 store) |
-| **미구현 액션 55종** | 대부분 Apple 앱 연동 (`Photos`·`Music`·`Mail`·`Calendar`·`Reminders`·`Podcasts`) | 앱별 API 조사 필요. ScriptingBridge 또는 URL scheme |
+| **미구현 액션 51종** | 미디어 편집·캡처, 시스템 프리셋, 웹·위치 URL scheme, App Intents 등 | 앱별 API 조사 또는 시스템 프리셋 위임 필요 |
 | **macOS 14 실기 검증** | 이 세션은 macOS 26에서만 실행 | macOS 14 기기 또는 가상머신 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월 | `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
 | **트랙패드 실기 감도** | 30초짜리 손 동작이 필요하다 — 에이전트가 대신할 수 없다. 2026-11-08 방향·두 손가락 인식·체감은 사용자가 "동작은 잘 되는 것 같음"으로 정성 확인 | 나머지 §8-14 항목(스크롤 억제·⌥ 건너뛰기·제스처/메뉴 실행·재시작 유지) 사용자 확인. 필요하면 감도·에지 폭(기본 15%)·시작 임계(7%) 조정 |
@@ -190,7 +190,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 
 **2순위 — 규모 있음**
 - T-036 (메뉴 명령 단계 실행 불가 + 앱/메뉴 선택 UI)
-- 미구현 액션 55종의 Apple 앱 연동 — **앱별 API 조사 선행 필요**
+- 미구현 액션 51종 — **영역별 API 조사 선행 필요**
 
 **착수 불가 (조건 대기)**
 - Developer ID 서명 — Apple Developer Program 가입 대기
