@@ -3,6 +3,14 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — 카탈로그 정직성 (T-210, v1.6 1차)
+
+* **시스템 프리셋 중복 7종 승격** — 카탈로그에 "준비 중"으로 보였지만 `시스템` 단계로 이미 실행되던 `screenshot`·`newNote`·`newQuickNote`·`wallpaper`·`wakeDisplay`·`moveToFront`·`darkMode`를 `.implemented`로 승격하고 `SystemActionExecutor`에 위임했다. 이제 개별 액션 행에서 바로 선택·실행할 수 있다.
+* **중복 정리** — `takeScreenshot`은 `screenshot`, `clipText`는 `getClipboard`/`setClipboard`와 같은 동작이므로 카탈로그에서 숨겼다(`isCatalogHidden`). 시스템 프리셋 확장 행에서도 승격 7종을 빼 같은 동작이 두 번 보이지 않는다.
+* **OneDrive 표시 키 분리** — `.oneDrive`가 `.drive`와 같은 `action.drive` 키를 쓰던 문제를 고쳐 `action.oneDrive`로 분리했다. `.drive`는 "OneDrive (항목 세부사항)"으로 구분한다.
+* **실행·설정 배선** — `ActionExecutor`가 승격 7종을 시스템 동작으로 실행하고, 배경화면·앱 전면으로는 `step.target`의 경로/번들ID를 파라미터로 넘긴다. 단계 설정은 `SystemPromotedActionSettingsView`가 파일·앱 피커를 제공한다.
+* **테스트** — `ActionCatalogIntegrityTests`에 승격 매핑·엔진 배선·중복 숨김 가드를 추가하고, `ApexKeyMetadataTests`에 표시 키 유일성 검사를 추가했다. unit **614건 0실패**(2 skip).
+
 ## 2026-11-08 macos — 트랙패드 실기 심화 (v0.33.1, 실기 피드백 3건)
 
 * **방향 뒤집힘 수정(근본 원인)** — 비공개 프레임워크의 `normalized.pos.y`는 **아래가 0, 위가 1**이다. v0.33은 "위로 밀면 y가 작아진다"고 가정해 **위로 밀면 볼륨이 내려가고**, 미리보기 점은 손가락 반대로 움직였다. 실제로 동작하는 Jitouch의 스와이프 판정(`py - startY > 0 → Up`)으로 방향을 확정하고 다음을 함께 뒤집었다.

@@ -172,6 +172,11 @@ struct StepSettingsView: View {
         case .system:
             // 프리셋 선택지 — 스크립트 표시·수정 없음 (선택=프리셋 ID)
             SystemPresetPickerView(step: $draft)
+        // 시스템 프리셋으로 이미 가능한 7종을 개별 액션으로 승격 (T-210)
+        // 파라미터가 없는 동작은 제목만, 배경화면·앱 전면으로는 경로/번들ID를 편집한다.
+        case .screenshot, .newNote, .newQuickNote, .wallpaper, .wakeDisplay,
+             .moveToFront, .darkMode:
+            SystemPromotedActionSettingsView(step: $draft)
         case .openInTerminal:
             // 터미널 앱·방식은 `target` 한 줄로 표현할 수 없다 (T-195)
             TerminalOpenSettingsView(step: $draft)

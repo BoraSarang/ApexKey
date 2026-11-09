@@ -42,16 +42,17 @@
 
 ## 2. 1차 — 카탈로그 정직성 + 무권한 순수 로직 (v1.6, 약 9~10일)
 
-### 2-1. T-210 카탈로그 정직성 (1.5d)
+### 2-1. T-210 카탈로그 정직성 (1.5d) — **완료 (2026-11-09)**
 
 | 항목 | 내용 |
 |---|---|
-| OneDrive 중복 | `.oneDrive`가 `action.drive` 키를 써서 카탈로그에 "OneDrive"가 2번 나온다 → `action.oneDrive`로 수정 |
+| OneDrive 중복 | `.oneDrive`가 `action.drive` 키를 써서 카탈로그에 "OneDrive"가 2번 나온다 → `action.oneDrive`로 수정. `.drive`는 "OneDrive (항목 세부사항)"으로 구분 |
 | 시스템 단계 중복 7종 | 스크린샷·새 메모·빠른 메모·배경화면·화면 깨우기·앱 전면으로 이동·다크모드는 **이미 `시스템` 단계로 실행 가능**하다. 별도 구현 대신 `.implemented`로 승격하고 `SystemActionExecutor`로 위임 |
-| 중복 후보 판정 | `date`↔`dateFormatter`, `clipText`↔`setClipboard`, `dialog`↔`getConfirmation`, `screenshot`↔`takeScreenshot` — 중복이면 카탈로그에서 숨기고 기존 액션으로 안내 |
-| 테스트 | `ActionCatalogIntegrityTests`의 기대 수치 갱신, 승격 7종 실행 위임 테스트 |
+| 중복 후보 판정 | `takeScreenshot`(→`screenshot`), `clipText`(→`getClipboard`/`setClipboard`)는 중복으로 판정해 카탈로그에서 숨김. `date`↔`dateFormatter`, `dialog`↔`getConfirmation`은 의미가 달라 유지 |
+| 테스트 | `ActionCatalogIntegrityTests` 기대치 갱신, 승격 7종 매핑·엔진 배선·중복 숨김 테스트, 메타데이터 표시 키 유일성 테스트 |
 
-**결과**: 준비 중 99 → 약 92. 사용자가 보는 "준비 중" 목록이 실제와 가까워진다.
+**결과**: 구현 **52→59**, planned **99→92**(중복 숨김 제외 planned 노출 90 · 스텁 3 포함 UI "준비 중" 93). unit 614건 0실패(2 skip).
+사용자가 보는 "준비 중" 목록이 실제와 가까워진다.
 
 ### 2-2. T-211 순수 로직 액션 14종 (7d)
 

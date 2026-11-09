@@ -126,6 +126,85 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
+    /// 시스템 프리셋으로 이미 실행 가능한 7종은 개별 액션으로 승격되어야 한다 (T-210)
+    ///
+    /// 카탈로그에서 "준비 중"으로 보이지만 실제로는 `시스템` 단계로 실행되던
+    /// 거짓 표기를 없앤다. 승격 후에는 개별 액션 행 하나만 노출된다.
+    func testSystemPresetActionsAreImplemented() {
+        let promoted: [ActionType] = [
+            .screenshot, .newNote, .newQuickNote, .wallpaper,
+            .wakeDisplay, .moveToFront, .darkMode,
+        ]
+        for type in promoted {
+            XCTAssertEqual(
+                type.implementation, .implemented,
+                "\(type.rawValue) 는 시스템 프리셋으로 실행 가능하므로 implemented여야 함"
+            )
+            XCTAssertTrue(type.isSelectable, "\(type.rawValue) 는 카탈로그에서 선택 가능해야 함")
+            XCTAssertTrue(type.hasStepSettingsUI, "\(type.rawValue) 는 설정 UI를 제공해야 함")
+            XCTAssertNotNil(type.systemActionType, "\(type.rawValue) 의 시스템 프리셋 대응이 없음")
+        }
+    }
+
+    /// 승격 7종의 `SystemActionType` 대응이 정확한지 (실수로 다른 동작을 실행하면 안 됨)
+    func testPromotedSystemActionMapping() {
+        let expected: [ActionType: SystemActionType] = [
+            .screenshot: .screenshot,
+            .newNote: .newNote,
+            .newQuickNote: .quickNote,
+            .wallpaper: .wallpaper,
+            .wakeDisplay: .wakeDisplay,
+            .moveToFront: .activateApp,
+            .darkMode: .darkMode,
+        ]
+        for (action, preset) in expected {
+            XCTAssertEqual(action.systemActionType, preset, "\(action.rawValue) 대응 불일치")
+        }
+        // 시스템 프리셋과 무관한 액션은 대응이 없어야 한다
+        for type in [ActionType.launchApp, .text, .dialog, .takeScreenshot] {
+            XCTAssertNil(type.systemActionType, "\(type.rawValue) 는 시스템 프리셋 대응이 없어야 함")
+        }
+    }
+
+    /// 중복 액션은 카탈로그에서 숨긴다 — 같은 동작이 두 행으로 보이면 안 된다 (T-210)
+    func testDuplicateCatalogActionsAreHidden() {
+        XCTAssertTrue(ActionType.takeScreenshot.isCatalogHidden)
+        XCTAssertTrue(ActionType.clipText.isCatalogHidden)
+        XCTAssertFalse(ActionType.catalogVisible.contains(.takeScreenshot))
+        XCTAssertFalse(ActionType.catalogVisible.contains(.clipText))
+        // 승격된 원본은 노출된다
+        XCTAssertTrue(ActionType.catalogVisible.contains(.screenshot))
+        // 카탈로그의 시스템 프리셋 확장에서 승격분 7종을 뺀 나머지는 유지된다
+        XCTAssertEqual(ActionType.promotedSystemPresets.count, 7)
+        XCTAssertTrue(
+            ActionType.promotedSystemPresets.isSubset(of: Set(SystemActionType.allCases)),
+            "승격 목록에 존재하지 않는 시스템 프리셋이 있음"
+        )
+    }
+
+    /// 승격된 액션이 엔진에서 "미구현"으로 떨어지지 않는지 (배선 확인)
+    ///
+    /// 스크린샷·새 메모·다크모드 등은 실행하면 실제 부작용이 있으므로 확인하지 않는다.
+    /// 파라미터만 검증하는 배경화면(없는 경로)과 앱 전면으로(없는 번들ID)로
+    /// **미구현 토스트가 아닌 실패 사유**가 나오는지 본다.
+    func testPromotedSystemActionsAreWired() {
+        let unimplemented = "toast.reason.unimplemented".localized
+        let cases: [(ActionType, String)] = [
+            (.wallpaper, "/nonexistent/ApexKey-wallpaper.png"),
+            (.moveToFront, "com.example.ApexKeyNonexistentApp"),
+        ]
+        for (type, target) in cases {
+            let step = ShortcutStep(type: type, target: target, title: type.displayName)
+            var context = UseModelExecutor.ExecutionContext()
+            let result = ExecutionEngine.shared.execute(steps: [step], context: &context)
+            XCTAssertFalse(result.success, "\(type.rawValue) 는 잘못된 파라미터로 실패해야 함")
+            XCTAssertNotEqual(
+                result.error, unimplemented,
+                "\(type.rawValue) 가 엔진에 배선되지 않았다 — 카탈로그는 '구현됨'이라 말하지만 실행은 planned와 같다"
+            )
+        }
+    }
+
     /// E-MAC-TEXT-6001/6002/6003로 구현한 26종이 implemented로 유지되는지
     ///
     /// 역방향 가드: 구현을 되돌렸는데 정의를 그대로 두면 카탈로그가 "준비 중"으로

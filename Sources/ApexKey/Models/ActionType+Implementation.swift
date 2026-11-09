@@ -18,7 +18,7 @@ extension ActionType {
 
     /// 액션 구현 상태.
     ///
-    /// **컴파일 타임 정합성**: 아래 switch 에 `default:`가 없고 153개 case를 빠짐없이 나열한다.
+    /// **컴파일 타임 정합성**: 아래 switch 에 `default:`가 없고 154개 case를 빠짐없이 나열한다.
     /// 그래서 `ActionType`에 새 case를 추가하면 여기가 **컴파일 에러**가 된다.
     /// "카탈로그에는 노출되는데 실행은 안 되는" 상태가 구조적으로 재발할 수 없다.
     ///
@@ -43,14 +43,18 @@ extension ActionType {
              // 텍스트·숫자 입력 2종 — E-MAC-TEXT-6003 (ExecutionEngine.executeTypingAction)
              .typeText, .typeNumber,
              // HTML→Markdown 1종 — E-MAC-TEXT-6003 (ExecutionEngine.executeStep)
-             .htmlToMarkdown:
+             .htmlToMarkdown,
+             // 시스템 프리셋으로 이미 실행 가능한 7종 — T-210
+             // (SystemActionExecutor에 위임. 별도 구현 대신 중복을 없앤다)
+             .screenshot, .newNote, .newQuickNote, .wallpaper, .wakeDisplay,
+             .moveToFront, .darkMode:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
-        case .dialog, .clipText, .moveToFront, .wakeDisplay,
-             .clearRecents, .preventSleep, .wallpaper, .darkMode, .focusMode,
-             .screenshot, .pdf, .network, .bluetooth, .timer, .stopwatch,
-             .location, .airDrop, .newQuickNote, .newNote, .readTable,
+        case .dialog, .clipText,
+             .clearRecents, .preventSleep, .focusMode,
+             .pdf, .network, .bluetooth, .timer, .stopwatch,
+             .location, .airDrop, .readTable,
              .emailData, .date, .quickLook, .photos, .musicAndVideo,
              .playMusic, .playPodcast, .tuneStation, .radio, .viewPhotos,
              .album, .randomPhoto, .slideshow, .getLastPhoto, .camera,
@@ -81,6 +85,47 @@ extension ActionType {
 
     /// 단계 설정 UI를 제공할 수 있는지
     var hasStepSettingsUI: Bool { implementation == .implemented }
+
+    /// 카탈로그에서 숨길 액션 — 같은 일을 하는 다른 항목으로 통합된 중복
+    ///
+    /// - `takeScreenshot`: 시스템 프리셋 `screenshot`(T-210에서 개별 액션으로 승격)과
+    ///   같은 동작이다.
+    /// - `clipText`: 클립보드 읽기·쓰기는 이미 `getClipboard`·`setClipboard`가 담당한다.
+    ///
+    /// 두 행이 나란히 같은 이름으로 보이면 사용자는 무엇을 골라야 하는지 알 수 없다.
+    /// 구현 상태는 그대로 두고 노출만 막는다.
+    var isCatalogHidden: Bool {
+        switch self {
+        case .takeScreenshot, .clipText: return true
+        default: return false
+        }
+    }
+
+    /// 시스템 프리셋 실행으로 위임하는 액션의 대응표 (T-210)
+    ///
+    /// 카탈로그에 시스템 프리셋 행이 이미 있어도, 개별 액션으로 선택하면
+    /// 같은 `SystemActionExecutor` 경로로 실행한다. 파라미터는 `ShortcutStep.target`
+    /// (배경화면 경로 · 앱 번들ID)에서 온다.
+    var systemActionType: SystemActionType? {
+        switch self {
+        case .screenshot: return .screenshot
+        case .newNote: return .newNote
+        case .newQuickNote: return .quickNote
+        case .wallpaper: return .wallpaper
+        case .wakeDisplay: return .wakeDisplay
+        case .moveToFront: return .activateApp
+        case .darkMode: return .darkMode
+        default: return nil
+        }
+    }
+
+    /// 카탈로그의 시스템 프리셋 목록에서 제외할 항목 — 개별 액션으로 승격됨
+    ///
+    /// 그대로 두면 같은 동작이 "개별 액션 행 + 시스템 프리셋 행"으로 두 번 보인다.
+    /// 단계 설정의 `.system` 피커는 기존 사용자 설정 호환을 위해 23종을 모두 유지한다.
+    static let promotedSystemPresets: Set<SystemActionType> = [
+        .screenshot, .newNote, .quickNote, .wallpaper, .wakeDisplay, .activateApp, .darkMode,
+    ]
 }
 
 // MARK: - 집계 (테스트·진단용)
@@ -95,8 +140,10 @@ extension ActionType {
         return counts
     }
 
-    /// 카탈로그에서 기본 노출할 액션 (구현 완료만)
-    static var catalogVisible: [ActionType] { allCases.filter(\.isSelectable) }
+    /// 카탈로그에서 기본 노출할 액션 (구현 완료 + 중복 숨김 제외)
+    static var catalogVisible: [ActionType] {
+        allCases.filter { $0.isSelectable && !$0.isCatalogHidden }
+    }
 
     /// 미구현·스텁 목록 (진단·점검용)
     static var notImplemented: [ActionType] {

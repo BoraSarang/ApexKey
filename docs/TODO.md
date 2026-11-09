@@ -671,14 +671,19 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 
 ---
 
-## 차기 3차 계획 (v1.6~v1.8, 2026-11-09 초안 — 승인 대기)
+## 차기 3차 계획 (v1.6~v1.8, 2026-11-09 — 1차 승인·진행 중)
 
 > **2026-11-09 사용자 승인: 1차(T-210~T-212)만 진행.** 2·3차는 1차 결과·실기 확인 후 재승인.
 > 영구 제외 확정: `videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`.
 > 설계·근거·제외 목록: `docs/plans/PLAN_v1.6_next-version-3phases_macos.md`
 > 전제: 제품 방향 동결의 **범위 한정 예외**. 트랙패드 §8-14는 이 계획에서 제외(2026-11-09 사용자 결정).
 
-- [ ] **T-210** 1차 — 카탈로그 정직성: OneDrive 키 중복, 시스템 단계로 가능한 7종 승격, 중복 후보 판정 (1.5d)
+- [x] **T-210** 1차 — 카탈로그 정직성 (1.5d) — **완료**
+  - 시스템 프리셋으로 이미 실행 가능한 7종 승격: `screenshot`·`newNote`·`newQuickNote`·`wallpaper`·`wakeDisplay`·`moveToFront`·`darkMode` → `.implemented` + `SystemActionExecutor` 위임
+  - 중복 정리: `takeScreenshot`(→`screenshot`), `clipText`(→`getClipboard`/`setClipboard`) 카탈로그 숨김. `drive`/`oneDrive` 표시 키 분리
+  - 실행 경로: `ActionExecutor`가 승격 7종을 시스템 동작으로 실행, 배경화면·앱 전면으로는 `step.target` 파라미터 사용
+  - 단계 설정 UI: `SystemPromotedActionSettingsView`(파일/앱 피커)
+  - 결과: 구현 **52→59**, planned **99→92**(중복 숨김 제외 planned 노출 90 · 스텁 3 포함 UI "준비 중" 93). unit 614건 0실패(2 skip)
 - [ ] **T-211** 1차 — 순수 로직 액션 14종: OCR/QR/동물 인식·언어 감지·측정/날짜·대화상자/확인/QuickLook·잠자기 방지·딕셔너리/목록/출력 저장 (7d)
 - [ ] **T-212** 1차 — 검증·릴리스 **v1.6.0**(v0.33 포함, §8-14 확인 후 태그) (1.5d)
 - [ ] **T-213** 2차 — 파일 액션 7종(가져오기·이동·이름 변경·압축 해제·외부 저장소·파일 동작·첨부) + 확인/취소 안전장치 (3d)

@@ -91,7 +91,7 @@ extension ActionType {
         .setMailBody: ActionMetadata(displayNameKey: "action.setMailBody", systemImage: "text.alignleft", category: .documents),
         .setMailRecipients: ActionMetadata(displayNameKey: "action.setMailRecipients", systemImage: "person.circle", category: .documents),
         .drive: ActionMetadata(displayNameKey: "action.drive", systemImage: "cloud", category: .documents),
-        .oneDrive: ActionMetadata(displayNameKey: "action.drive", systemImage: "cloud.fill", category: .documents),
+        .oneDrive: ActionMetadata(displayNameKey: "action.oneDrive", systemImage: "cloud.fill", category: .documents),
         .box: ActionMetadata(displayNameKey: "action.box", systemImage: "archivebox", category: .documents),
         .getFiles: ActionMetadata(displayNameKey: "action.getFiles", systemImage: "folder.badge.questionmark", category: .documents),
         .moveFiles: ActionMetadata(displayNameKey: "action.moveFiles", systemImage: "folder.move", category: .documents),
