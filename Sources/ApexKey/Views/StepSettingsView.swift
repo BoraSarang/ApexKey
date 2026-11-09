@@ -212,6 +212,10 @@ struct StepSettingsView: View {
         case .message, .email, .map, .transportation,
              .webContent, .presentation, .webIntegration, .createShortcutIcon:
             ContentLinkSettingsView(step: $draft)
+        // T-222 App Intents·자동화 카탈로그
+        case .findApp, .appIntent, .appAction,
+             .automation, .findAutomation, .automationRun, .trigger:
+            AppIntentAutomationSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)

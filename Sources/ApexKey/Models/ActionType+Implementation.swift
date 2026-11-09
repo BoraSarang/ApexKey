@@ -71,7 +71,10 @@ extension ActionType {
              .setVolumeMedia, .moveMedia, .musicAndVideo,
              // 콘텐츠·위치·웹 — T-221 (ExecutionEngine.executeContentLink)
              .message, .email, .map, .transportation,
-             .webContent, .presentation, .webIntegration, .createShortcutIcon:
+             .webContent, .presentation, .webIntegration, .createShortcutIcon,
+             // App Intents·자동화 카탈로그 — T-222 (ExecutionEngine.executeAutomationAction)
+             .findApp, .appIntent, .appAction,
+             .automation, .findAutomation, .automationRun, .trigger:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -88,8 +91,7 @@ extension ActionType {
              .drive, .oneDrive, .box,
              .documentsAndFiles,
              .devicesAndSheet, .variableDetail,
-             .clipboardAction, .appIntent, .appAction, .findApp,
-             .automation, .findAutomation, .automationRun, .trigger:
+             .clipboardAction:
             return .planned
         }
     }

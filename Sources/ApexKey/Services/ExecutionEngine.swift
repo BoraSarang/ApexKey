@@ -23,6 +23,12 @@ final class ExecutionEngine {
     /// Run Shortcut이 호출할 단축어 조회 클로저 (ConfigStore에서 주입)
     var shortcutProvider: ((UUID) -> ShortcutItem?)?
 
+    /// 자동화 카탈로그(T-222)가 조회할 전체 단축어 목록 (ConfigStore에서 주입)
+    var shortcutListProvider: (() -> [ShortcutItem])?
+
+    /// 앱 찾기(T-222)가 사용할 설치 앱 목록 — 테스트에서 주입한다
+    var appListProvider: (() -> [AppItem])?
+
     /// Run Shortcut 최대 재귀 깊이 (순환 호출 가드)
     static let maxRunShortcutDepth = 10
 
@@ -1379,6 +1385,106 @@ final class ExecutionEngine {
         }
     }
 
+    // MARK: - App Intents·자동화 카탈로그 (T-222)
+
+    private func executeAutomationAction(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext,
+        depth: Int
+    ) -> Result {
+        let config = AppIntentAutomationConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let resolve: (String?) -> String = { raw in
+            VariableResolver.resolveText(raw ?? "", context: ctx)
+        }
+
+        switch step.type {
+        case .findApp:
+            let all = appListProvider?() ?? AppFinder.installedApps()
+            let apps = config.resolvedIncludeSystemApps
+                ? all
+                : all.filter { !$0.path.hasPrefix("/System/Applications") }
+            switch AutomationCatalog.findApps(query: resolve(config.query), apps: apps) {
+            case .success(let lines):
+                return finishAutomationStep(step, lines: lines, context: &context)
+            case .failure(let reason):
+                return automationFailure(step, reason: reason)
+            }
+
+        case .appIntent, .appAction:
+            let outcome: AutomationCatalog.Outcome
+            if step.type == .appIntent {
+                outcome = AutomationCatalog.runShortcut(
+                    named: resolve(config.shortcutName),
+                    input: resolve(config.input)
+                )
+            } else {
+                outcome = AutomationCatalog.openURL(resolve(config.url))
+            }
+            switch outcome {
+            case .success(let lines):
+                return finishAutomationStep(step, lines: lines, context: &context)
+            case .failure(let reason):
+                return automationFailure(step, reason: reason)
+            }
+
+        case .automation, .findAutomation:
+            let shortcuts = shortcutListProvider?() ?? []
+            let lines = AutomationCatalog.automationLines(
+                shortcuts: shortcuts,
+                query: resolve(config.query),
+                includeUnsupported: config.resolvedIncludeUnsupported
+            )
+            guard !lines.isEmpty else {
+                return automationFailure(step, reason: .noMatches(resolve(config.query)))
+            }
+            return finishAutomationStep(step, lines: lines, context: &context)
+
+        case .automationRun, .trigger:
+            let shortcuts = shortcutListProvider?() ?? []
+            let name = resolve(config.shortcutName)
+            guard let target = AutomationCatalog.shortcut(named: name, in: shortcuts) else {
+                return automationFailure(step, reason: .shortcutNotInApexKey(name))
+            }
+            if step.type == .trigger {
+                let triggerName = resolve(config.triggerName)
+                guard AutomationCatalog.hasTrigger(shortcut: target, triggerName: triggerName) else {
+                    return automationFailure(step, reason: .triggerMissing(target.name, triggerName))
+                }
+                context.shortcutInput = .text(triggerName)
+            }
+            Logger.info("ExecutionEngine", "자동화 실행: \(target.name)")
+            return execute(target, context: &context, depth: depth + 1)
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func finishAutomationStep(
+        _ step: ShortcutStep,
+        lines: [String],
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let value = lines.joined(separator: "\n")
+        context.setOutput(.text(value), for: step.id)
+        context.lastOutput = .text(value)
+        Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(lines.count)건")
+        return .continueRunning
+    }
+
+    private func automationFailure(
+        _ step: ShortcutStep,
+        reason: AutomationCatalog.FailureReason
+    ) -> Result {
+        Logger.error("E-MAC-AUTO-6900", "\(step.type.rawValue) 실패: \(reason)")
+        return Result(success: false, controlFlow: .continueExecution, error: reason.message)
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -1449,6 +1555,11 @@ final class ExecutionEngine {
         case .message, .email, .map, .transportation,
              .webContent, .presentation, .webIntegration, .createShortcutIcon:
             return executeContentLink(step, context: &context)
+
+        // === T-222 App Intents·자동화 카탈로그 ===
+        case .findApp, .appIntent, .appAction,
+             .automation, .findAutomation, .automationRun, .trigger:
+            return executeAutomationAction(step, context: &context, depth: depth)
 
         // === AI 액션 ===
         case .useModel:

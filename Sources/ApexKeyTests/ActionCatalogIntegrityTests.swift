@@ -126,6 +126,19 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
+    /// T-222에서 구현한 App Intents·자동화 카탈로그 7종
+    func testAppIntentAndAutomationActionsAreImplemented() {
+        let implemented: [ActionType] = [
+            .findApp, .appIntent, .appAction,
+            .automation, .findAutomation, .automationRun, .trigger,
+        ]
+        for type in implemented {
+            XCTAssertEqual(type.implementation, .implemented, type.rawValue)
+            XCTAssertTrue(type.isSelectable, type.rawValue)
+            XCTAssertTrue(type.hasStepSettingsUI, type.rawValue)
+        }
+    }
+
     /// T-221에서 구현한 콘텐츠·위치·웹 8종
     func testContentLinkActionsAreImplemented() {
         let implemented: [ActionType] = [
