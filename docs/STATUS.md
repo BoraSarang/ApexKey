@@ -32,18 +32,18 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **609건 0실패**(2 skip, 2026-11-08 — v0.33.1 트랙패드 인식기 23·리플레이 3·저장 10 포함) | `./build_and_run.sh test macos unit` |
+| 테스트 | **651건 0실패**(2 skip, 2026-11-09 — T-211 `NextActionsTests` 37건 포함) | `./build_and_run.sh test macos unit` |
 | 스모크 | 75건 0실패 | `test macos smoke` |
-| 빌드 | 성공, **신규 코드 경고 0**(2026-11-08 v0.33) — 클린 빌드 기준 잔여 4건은 2026-10-15 측정값 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
+| 빌드 | 성공, **신규 코드 경고 0**(2026-11-09 v1.6.0) — 클린 빌드 기준 잔여 4건은 2026-10-15 측정값 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
 | 액션 구현 | **73 / 154** (스텁 3, 미구현 78) | `ActionType.implementationCounts()` — 2026-11-09 T-210·T-211 반영 |
 | i18n | ko/en **1299키 일치** | `*.lproj/Localizable.strings` |
-| 버전 | 1.5.0 (`project.yml`이 유일한 출처) | `scripts/check-version.py` |
-| 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) · **승인된 1차 3건**(T-210·T-211 완료, T-212 대기) | `TODO.md` |
+| 버전 | 1.6.0 (`project.yml`이 유일한 출처) — **태그는 §8-14 실기 확인 후** | `scripts/check-version.py` |
+| 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) · **승인된 1차 3건**(T-210·T-211 완료, T-212 검증 완료·태그 대기) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 14개 = 미확인 11 + 확인 3) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **96건** (확인 3건 / 전체 99건 — §8-14 트랙패드 11항목 포함) | `FUNCTIONAL_CHECKLIST.md` §8 |
-| 브랜치 | `main` — **PR #21 머지 완료**(v0.33·v0.33.1), 트랙패드 작업 브랜치 정리됨 | — |
+| 브랜치 | `feat/macos-v1.6-catalog-actions` — T-210·T-211 커밋, push 안 함 | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
-| 미배포 배치 | **v1.5.0 이후 미릴리스** — T-187~T-209 (PR #17·#18·#19·#21 머지됨) | — |
+| 미배포 배치 | **v1.5.0 이후 미릴리스** — v0.33·v0.33.1 트랙패드(PR #21 머지) + T-210·T-211. **v1.6.0 태그는 §8-14 확인 후** | — |
 
 ---
 

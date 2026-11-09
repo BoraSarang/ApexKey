@@ -691,7 +691,10 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - 프로세스·데이터·파일: `preventSleep`(IOPMAssertion 전원 어서션), `getDictionary`(JSON/plist·점 표기 중첩), `listActions`, `saveOutput`(덮어쓰기/덧붙이기)
   - 공통: `NextActionSettingsView` 설정 UI·en/ko 57키·`NextActionsTests` 37건
   - 결과: 구현 **59→73**, planned **92→78**(중복 숨김 제외 planned 노출 76 · 스텁 3 포함 UI "준비 중" 79). unit 651건 0실패(2 skip)
-- [ ] **T-212** 1차 — 검증·릴리스 **v1.6.0**(v0.33 포함, §8-14 확인 후 태그) (1.5d)
+- [ ] **T-212** 1차 — 검증·릴리스 **v1.6.0**(v0.33 포함, §8-14 확인 후 태그) (1.5d) — **검증 완료, 태그 대기**
+  - `release-notes/v1.6.0.md` 작성(v0.33 트랙패드 포함), `MARKETING_VERSION` 1.6.0 범프
+  - unit **651건 0실패**(2 skip) · i18n **1299키 일치** · `xcodebuild clean build` 신규 코드 경고 0
+  - **남은 것**: §8-14 트랙패드 실기 확인 → 사용자 승인 → 태그 `v1.6.0`
 - [ ] **T-213** 2차 — 파일 액션 7종(가져오기·이동·이름 변경·압축 해제·외부 저장소·파일 동작·첨부) + 확인/취소 안전장치 (3d)
 - [ ] **T-214** 2차 — Apple 앱 1: Notes·Reminders·Calendar (3d)
 - [ ] **T-215** 2차 — Apple 앱 2: Mail·Music·Podcasts·Photos (스파이크 1d + 5d)

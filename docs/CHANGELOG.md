@@ -3,6 +3,13 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — v1.6.0 릴리스 준비 (T-212, 태그 대기)
+
+* **버전 범프** — `project.yml` `MARKETING_VERSION` 1.5.0 → **1.6.0**. 버전 단일 출처 가드 통과.
+* **릴리스 노트** — `release-notes/v1.6.0.md` 작성. 미배포 v0.33·v0.33.1 트랙패드와 T-210·T-211을 함께 포함.
+* **검증** — unit **651건 0실패**(2 skip) · i18n **1299키 ko/en 일치** · `xcodebuild clean build` **BUILD SUCCEEDED**(신규 코드 경고 0, 기존 경고 4건·AppIcon 경고만).
+* **남은 것** — `FUNCTIONAL_CHECKLIST.md` §8-14 트랙패드 실기 11항목 확인 후 태그 `v1.6.0`.
+
 ## 2026-11-09 macos — 순수 로직 액션 14종 (T-211, v1.6 1차)
 
 * **Vision 3종** — `recognizeText`(OCR)·`scanQRCode`(QR)·`recognizeAnimal`(동물) 구현. 입력은 파일 경로 또는 클립보드 이미지이며, 경로를 지정했는데 파일이 없으면 클립보드로 몰래 폴백하지 않고 실패를 알린다.

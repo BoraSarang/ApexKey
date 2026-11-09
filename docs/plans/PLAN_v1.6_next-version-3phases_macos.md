@@ -74,15 +74,15 @@
 
 **결과**: 구현 **59→73**, planned **92→78**(중복 숨김 제외 planned 노출 76 · 스텁 3 포함 UI "준비 중" 79). unit 651건 0실패(2 skip).
 
-### 2-3. T-212 검증·릴리스 v1.6.0 (1.5d)
+### 2-3. T-212 검증·릴리스 v1.6.0 (1.5d) — **검증 완료, 태그 대기**
 
-- [ ] unit 전체 0실패, 신규 액션 테스트 포함
-- [ ] i18n en/ko 키 일치, `check-localizable`·`check-version` 통과
-- [ ] `xcodebuild clean build` 경고 0
-- [ ] `release-notes/v1.6.0.md` — **v0.33 트랙패드 포함**해 작성
-- [ ] §8-14 실기 확인 후 태그 `v1.6.0`
+- [x] unit 전체 0실패, 신규 액션 테스트 포함 — **651건 0실패(2 skip)**
+- [x] i18n en/ko 키 일치, `check-localizable`·`check-version` 통과 — **1299키 일치**
+- [x] `xcodebuild clean build` 경고 0 — **BUILD SUCCEEDED, 신규 코드 경고 0**(잔여 4건은 기존 `CommandPaletteView`·`ConflictPaletteView`·AppIcon)
+- [x] `release-notes/v1.6.0.md` — **v0.33 트랙패드 포함**해 작성
+- [ ] §8-14 실기 확인 후 태그 `v1.6.0` — **사용자 실기 확인 전 차단**
 
-**1차 완료 기준**: 구현 52 → **약 73**, 준비 중 99 → **약 92**, 새 권한 0.
+**1차 완료 기준**: 구현 52 → **73**, 준비 중 99 → **78**(스텁 3 포함 UI "준비 중" 79), 새 권한 0.
 
 ---
 
