@@ -1,0 +1,231 @@
+# PLAN — 차기 3차 작업 (v1.6 ~ v1.8) 초안
+
+> 작성: 2026-11-09 · 플랫폼: macOS · 상태: **1차 승인 (2026-11-09) / 2·3차 대기**
+> 승인: 사용자 — "1차만 먼저 승인", 영구 제외 항목 확정.
+> 근거: `docs/STATUS.md`, `docs/TODO.md`, `docs/FUNCTIONAL_CHECKLIST.md` §9,
+> `ActionType+Implementation.swift`, `AutomationModels.swift`, `SystemActionExecutor.swift`
+> 관련: 트랙패드 §8-14는 **이 계획에서 제외**(사용자 결정 2026-11-09)
+
+---
+
+## 0. 전제 — 먼저 승인받아야 하는 것
+
+1. **제품 방향 예외**: `STATUS.md` §2는 "신규 기능 동결"이다. 이 계획은 카탈로그에
+   "준비 중"으로 남은 기능을 실제로 구현하는 작업이므로 **동결 예외를 다시 여는 결정**이다.
+   범위를 아래 3차로 한정하고, 끝나면 동결로 돌아간다.
+   → **2026-11-09 승인: 1차만 진행.** 2·3차는 1차 결과를 보고 다시 승인받는다.
+2. **v1.6.0 선행 조건**: 현재 `MARKETING_VERSION`은 1.5.0인데 v0.33(트랙패드)이
+   main에만 있고 미배포다. 1차 릴리스는 **v0.33 + 이번 문서 정합 + 1차 작업**을 함께 묶는다.
+   단, 트랙패드 실기 확인(§8-14)이 끝나기 전에는 릴리스하지 않는다.
+3. **AI 3종은 계속 제외**: `useModel`·`writingTool`·`imagePlayground`는 무효화 유지.
+4. **사설 API 금지 원칙 유지**: 공개 API/AppleScript/URL scheme으로 안 되면 "다음 버전"에
+   남기거나 **영구 제외**로 내린다. 비공개 프레임워크 재도입은 별도 승인 없이는 하지 않는다.
+
+> 승인 형태: "1·2·3차 범위 승인" / "1차만 승인" / "항목 조정" 중 하나.
+
+---
+
+## 1. 분류 원칙
+
+| 기준 | 1차로 | 2차로 | 3차로 |
+|---|---|---|---|
+| 새 권한 | 없음 | 자동화(기존 엔타이틀먼트) | 카메라·화면 기록 등 |
+| 의존성 | 시스템 프레임워크만 | AppleScript/파일 시스템 | 사설 API·외부 앱 |
+| 위험 | 낮음 | 중간(데이터 변경) | 높음(실패 경로 많음) |
+| 검증 | 단위 테스트 가능 | 픽스처+실기 | 실기 위주 |
+
+**1차 목표**: "준비 중"을 실제 동작으로 바꾸되, 권한·데이터 위험 없이 끝난다.
+**2차 목표**: 파일과 Apple 앱을 실제로 다룬다. 사용자 데이터 변경이 시작되므로 안전장치가 핵심.
+**3차 목표**: 미디어·시스템·App Intents까지 넓히되, 안 되는 것은 과감히 제외한다.
+
+---
+
+## 2. 1차 — 카탈로그 정직성 + 무권한 순수 로직 (v1.6, 약 9~10일)
+
+### 2-1. T-210 카탈로그 정직성 (1.5d)
+
+| 항목 | 내용 |
+|---|---|
+| OneDrive 중복 | `.oneDrive`가 `action.drive` 키를 써서 카탈로그에 "OneDrive"가 2번 나온다 → `action.oneDrive`로 수정 |
+| 시스템 단계 중복 7종 | 스크린샷·새 메모·빠른 메모·배경화면·화면 깨우기·앱 전면으로 이동·다크모드는 **이미 `시스템` 단계로 실행 가능**하다. 별도 구현 대신 `.implemented`로 승격하고 `SystemActionExecutor`로 위임 |
+| 중복 후보 판정 | `date`↔`dateFormatter`, `clipText`↔`setClipboard`, `dialog`↔`getConfirmation`, `screenshot`↔`takeScreenshot` — 중복이면 카탈로그에서 숨기고 기존 액션으로 안내 |
+| 테스트 | `ActionCatalogIntegrityTests`의 기대 수치 갱신, 승격 7종 실행 위임 테스트 |
+
+**결과**: 준비 중 99 → 약 92. 사용자가 보는 "준비 중" 목록이 실제와 가까워진다.
+
+### 2-2. T-211 순수 로직 액션 14종 (7d)
+
+| 묶음 | 액션 | 방법 | 예상 |
+|---|---|---|---:|
+| Vision | `recognizeText`, `scanQRCode`, `recognizeAnimal` | Vision OCR·바코드·동물 인식. 입력은 클립보드 이미지/파일 | 2d |
+| 언어 | `detectLanguage` | `NLLanguageRecognizer` | 0.25d |
+| 수치·날짜 | `measurement`, `adjustDate`, `typeDateTime` | MeasurementFormatter / Calendar / 기존 `KeySender` | 1d |
+| UI | `dialog`, `getConfirmation`, `quickLook` | NSAlert / QLPreviewPanel | 1.5d |
+| 프로세스 | `preventSleep` | `caffeinate` 프로세스 토글(기존 `wakeDisplay` 인프라 재사용) | 0.5d |
+| 데이터·파일 | `getDictionary`, `listActions`, `saveOutput` | plist/JSON 읽기, 카탈로그 목록 반환, FileManager 저장 | 1.5d |
+
+- 공통: 액션당 **설정 UI + en/ko 키 + 단위 테스트** 포함(위 예상에 반영).
+- `getDictionary`·`listActions`는 Shortcuts 원본 의미가 모호하므로 **착수 전 0.5d 사양 확정**.
+- 제외: `readTable`(의미 불명), `emailData`(Mail 연동은 2차).
+
+### 2-3. T-212 검증·릴리스 v1.6.0 (1.5d)
+
+- [ ] unit 전체 0실패, 신규 액션 테스트 포함
+- [ ] i18n en/ko 키 일치, `check-localizable`·`check-version` 통과
+- [ ] `xcodebuild clean build` 경고 0
+- [ ] `release-notes/v1.6.0.md` — **v0.33 트랙패드 포함**해 작성
+- [ ] §8-14 실기 확인 후 태그 `v1.6.0`
+
+**1차 완료 기준**: 구현 52 → **약 73**, 준비 중 99 → **약 92**, 새 권한 0.
+
+---
+
+## 3. 2차 — 파일·Apple 앱·자동화 트리거 (v1.7, 약 16~18일)
+
+### 3-1. T-213 파일 액션 7종 (3d)
+
+`getFiles` · `moveFiles` · `renameFiles` · `extractArchive` · `externalStorage` · `fileActions` · `getAttachment`
+
+- FileManager/`ditto`/`unzip` 사용. 앱이 샌드박스가 아니므로 사용자가 고른 경로는 접근 가능.
+- **안전장치 필수**: 이동·이름 변경은 미리보기 + 확인 대화상자, 가능하면 직전 1회 실행 취소.
+- 테스트는 임시 디렉터리 fixture로 수행(실사용 파일 건드리지 않음).
+
+### 3-2. T-214 Apple 앱 연동 1 — Notes·Reminders·Calendar (3d)
+
+`createNote` · `noteActions` · `reminders` · `calendar`
+
+- 공개 AppleScript 딕셔너리가 안정적인 앱부터. 자동화 승인은 앱별 1회.
+- 실패 시 사유 토스트(권한/앱 미실행/스크립트 오류 구분).
+
+### 3-3. T-215 Apple 앱 연동 2 — Mail·Music·Podcasts·Photos (5d + 스파이크 1d)
+
+`mail` · `setMailBody` · `setMailRecipients` · `emailData` · `playMusic` · `playPodcast` · `podcasts` · `photos` · `viewPhotos` · `album` · `randomPhoto` · `getLastPhoto`
+
+- **선행 스파이크**: Photos는 AppleScript 지원이 제한적이라 가능한 동작을 먼저 실측한다.
+  안 되면 URL scheme/Shortcuts 호출로 대체하거나 제외.
+- Music/Podcasts는 재생·검색·현재 항목 정도로 범위를 좁힌다.
+
+### 3-4. T-216 문서 앱 연동 (2d)
+
+`newDocument` · `viewDocument` · `editDocument` · `setParagraphStyle`
+
+- Pages/Numbers/TextEdit 대상. iWork가 없으면 "앱 미설치" 사유를 명확히 표시.
+
+### 3-5. T-217 자동화 트리거 4종 (3d)
+
+`file` · `externalDrive` · `display` · `app`
+
+- `file`: 기존 FSEvents(폴더 트리거) 인프라 재사용 — **가장 먼저**
+- `externalDrive`: `NSWorkspace.didMount/didUnmountNotification`
+- `display`: `NSApplication.didChangeScreenParametersNotification`
+- `app`: `NSWorkspace.didLaunch/didTerminateApplicationNotification`
+- `AutomationSettingsView`에서 지원 카테고리만 노출. Wi-Fi·블루투스·집중모드·스테이지매니저는 3차.
+
+### 3-6. T-218 검증·릴리스 v1.7.0 (1.5d)
+
+- 데이터 변경 액션은 실패 경로·취소 경로 테스트를 반드시 포함
+- 실기 확인 항목을 `FUNCTIONAL_CHECKLIST.md`에 새 절로 추가(사용자 손 필요)
+- 릴리스 노트·버전 범프·태그
+
+**2차 완료 기준**: 구현 약 73 → **약 93**, 자동화 트리거 4 → **8**, 데이터 변경 액션은
+확인/취소 경로 테스트 100%.
+
+---
+
+## 4. 3차 — 미디어·시스템·App Intents + 백로그 (v1.8, 약 20일)
+
+### 4-1. T-219 시스템 액션 6종 (4d, 일부 보류 가능)
+
+`focusMode` · `preventSleep`(1차 완료) · `clearRecents` · `airDrop` · `bluetooth` · `network`
+
+| 항목 | 판단 |
+|---|---|
+| 집중 모드 | Shortcuts/AppleScript 의존 → 사용자가 만든 단축어 호출 방식이면 가능 |
+| 최근 항목 지우기 | UI 자동화 필요 → 실패 경로가 많으면 **영구 제외** |
+| AirDrop | UI 자동화 필요 → **보류 권장** |
+| Wi-Fi | 공개 CLI(`networksetup`) 가능성 있음 → 실측 후 결정 |
+| 블루투스 | 공개 API 없음 → **영구 제외 권장** |
+
+### 4-2. T-220 미디어 편집·캡처 (5d)
+
+`camera` · `rotateImage` · `cropImage` · `trimVideo` · `slideshow` · `takeScreenshot` · `setVolumeMedia` · `moveMedia` · `bookmark` · `musicAndVideo`
+
+- 카메라는 **카메라 권한**이 새로 필요 → 사용자 승인 필수.
+- 이미지/비디오 편집은 CoreImage/AVFoundation. 실패 시 원본 보존.
+- `videoDownloader`는 **영구 제외 권장**(서비스 약관·법적 문제, 네트워크 의존).
+- `news`·`stocks`·`radio`·`tuneStation`은 공개 API가 없어 URL scheme 수준만 가능.
+
+### 4-3. T-221 콘텐츠·위치·웹 (3d)
+
+`message` · `email` · `map` · `transportation` · `webContent` · `presentation` · `webIntegration` · `documentsAndFiles` · `devicesAndSheet` · `createShortcutIcon`
+
+- 대부분 URL scheme/AppleScript. 대상 앱 미설치·미로그인 사유를 명시.
+- `presentation`은 Keynote 연동(2차 문서 앱과 중복 확인).
+
+### 4-4. T-222 App Intents·자동화 카탈로그 (4d + 스파이크)
+
+`appIntent` · `appAction` · `findApp` · `automation` · `findAutomation` · `automationRun` · `trigger`
+
+- App Intents는 런타임 발견 API가 제한적 → **스파이크 후 가능한 범위만**.
+- `automation*`은 이미 있는 내부 모델을 카탈로그에 노출하는 작업이라 상대적으로 쉬움.
+
+### 4-5. T-223 플랫폼 백로그 (2d)
+
+- macOS 14 런타임 실기 검증(환경 대기)
+- Developer ID 서명·공증(Apple Program 가입 대기)
+- 사용자 변수 이름 토큰 `{name}` 지원
+- `error_message_ko.json` 규칙 조율 결정
+
+### 4-6. T-224 검증·릴리스 v1.8.0 (2d)
+
+**3차 완료 기준**: 구현 약 93 → **약 115**, 영구 제외 항목을 문서에 명시.
+
+---
+
+## 5. 영구 제외 / 하지 않을 것 — **2026-11-09 확정**
+
+| 항목 | 이유 |
+|---|---|
+| AI 3종 (`useModel`·`writingTool`·`imagePlayground`) | 2026-10-06 무효화. 제품 방향 밖 |
+| `videoDownloader` | 서비스 약관·법적 위험, 네트워크 의존 |
+| `airDrop`·`clearRecents`·`bluetooth` | 공개 API 없음. UI 자동화는 유지보수 비용이 큼 |
+| 트랙패드 §8-14 및 P1(밝기·회전 다이얼 등) | 사용자가 2026-11-09 보류 결정 |
+| 카탈로그 중복 항목 | 1차에서 정리. 별도 구현하지 않음 |
+
+> 위 4종(`videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`)은 **"다음 버전" 목록에서
+> 제거하고 영구 제외로 표기**한다. 카탈로그에는 "지원하지 않음"으로만 남기거나 숨긴다.
+
+---
+
+## 6. 일정과 릴리스
+
+| 단계 | 기간 | 릴리스 | 누적 구현 |
+|---|---:|---|---:|
+| 1차 | 9~10일 | **v1.6.0** (v0.33 포함) | 약 73 / 154 |
+| 2차 | 16~18일 | **v1.7.0** | 약 93 / 154 |
+| 3차 | 20일 | **v1.8.0** | 약 115 / 154 |
+
+- 각 단계는 **독립 릴리스**로 끝낸다. 다음 단계 착수 전에 사용자 실기 확인을 받는다.
+- 예상의 2배를 넘기면 중단하고 현재 상태·남은 일을 보고한다(`rules/workflow.md` §8).
+
+---
+
+## 7. 위험과 검증 전략
+
+| 위험 | 대응 |
+|---|---|
+| AppleScript 앱별 TCC 프롬프트 | 앱별 1회 승인. CI는 권한이 없으므로 `XCTSkipUnless`+실측 probe |
+| 파일 이동·삭제 사고 | 확인 대화상자 + 1회 실행 취소 + 임시 디렉터리 테스트 |
+| Vision 정확도 | 고정 이미지 fixture로 결과 형식만 검증(정확도는 실기) |
+| 사설 API 유혹 | 원칙적으로 금지. 필요하면 별도 승인 + 경계 가드 |
+| 동결 예외 확산 | 3차 범위를 이 문서로 고정. 추가 요청은 다음 계획으로 |
+| v0.33 미검증 상태 릴리스 | §8-14 완료 전 태그 금지 |
+
+---
+
+## 8. 결정 기록 (2026-11-09)
+
+1. **범위: 1차만 승인.** 2차는 v1.6.0 결과·실기 확인 후 재승인. 3차는 그 다음.
+2. **영구 제외 확정**: `videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`.
+3. v1.6.0에 v0.33 포함 — **§8-14 실기 확인 후 태그** 조건 유지.
+4. `getDictionary`·`listActions`는 착수 전 0.5d 사양 확정(불명확하면 1차에서 제외하고 2차로 이동).
