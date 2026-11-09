@@ -141,6 +141,23 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
+    /// T-219에서 구현한 시스템 제어 — Wi-Fi·집중 모드
+    func testSystemControlActionsAreImplemented() {
+        for type in [ActionType.network, .focusMode] {
+            XCTAssertEqual(type.implementation, .implemented, type.rawValue)
+            XCTAssertTrue(type.isSelectable, type.rawValue)
+            XCTAssertTrue(type.hasStepSettingsUI, type.rawValue)
+        }
+    }
+
+    /// 영구 제외 4종은 카탈로그에서 감춘다 (2026-11-09 확정)
+    func testPermanentlyExcludedActionsAreHidden() {
+        for type in [ActionType.videoDownloader, .airDrop, .clearRecents, .bluetooth] {
+            XCTAssertTrue(type.isCatalogHidden, "\(type.rawValue) 는 영구 제외인데 카탈로그에 노출됨")
+            XCTAssertFalse(ActionType.catalogVisible.contains(type), type.rawValue)
+        }
+    }
+
     /// T-215에서 구현한 Apple 앱 2 — Mail·Music·Podcasts·Photos
     func testMediaActionsAreImplemented() {
         let implemented: [ActionType] = [

@@ -1184,6 +1184,46 @@ final class ExecutionEngine {
         }
     }
 
+    // MARK: - 시스템 제어 (T-219)
+
+    private func executeSystemControl(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = SystemControlConfig.decode(from: step.actionParameters)
+        let outcome: SystemControls.Outcome
+
+        switch step.type {
+        case .network:
+            outcome = SystemControls.wifi(action: config.resolvedWiFiAction)
+        case .focusMode:
+            let ctx = makeResolveContext(context)
+            let name = VariableResolver.resolveText(config.shortcutName ?? "", context: ctx)
+            outcome = SystemControls.focus(shortcutName: name)
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-SYS-6600", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -1240,6 +1280,10 @@ final class ExecutionEngine {
         // === T-216 문서 앱 — Pages·Numbers·TextEdit ===
         case .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
             return executeDocumentApp(step, context: &context)
+
+        // === T-219 시스템 제어 — Wi-Fi·집중 모드 ===
+        case .network, .focusMode:
+            return executeSystemControl(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

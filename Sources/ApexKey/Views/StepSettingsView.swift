@@ -201,6 +201,9 @@ struct StepSettingsView: View {
         // T-216 문서 앱 — Pages·Numbers·TextEdit
         case .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
             DocumentSettingsView(step: $draft)
+        // T-219 시스템 제어 — Wi-Fi·집중 모드
+        case .network, .focusMode:
+            SystemControlSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)

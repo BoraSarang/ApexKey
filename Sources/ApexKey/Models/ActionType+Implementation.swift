@@ -63,13 +63,15 @@ extension ActionType {
              .playMusic, .playPodcast, .podcasts,
              .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto,
              // 문서 앱 — Pages·Numbers·TextEdit — T-216 (ExecutionEngine.executeDocumentApp)
-             .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
+             .newDocument, .viewDocument, .editDocument, .setParagraphStyle,
+             // 시스템 제어 — Wi-Fi·집중 모드 — T-219 (ExecutionEngine.executeSystemControl)
+             .network, .focusMode:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
         case .clipText,
-             .clearRecents, .focusMode,
-             .pdf, .network, .bluetooth, .timer, .stopwatch,
+             .clearRecents,
+             .pdf, .bluetooth, .timer, .stopwatch,
              .location, .airDrop, .readTable,
              .date, .musicAndVideo,
              .tuneStation, .radio,
@@ -106,6 +108,9 @@ extension ActionType {
     var isCatalogHidden: Bool {
         switch self {
         case .takeScreenshot, .clipText: return true
+        // 영구 제외 — 공개 API가 없거나 법적 위험이 있는 항목 (2026-11-09 확정)
+        // 구현 상태는 planned로 두되 카탈로그에서 감춘다. "다음 버전" 목록에 다시 뜨지 않게 한다.
+        case .videoDownloader, .airDrop, .clearRecents, .bluetooth: return true
         default: return false
         }
     }
