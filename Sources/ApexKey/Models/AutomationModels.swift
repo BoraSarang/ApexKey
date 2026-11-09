@@ -103,8 +103,11 @@ enum AutomationTrigger: Identifiable, Codable, Hashable {
     /// false면 등록 시 거부 로그 — UI에서도 비활성화한다.
     var isWatcherSupported: Bool {
         switch self {
-        case .timeOfDay, .folder, .battery, .charger: return true
-        default: return false
+        case .timeOfDay, .folder, .file, .externalDrive, .display,
+             .battery, .charger, .app:
+            return true
+        default:
+            return false
         }
     }
     
@@ -827,6 +830,19 @@ struct TriggerEventData: Codable, Hashable {
         )
     }
     
+    // 디스플레이 이벤트
+    static func displayEvent(triggerID: UUID, eventType: DisplayEventType, screenCount: Int) -> TriggerEventData {
+        TriggerEventData(
+            triggerID: triggerID,
+            triggerType: "display",
+            timestamp: Date(),
+            data: [
+                "eventType": .text(eventType.rawValue),
+                "screenCount": .number(Double(screenCount))
+            ]
+        )
+    }
+
     // 앱 이벤트
     static func appEvent(triggerID: UUID, eventType: AppEventType, bundleID: String) -> TriggerEventData {
         TriggerEventData(

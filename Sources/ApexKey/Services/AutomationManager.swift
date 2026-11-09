@@ -21,8 +21,18 @@ final class AutomationManager {
     private var folderStreams: [FSEventStreamRef] = []
     /// 각 폴더 스트림의 콜백 큐 — 해제 전에 동기화하기 위해 보관한다 (E-MAC-AUTO-8002)
     private var folderStreamQueues: [DispatchQueue] = []
+    /// 파일 트리거 스트림 — 부모 폴더를 감시하고 대상 경로만 골라 발동한다
+    private var fileStreams: [FSEventStreamRef] = []
+    private var fileStreamQueues: [DispatchQueue] = []
+    /// 외장 드라이브·앱 알림 옵저버 (NSWorkspace 알림 센터)
+    private var workspaceObservers: [NSObjectProtocol] = []
+    /// 디스플레이 구성 변경 옵저버
+    private var displayObserver: NSObjectProtocol?
+    private var lastDisplayCount: Int = 0
     /// 폴더 이벤트 콜백 전용 큐 — stopAllWatchers에서 barrier로 비울 수 있도록 전역 관리한다
     private static let folderEventQueue = DispatchQueue(label: "com.borasarang.ApexKey.folderEvents", qos: .utility)
+    /// 파일 트리거 콜백 전용 큐 — 폴더 감시 큐와 분리해 해제 순서를 독립적으로 만든다
+    private static let fileEventQueue = DispatchQueue(label: "com.borasarang.ApexKey.fileEvents", qos: .utility)
     private var timers: [Timer] = []
     private var lastBatteryLevel: Double = -1
     private var lastChargerConnected: Bool?
@@ -83,29 +93,46 @@ final class AutomationManager {
         guard !registrations.isEmpty else { return }
         setupTimeWatchers()
         setupFolderWatchers()
+        setupFileWatchers()
         setupHardwareWatchers()
+        setupExternalDriveWatchers()
+        setupDisplayWatchers()
+        setupAppWatchers()
     }
     
     private func stopAllWatchers() {
         timers.forEach { $0.invalidate() }
         timers.removeAll()
-        // E-MAC-AUTO-8002: 해제 전에 콜백 큐에 barrier를 넣어 in-flight 콜백이 반드시
-        // 반환한 뒤 Release한다. 큐를 먼저 비우면 어느 스트림이 어떤 큐인지 잃으므로
-        // 스트림과 큐를 인덱스째 함께 순회한다.
-        let queues = folderStreamQueues
-        for stream in folderStreams {
+        releaseStreams(&folderStreams, queues: &folderStreamQueues)
+        releaseStreams(&fileStreams, queues: &fileStreamQueues)
+        let center = NSWorkspace.shared.notificationCenter
+        workspaceObservers.forEach { center.removeObserver($0) }
+        workspaceObservers.removeAll()
+        if let displayObserver {
+            NotificationCenter.default.removeObserver(displayObserver)
+            self.displayObserver = nil
+        }
+    }
+
+    /// FSEvents 스트림을 콜백 큐의 barrier 뒤에서 해제한다.
+    ///
+    /// E-MAC-AUTO-8002: 해제 전에 콜백 큐에 barrier를 넣어 in-flight 콜백이 반드시
+    /// 반환한 뒤 Release한다. 스트림과 큐를 인덱스째 함께 순회한다.
+    private func releaseStreams(_ streams: inout [FSEventStreamRef], queues: inout [DispatchQueue]) {
+        let capturedQueues = queues
+        for stream in streams {
             FSEventStreamStop(stream)
             FSEventStreamSetDispatchQueue(stream, nil)
         }
-        for queue in queues {
+        for queue in capturedQueues {
             queue.sync {}
         }
-        for stream in folderStreams {
+        for stream in streams {
             FSEventStreamInvalidate(stream)
             FSEventStreamRelease(stream)
         }
-        folderStreams.removeAll()
-        folderStreamQueues.removeAll()
+        streams.removeAll()
+        queues.removeAll()
     }
     
     // MARK: - 시간 트리거
@@ -291,6 +318,271 @@ final class AutomationManager {
         return false
     }
     
+    // MARK: - 파일 트리거 (FSEvents, 부모 폴더 감시)
+
+    /// 파일 트리거는 파일이 아니라 **부모 폴더**를 FSEvents로 감시하고, 대상 경로와
+    /// 정확히 일치하는 이벤트만 발동한다. FSEvents는 폴더 단위 API이기 때문이다.
+    private func setupFileWatchers() {
+        lock.lock()
+        let fileTriggers = registrations.compactMap { reg -> (Registration, FileTrigger)? in
+            if case .file(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        guard !fileTriggers.isEmpty else { return }
+
+        let grouped = Dictionary(grouping: fileTriggers) { item in
+            Self.parentDirectory(of: item.1.filePath) ?? ""
+        }
+        for (directory, items) in grouped {
+            guard !directory.isEmpty else {
+                Logger.error("E-MAC-AUTO-8004", "파일 트리거 경로 없음: \(items.count)개 무시")
+                continue
+            }
+            guard FileManager.default.fileExists(atPath: directory) else {
+                Logger.error("E-MAC-AUTO-8004", "파일 트리거 부모 폴더 없음: \(directory)")
+                continue
+            }
+
+            var context = FSEventStreamContext(
+                version: 0,
+                info: Unmanaged.passUnretained(self).toOpaque(),
+                retain: nil,
+                release: nil,
+                copyDescription: nil
+            )
+            let stream = FSEventStreamCreate(
+                kCFAllocatorDefault,
+                { _, info, _, eventPaths, _, _ in
+                    guard let info = info else { return }
+                    let manager = Unmanaged<AutomationManager>.fromOpaque(info).takeUnretainedValue()
+                    let paths = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue() as? [String] ?? []
+                    manager.handleFileEvent(paths: paths)
+                },
+                &context,
+                [directory] as CFArray,
+                FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
+                0.5,
+                FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes)
+            )
+
+            if let stream {
+                fileStreams.append(stream)
+                fileStreamQueues.append(Self.fileEventQueue)
+                FSEventStreamSetDispatchQueue(stream, Self.fileEventQueue)
+                FSEventStreamStart(stream)
+            }
+        }
+    }
+
+    private func handleFileEvent(paths: [String]) {
+        lock.lock()
+        let fileTriggers = registrations.compactMap { reg -> (Registration, FileTrigger)? in
+            if case .file(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        for path in paths {
+            let normalized = Self.normalizedPath(path)
+            for (reg, trigger) in fileTriggers {
+                let target = Self.normalizedPath(trigger.filePath)
+                guard !target.isEmpty, normalized == target else { continue }
+                Logger.info("AutomationManager", "파일 트리거 발동: \(path)")
+                fire(reg, event: .fileEvent(triggerID: trigger.id, fileURL: URL(fileURLWithPath: path)))
+            }
+        }
+    }
+
+    /// 파일 경로를 절대·표준 경로로 정규화한다 (`~` 확장 포함)
+    nonisolated static func normalizedPath(_ path: String) -> String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        return URL(fileURLWithPath: (trimmed as NSString).expandingTildeInPath)
+            .standardizedFileURL
+            .path
+    }
+
+    /// 파일 트리거가 감시할 부모 폴더 경로
+    nonisolated static func parentDirectory(of filePath: String) -> String? {
+        let normalized = normalizedPath(filePath)
+        guard !normalized.isEmpty else { return nil }
+        return URL(fileURLWithPath: normalized).deletingLastPathComponent().path
+    }
+
+    // MARK: - 외장 드라이브 트리거
+
+    private func setupExternalDriveWatchers() {
+        lock.lock()
+        let driveTriggers = registrations.compactMap { reg -> (Registration, ExternalDriveTrigger)? in
+            if case .externalDrive(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        guard !driveTriggers.isEmpty else { return }
+
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification] {
+            let observer = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                self?.handleDriveNotification(note)
+            }
+            workspaceObservers.append(observer)
+        }
+    }
+
+    private func handleDriveNotification(_ note: Notification) {
+        guard let eventType = Self.driveEventType(forNotification: note.name) else { return }
+        guard let url = note.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
+        let driveName = url.lastPathComponent
+
+        lock.lock()
+        let driveTriggers = registrations.compactMap { reg -> (Registration, ExternalDriveTrigger)? in
+            if case .externalDrive(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        for (reg, trigger) in driveTriggers {
+            if let wanted = trigger.driveName,
+               !wanted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               wanted != driveName {
+                continue
+            }
+            guard trigger.eventTypes.contains(eventType) else { continue }
+            Logger.info("AutomationManager", "외장 드라이브 트리거 발동: \(driveName) (\(eventType.displayName))")
+            fire(
+                reg,
+                event: .driveEvent(
+                    triggerID: trigger.id,
+                    eventType: eventType,
+                    driveName: driveName,
+                    mountPoint: url.path
+                )
+            )
+        }
+    }
+
+    nonisolated static func driveEventType(forNotification name: Notification.Name) -> DriveEventType? {
+        if name == NSWorkspace.didMountNotification { return .mounted }
+        if name == NSWorkspace.didUnmountNotification { return .unmounted }
+        return nil
+    }
+
+    // MARK: - 디스플레이 트리거
+
+    private func setupDisplayWatchers() {
+        lock.lock()
+        let displayTriggers = registrations.compactMap { reg -> (Registration, DisplayTrigger)? in
+            if case .display(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        guard !displayTriggers.isEmpty else { return }
+
+        lastDisplayCount = NSScreen.screens.count
+        displayObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleDisplayChange()
+        }
+    }
+
+    private func handleDisplayChange() {
+        let current = NSScreen.screens.count
+        let previous = lastDisplayCount
+        lastDisplayCount = current
+        let types = Self.displayEventTypes(previousCount: previous, currentCount: current)
+        guard !types.isEmpty else { return }
+
+        lock.lock()
+        let displayTriggers = registrations.compactMap { reg -> (Registration, DisplayTrigger)? in
+            if case .display(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        for (reg, trigger) in displayTriggers {
+            for type in types where trigger.eventTypes.contains(type) {
+                Logger.info("AutomationManager", "디스플레이 트리거 발동: \(type.displayName)")
+                fire(
+                    reg,
+                    event: .displayEvent(
+                        triggerID: trigger.id,
+                        eventType: type,
+                        screenCount: current
+                    )
+                )
+            }
+        }
+    }
+
+    /// 화면 수 변화로 연결/분리를 판정한다. 해상도·배치만 바뀐 경우는 발동하지 않는다.
+    nonisolated static func displayEventTypes(previousCount: Int, currentCount: Int) -> [DisplayEventType] {
+        if currentCount > previousCount { return [.connected] }
+        if currentCount < previousCount { return [.disconnected] }
+        return []
+    }
+
+    // MARK: - 앱 트리거
+
+    private func setupAppWatchers() {
+        lock.lock()
+        let appTriggers = registrations.compactMap { reg -> (Registration, AppTrigger)? in
+            if case .app(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        guard !appTriggers.isEmpty else { return }
+
+        let center = NSWorkspace.shared.notificationCenter
+        let names: [Notification.Name] = [
+            NSWorkspace.didLaunchApplicationNotification,
+            NSWorkspace.didTerminateApplicationNotification,
+            NSWorkspace.didActivateApplicationNotification,
+            NSWorkspace.didDeactivateApplicationNotification,
+        ]
+        for name in names {
+            let observer = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                self?.handleAppNotification(note)
+            }
+            workspaceObservers.append(observer)
+        }
+    }
+
+    private func handleAppNotification(_ note: Notification) {
+        guard let eventType = Self.appEventType(forNotification: note.name) else { return }
+        guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              let bundleID = app.bundleIdentifier else { return }
+
+        lock.lock()
+        let appTriggers = registrations.compactMap { reg -> (Registration, AppTrigger)? in
+            if case .app(let t) = reg.trigger { return (reg, t) }
+            return nil
+        }
+        lock.unlock()
+
+        for (reg, trigger) in appTriggers {
+            guard trigger.bundleID == bundleID else { continue }
+            guard trigger.eventTypes.contains(eventType) else { continue }
+            Logger.info("AutomationManager", "앱 트리거 발동: \(bundleID) (\(eventType.displayName))")
+            fire(reg, event: .appEvent(triggerID: trigger.id, eventType: eventType, bundleID: bundleID))
+        }
+    }
+
+    nonisolated static func appEventType(forNotification name: Notification.Name) -> AppEventType? {
+        if name == NSWorkspace.didLaunchApplicationNotification { return .launched }
+        if name == NSWorkspace.didTerminateApplicationNotification { return .terminated }
+        if name == NSWorkspace.didActivateApplicationNotification { return .activated }
+        if name == NSWorkspace.didDeactivateApplicationNotification { return .deactivated }
+        return nil
+    }
+
     // MARK: - 하드웨어/배터리/충전기 트리거
     
     private func setupHardwareWatchers() {

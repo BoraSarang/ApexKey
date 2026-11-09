@@ -263,20 +263,21 @@ final class ApexKeyFlowTests: XCTestCase {
     }
 
     func testUnimplementedTriggersRejectedByWatcherSupport() {
-        // 미구현 8종 + file — isWatcherSupported false
+        // 아직 감시자가 없는 4종 — isWatcherSupported false
         let unsupported: [AutomationTrigger] = [
-            .file(FileTrigger(filePath: "/tmp/x")),
-            .externalDrive(ExternalDriveTrigger()),
-            .display(DisplayTrigger()),
             .wifi(WiFiTrigger()),
             .bluetooth(BluetoothTrigger()),
-            .app(AppTrigger(bundleID: "com.example.app")),
             .focus(FocusTrigger()),
             .stageManager(StageManagerTrigger()),
         ]
         for t in unsupported {
             XCTAssertFalse(t.isWatcherSupported, t.displayName)
         }
+        // T-217에서 추가한 4종
+        XCTAssertTrue(AutomationTrigger.file(FileTrigger(filePath: "/tmp/x")).isWatcherSupported)
+        XCTAssertTrue(AutomationTrigger.externalDrive(ExternalDriveTrigger()).isWatcherSupported)
+        XCTAssertTrue(AutomationTrigger.display(DisplayTrigger()).isWatcherSupported)
+        XCTAssertTrue(AutomationTrigger.app(AppTrigger(bundleID: "com.example.app")).isWatcherSupported)
         XCTAssertTrue(AutomationTrigger.timeOfDay(TimeOfDayTrigger(time: DateComponents(hour: 1))).isWatcherSupported)
         XCTAssertTrue(AutomationTrigger.folder(FolderTrigger(folderPath: "/tmp")).isWatcherSupported)
         XCTAssertTrue(AutomationTrigger.battery(BatteryTrigger(condition: .fallsBelow, threshold: 0.2)).isWatcherSupported)

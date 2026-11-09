@@ -3,6 +3,17 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — 자동화 트리거 4종 (T-217, v1.7 2차)
+
+* **파일 변경** — 대상 파일의 **부모 폴더**를 FSEvents로 감시하고, 경로가 정확히 일치하는 이벤트만 발동한다. 경로는 `~` 확장과 표준화를 거친다. FSEvents가 폴더 단위 API이므로 파일을 직접 감시하지 않는다.
+* **외장 드라이브** — `NSWorkspace.didMountNotification`·`didUnmountNotification`을 구독한다. 드라이브 이름을 비우면 모든 드라이브, 연결/분리 이벤트를 각각 선택할 수 있다.
+* **디스플레이** — `NSApplication.didChangeScreenParametersNotification`에서 **화면 수 변화**만 연결/분리로 판정한다. 해상도·배치만 바뀐 경우는 발동하지 않는다.
+* **앱** — `didLaunch`·`didTerminate`·`didActivate`·`didDeactivateApplicationNotification`을 구독하고 번들 ID로 필터한다.
+* **설정 UI** — 자동화 설정에 파일·외장 드라이브·디스플레이·앱을 추가했다. 경로/파일 피커, 드라이브 이름, 번들 ID, 이벤트 체크박스를 제공한다. 폴더 트리거의 경로 편집도 함께 추가됐다.
+* **자원 해제** — 트리거 재구축 시 FSEvents 스트림과 `NSWorkspace`·화면 알림 옵저버를 모두 해제한다. 감시자 지원 트리거는 4종→8종.
+* **테스트** — `AutomationTriggersTests` 13건(지원 플래그, 경로 정규화, 화면 수 판정, 알림 매핑, 이벤트 페이로드). unit **755건 0실패**(2 skip). i18n **1477키 일치**.
+* **남은 것** — Wi-Fi·블루투스·집중 모드·스테이지 매니저 트리거는 3차. 실제 볼륨 연결·화면 분리·앱 실행은 실기 확인이 필요하다.
+
 ## 2026-11-09 macos — 문서 앱: Pages·Numbers·TextEdit (T-216, v1.7 2차)
 
 * **문서 4종** — `newDocument`(새 문서 + 본문), `viewDocument`(기존 문서 열기), `editDocument`(본문 덧붙이기/바꾸기), `setParagraphStyle`(글꼴·크기).

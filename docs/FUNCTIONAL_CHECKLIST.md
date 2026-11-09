@@ -63,8 +63,8 @@
 
 | 기능 | 상태 | 비고 |
 |---|:-:|---|
-| 자동화 트리거 | ⚠️ | **12종 중 4종만** (`timeOfDay`/`folder`/`battery`/`charger`). 나머지 8종 등록 거부. README는 8종 광고 — T-160 |
-| 사이드바 트리거 배지 | 🔴 | 미구현 트리거를 포함 (배지 N / 실제 등록 0) — T-160 |
+| 자동화 트리거 | ⚠️ | **12종 중 8종** (`timeOfDay`/`folder`/`file`/`externalDrive`/`display`/`battery`/`charger`/`app`). Wi-Fi·블루투스·집중모드·스테이지매니저 4종은 등록 거부 — T-217 |
+| 사이드바 트리거 배지 | ✅ | 실제 등록 기준(`isWatcherSupported`)으로 계산 — E-MAC-AUTO-8003 |
 | 시간 반복 규칙 (weekly/monthly/custom) | ✅ | `TimeOfDayTrigger.shouldRun` + 설정 UI |
 | 폴더 감시 (FSEvents + 3초 debounce) | ⚠️ | `FSEventStreamRelease` use-after-free 창 — T-156 |
 | 테마 8종 + 커스텀 | ⚠️ | **활성 테마 ID 키 이중 정의**로 커스텀 테마 삭제 시 활성 참조 미정리 — T-155 |
@@ -315,7 +315,7 @@
 | 2 | `scanQRCode`/`recognizeText`(Vision OCR)·동물 인식은 구현됨(2026-11-09 T-211). 실제 권한·입력 이미지 품질은 실기 확인 필요 | 부분 해결 |
 | 3 | 사용자 변수 이름 토큰 `{name}` 미지원 (UUID만) | 미해결 (백로그) |
 | 4 | 카탈로그에 미구현 54종(스텁 포함) 노출 (미디어 편집·시스템·웹 — API 조사 선행) | 미해결 (백로그) |
-| 5 | 자동화 트리거 8종 미지원 | **T-160** |
+| 5 | 자동화 트리거 8종 미지원 → T-217에서 4종 지원, 나머지 4종(Wi-Fi·블루투스·집중모드·스테이지매니저)은 3차 | 부분 해결 |
 | 6 | AI 3종 스텁 | **T-143** |
 | 7 | 무서명 릴리스 → Gatekeeper 차단 + 접근성 권한 재승인 | **미해결 (T-166, 2026-09-29 (b) 결정으로 문서화 완료)** — 사용자 고지 4곳 반영. 근본 해결(Developer ID 서명+공증)은 Apple Developer Program 가입이 선행이라 별도 과제 |
 | 8 | 스키마 버전 관리 부재(`VersionedSchema` 0건) | **T-167** — `ConfigSchemaV1`+`ConfigMigrationPlan` 도입. **다만 이게 blob을 보호하진 않는다** — 아래 8-1 참조 |

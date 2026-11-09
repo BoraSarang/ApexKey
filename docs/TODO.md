@@ -717,7 +717,13 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - 이 기기에 Pages·Numbers 미설치(`sdef` -43) → **설치 여부를 먼저 확인**하고 "앱 미설치" 사유를 표시. 열기 전에 파일 존재도 확인
   - 본문 편집·글꼴은 TextEdit 전용(`unsupportedApp`)으로 정직하게 제한. 열린 문서가 없으면 `APEX_NO_DOCUMENT` → `noOpenDocument`
   - 결과: 구현 **96→100**, planned **55→51**(스텁 3 포함 UI "준비 중" 58→54). unit **742건 0실패**(2 skip) · i18n **1467키 일치**
-- [ ] **T-217** 2차 — 자동화 트리거 4종: 파일·외장 드라이브·디스플레이·앱 (3d)
+- [x] **T-217** 2차 — 자동화 트리거 4종: 파일·외장 드라이브·디스플레이·앱 (3d) — **완료**
+  - `file`: 부모 폴더를 FSEvents로 감시하고 대상 경로와 일치하는 이벤트만 발동(경로 `~` 확장·표준화)
+  - `externalDrive`: `NSWorkspace.didMount/didUnmountNotification` — 드라이브 이름 필터, 연결/분리 선택
+  - `display`: `NSApplication.didChangeScreenParametersNotification` — 화면 수 변화로 연결/분리 판정(해상도 변경은 무시)
+  - `app`: `NSWorkspace.didLaunch/didTerminate/didActivate/didDeactivateApplicationNotification` — 번들 ID 필터
+  - `AutomationSettingsView`에 카테고리·생성 버튼·경로/드라이브/번들 ID/이벤트 편집 추가. 옵저버·스트림은 재구축 시 함께 해제
+  - 결과: 지원 트리거 **4→8종**, unit **755건 0실패**(2 skip) · i18n **1477키 일치**
 - [ ] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d)
 - [ ] **T-219** 3차 — 시스템 액션 6종(집중 모드·최근 항목·AirDrop·Wi-Fi·블루투스, 일부 보류/제외) (4d)
 - [ ] **T-220** 3차 — 미디어 편집·캡처(카메라 권한 포함, `videoDownloader` 제외 권장) (5d)

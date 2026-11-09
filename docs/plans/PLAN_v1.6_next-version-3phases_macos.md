@@ -133,7 +133,7 @@
 - **결과**: 4종 구현, `DocumentAppsTests` 20건, unit 742건 0실패(2 skip), i18n 1467키 일치.
   구현 96→100, planned 55→51.
 
-### 3-5. T-217 자동화 트리거 4종 (3d)
+### 3-5. T-217 자동화 트리거 4종 (3d) — **완료 (2026-11-09)**
 
 `file` · `externalDrive` · `display` · `app`
 
@@ -142,6 +142,10 @@
 - `display`: `NSApplication.didChangeScreenParametersNotification`
 - `app`: `NSWorkspace.didLaunch/didTerminateApplicationNotification`
 - `AutomationSettingsView`에서 지원 카테고리만 노출. Wi-Fi·블루투스·집중모드·스테이지매니저는 3차.
+- **결과**: `isWatcherSupported` 4→8종. 파일은 부모 폴더 FSEvents + 정확 경로 매칭, 드라이브·앱은
+  `NSWorkspace` 알림, 디스플레이는 화면 수 변화로 판정(해상도 변경 무시). 설정 UI에 경로·드라이브·
+  번들 ID·이벤트 편집 추가. 옵저버·스트림은 재구축 시 함께 해제. `AutomationTriggersTests` 13건,
+  unit 755건 0실패(2 skip), i18n 1477키 일치.
 
 ### 3-6. T-218 검증·릴리스 v1.7.0 (1.5d)
 
