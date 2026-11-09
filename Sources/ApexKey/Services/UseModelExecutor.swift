@@ -20,6 +20,8 @@ final class UseModelExecutor {
         var repeatIndex: Int? = nil
         var repeatItem: VariableValue = .null
         var shortcutInput: VariableValue = .null
+        /// 사용자 변수 이름 → ID (T-223)
+        var variableNames: [String: UUID] = [:]
         
         mutating func setOutput(_ value: VariableValue, for stepID: UUID) {
             stepOutputs[stepID] = value
@@ -46,6 +48,9 @@ final class UseModelExecutor {
                 let varName = String(token[varRange])
                 if let special = SpecialVariable(rawValue: varName) {
                     return resolveSpecialVariable(special)
+                }
+                if let id = variableNames[varName] {
+                    return variables[id] ?? .null
                 }
             }
             

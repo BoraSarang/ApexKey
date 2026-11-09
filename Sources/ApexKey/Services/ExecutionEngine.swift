@@ -58,8 +58,18 @@ final class ExecutionEngine {
             return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(shortcut.name))
         }
         Logger.info("ExecutionEngine", "실행 시작: \(shortcut.name) (\(shortcut.steps.count)단계)")
-        
+
+        // T-223: 사용자 변수 이름 토큰 `{이름}` 지원. 중첩 단축어가 끝나면
+        // 바깥 이름 표를 되돌려 이름이 새어 나가지 않게 한다.
+        let previousNames = context.variableNames
+        for variable in shortcut.variables where variable.type == .manual && !variable.isHidden {
+            let name = variable.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            context.variableNames[name] = variable.id
+        }
+
         let result = execute(steps: shortcut.steps, context: &context, depth: depth)
+        context.variableNames = previousNames
         
         if result.controlFlow == .continueExecution || result.controlFlow == .stop {
             Logger.info("ExecutionEngine", "실행 완료: \(shortcut.name) (success=\(result.success))")
@@ -2098,6 +2108,7 @@ final class ExecutionEngine {
         resolveCtx.repeatIndex = context.repeatIndex
         resolveCtx.repeatItem = context.repeatItem
         resolveCtx.shortcutInput = context.shortcutInput
+        resolveCtx.variableNames = context.variableNames
         return resolveCtx
     }
     

@@ -737,9 +737,18 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - 구현: `rotateImage` · `cropImage`(CoreImage, 원본 보존·파생 파일) · `trimVideo`(`/usr/bin/avconvert`) · `camera`(AVFoundation + `NSCameraUsageDescription`) · `setVolumeMedia` · `moveMedia`(확인 후 이동) · `musicAndVideo`(AppleScript)
   - `slideshow`·`bookmark`는 공개 API 부재로 planned 유지, `takeScreenshot`은 `screenshot`과 중복이라 숨김 유지
   - 검증: unit **795건 0실패**(2 skip), i18n **1539키 일치**
-- [ ] **T-221** 3차 — 콘텐츠·위치·웹 URL scheme 10종 (3d)
-- [ ] **T-222** 3차 — App Intents·자동화 카탈로그 7종 (스파이크 포함 4d)
-- [ ] **T-223** 3차 — 플랫폼 백로그: macOS 14 실기·서명·`{name}` 토큰·`error_message_ko.json` (2d)
+- [x] **T-221** 3차 — 콘텐츠·위치·웹 8종 — **완료** (`d1f796f`)
+  - 구현: `message`(Messages AppleScript, 기본 확인 후 발송) · `email`(Mail 초안 재사용) · `map`·`transportation`(`maps.apple.com` URL scheme) · `webContent`(URLSession + 로컬 HTML 파싱) · `webIntegration`(fetch/URL 인코딩·디코딩) · `presentation`(Keynote) · `createShortcutIcon`(1024×1024 PNG)
+  - `documentsAndFiles`·`devicesAndSheet`는 공개 경로 부재로 planned 유지
+  - 검증: unit **818건 0실패**(2 skip), i18n **1585키 일치**
+- [x] **T-222** 3차 — App Intents·자동화 카탈로그 7종 — **완료** (`c49b534`)
+  - 구현: `findApp`(설치 앱 이름·번들ID 검색) · `appIntent`(Shortcuts 단축어 실행, 입력은 임시 파일) · `appAction`(앱 URL scheme 열기) · `automation`·`findAutomation`(ApexKey 트리거 목록) · `automationRun`(이름으로 단축어 실행) · `trigger`(트리거 일치 확인 후 즉시 실행)
+  - App Intent를 직접 호출하는 공개 런타임 API가 없어 Shortcuts 단축어 경유로 한계를 문서화
+  - 검증: unit **837건 0실패**(2 skip), i18n **1610키 일치**
+- [x] **T-223** 3차 — 플랫폼 백로그 — **완료**(1건 구현 / 3건 대기)
+  - `{이름}` 사용자 변수 토큰 구현(VariableResolver·ExecutionContext·ExecutionEngine). 특수 변수 우선, 숨김 제외, 중첩 실행 후 이름 표 복원
+  - macOS 14 실기·Developer ID 서명·`error_message_ko.json`은 사용자·환경 대기 — 절차·완료 기준을 `docs/plans/BACKLOG_v1.8_platform_macos.md`에 기록
+  - 검증: unit **848건 0실패**(2 skip)
 - [ ] **T-224** 3차 — 검증·릴리스 **v1.8.0** (2d)
 
 **예상**: 1차 9~10일 → 구현 약 73/154 · 2차 16~18일 → 약 93 · 3차 20일 → 약 115.
