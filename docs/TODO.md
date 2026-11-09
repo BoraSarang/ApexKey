@@ -724,11 +724,11 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - `app`: `NSWorkspace.didLaunch/didTerminate/didActivate/didDeactivateApplicationNotification` — 번들 ID 필터
   - `AutomationSettingsView`에 카테고리·생성 버튼·경로/드라이브/번들 ID/이벤트 편집 추가. 옵저버·스트림은 재구축 시 함께 해제
   - 결과: 지원 트리거 **4→8종**, unit **755건 0실패**(2 skip) · i18n **1477키 일치**
-- [x] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d) — **완료 (`v1.7.0` 태그 생성, push 안 함)**
+- [x] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d) — **완료 (`v1.7.0` 태그 push 완료)**
   - `FUNCTIONAL_CHECKLIST.md`에 §8-15(v1.7 액션 20항목)·§8-16(트리거 7항목) 추가 — 사용자 실기 확인 대기
   - `release-notes/v1.7.0.md` 작성(v1.5.0 이후 전체), `v1.6.0.md`에 "배포되지 않음" 명시. `MARKETING_VERSION` 1.7.0
   - 검증: 버전 가드 1.7.0 통과, unit **755건 0실패**(2 skip), i18n **1477키 일치**
-  - **태그 `v1.7.0` 생성(로컬)** — v1.6.0은 배포하지 않고 통합. push는 사용자 지시 대기
+  - **태그 `v1.7.0` 생성·push 완료** — v1.6.0은 배포하지 않고 통합
 - [x] **T-219** 3차 — 시스템 액션 6종 — **완료** (`9f6fd1b`)
   - 구현 2종: `network`(networksetup Wi-Fi 상태/켜기/끄기) · `focusMode`(사용자 Shortcuts 단축어 실행)
   - 영구 제외 4종 확정(2026-11-09): `clearRecents` · `airDrop` · `bluetooth` · `videoDownloader` — `isCatalogHidden`으로 카탈로그에서 숨김(구현 상태는 planned 유지)
@@ -749,12 +749,12 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - `{이름}` 사용자 변수 토큰 구현(VariableResolver·ExecutionContext·ExecutionEngine). 특수 변수 우선, 숨김 제외, 중첩 실행 후 이름 표 복원
   - macOS 14 실기·Developer ID 서명·`error_message_ko.json`은 사용자·환경 대기 — 절차·완료 기준을 `docs/plans/BACKLOG_v1.8_platform_macos.md`에 기록
   - 검증: unit **848건 0실패**(2 skip)
-- [x] **T-224** 3차 — 검증·릴리스 **v1.8.0** (2d) — **완료 (`v1.8.0` 태그 생성, push 안 함)**
+- [x] **T-224** 3차 — 검증·릴리스 **v1.8.0** (2d) — **완료 (PR #22 머지·`v1.8.0` 태그 push)**
   - `release-notes/v1.8.0.md` 작성(v1.5.0 이후 전체 + v1.8 신규 24종·`{이름}` 토큰·영구 제외)
   - `FUNCTIONAL_CHECKLIST.md` §8-17(v1.8 액션 25항목)·§8-18(변수 토큰 5항목) 추가, §9 한계표 갱신
   - `STATUS.md` 수치·미해결 표 갱신, 이 PLAN에 §9 3차 완료 기록
   - 검증: unit **848건 0실패**(2 skip), i18n **1610키 일치**, 카탈로그 구현 **124/154**
-  - **`MARKETING_VERSION` 1.8.0 범프·버전 가드 통과** — **`v1.8.0` 태그 생성(로컬)**, push 안 함
+  - **`MARKETING_VERSION` 1.8.0 범프·버전 가드 통과** — **PR #22 머지·`v1.8.0` 태그 push 완료**
 
 **예상**: 1차 9~10일 → 구현 약 73/154 · 2차 16~18일 → 약 93 · 3차 20일 → 약 115.
 **실제**: 1차 73 · 2차 100 · 3차 **124 / 154** (계획 115 초과).

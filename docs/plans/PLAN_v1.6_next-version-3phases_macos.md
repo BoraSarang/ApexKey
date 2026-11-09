@@ -154,7 +154,7 @@
 - 릴리스 노트·버전 범프·태그
 - **결과**: `release-notes/v1.7.0.md`(v1.5.0 이후 전체 통합), `v1.6.0.md`에 미배포 표시,
   `MARKETING_VERSION` 1.7.0. §8-15(20항목)·§8-16(7항목) 실기 확인 대기 추가.
-  unit 755건 0실패(2 skip), 버전 가드 1.7.0 통과. **`v1.7.0` 태그 생성(로컬), push 안 함.**
+  unit 755건 0실패(2 skip), 버전 가드 1.7.0 통과. **`v1.7.0` 태그 생성 후 PR #22 머지 시 push.**
 
 **2차 완료 기준**: 구현 약 73 → **100**(예상 93 초과), 자동화 트리거 4 → **8**, 데이터 변경 액션은
 확인/취소 경로 테스트 100%.
@@ -272,7 +272,7 @@
 | T-221 콘텐츠·위치·웹 | `message` · `email` · `map` · `transportation` · `webContent` · `webIntegration` · `presentation` · `createShortcutIcon`. `documentsAndFiles`·`devicesAndSheet`는 공개 경로 부재로 planned 유지 | `d1f796f` |
 | T-222 App Intents·자동화 | `findApp` · `appIntent`(Shortcuts 경유) · `appAction`(URL scheme) · `automation` · `findAutomation` · `automationRun` · `trigger` | `c49b534` |
 | T-223 플랫폼 백로그 | `{이름}` manual 변수 토큰 구현. macOS 14 실기·서명·`error_message_ko.json`은 대기 — `BACKLOG_v1.8_platform_macos.md` | `d3db1eb` |
-| T-224 검증·릴리스 | `release-notes/v1.8.0.md`, `FUNCTIONAL_CHECKLIST.md` §8-17·§8-18, `STATUS.md`·`TODO.md` 갱신. **v1.8.0 범프·태그는 사용자 승인 대기** | — |
+| T-224 검증·릴리스 | `release-notes/v1.8.0.md`, `FUNCTIONAL_CHECKLIST.md` §8-17·§8-18, `STATUS.md`·`TODO.md` 갱신. **v1.8.0 범프 후 PR #22 머지·태그 push 완료** | `0d458ab` |
 
 **계획 대비 변경**
 - T-221은 10종 계획 → 공개 경로가 확인된 **8종 구현**, 2종(`documentsAndFiles`·`devicesAndSheet`)은 planned로 남겼다.
@@ -287,4 +287,4 @@
 
 **영구 제외 재확인**: `videoDownloader` · `airDrop` · `clearRecents` · `bluetooth` — 구현하지 않는다. AI 3종(`useModel`·`writingTool`·`imagePlayground`)은 2026-10-06 무효화 유지.
 
-**릴리스 상태**: `MARKETING_VERSION` **1.8.0** 범프·버전 가드 통과. **`v1.8.0` 태그 생성(로컬)** — push 안 함.
+**릴리스 상태**: `MARKETING_VERSION` **1.8.0** 범프·버전 가드 통과. **PR #22로 main 머지**, `v1.7.0`·`v1.8.0` 태그 push 완료.
