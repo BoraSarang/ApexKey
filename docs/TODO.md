@@ -1,7 +1,7 @@
 # ApexKey — TODO
 
 > `T-번호` 기반 작업 추적. 완료 시 [x] 체크.
-> 작성일: 2026-09-01 · 마지막 갱신: 2026-11-08
+> 작성일: 2026-09-01 · 마지막 갱신: 2026-11-09
 
 ## 이 문서 읽는 법
 
@@ -9,7 +9,7 @@
 - **[ ] 가 실제로 남은 일**이다. 현재 **7건** — 목록은 아래
 - **[~] 는 무효화**다. 실행할 작업이 아니라 **폐기된 요구사항**이다. 구현하지 않는 것이
   의도이며, 누군가 "왜 안 하지?" 하고 되살리면 안 된다
-- **에이전트가 대신할 수 없는 것**(사용자 실동작 95건·PR·서명)은
+- **에이전트가 대신할 수 없는 것**(사용자 실동작 153건·PR·서명)은
   [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서(TODO)에는 없다
 - 진행 현황 전체는 [`STATUS.md`](STATUS.md), 문서 색인은 [`README.md`](README.md)
 
@@ -35,8 +35,10 @@
 
 | 9 | **조사** | `StoreBlobRecoveryTests` 격리 기전 특정 | 🟢 픽스처 격리로 우회함 — 원인은 미특정 |
 
+> 2026-11-09 문서 수치 정합: **§8 사용자 실동작 96건(전체 99·확인 3)**, OPEN_ITEMS 표(8-13·8-14 포함), STATUS 미배포 배치(T-187~T-209)·브랜치 표기 갱신. 코드 변경 없음.
+>
 > 2026-11-08 변경: **v0.33 트랙패드 제스처 완료(T-196~T-208) + 실기 피드백 반영(T-209)** — 미해결 집계(7건)에는 포함하지 않는다.
-> 실기 감도 확인 7항목이 `FUNCTIONAL_CHECKLIST.md` §8-14에 추가됐다(사용자 실동작 95건).
+> 실기 감도 확인 11항목이 `FUNCTIONAL_CHECKLIST.md` §8-14에 추가됐다(현재 사용자 실동작 153건).
 >
 > 2026-10-17 변경: **T-195 완료(3-9)** — 미해결 10→7건. §8-13 신설로 사용자 실동작 항목이 **88건**이 됐고,
 > 그중 3항목(자동화 승인·선택 폴더·현재 창)은 사용자 확인을 받아 `[x] ✅`로 표시했다.
@@ -44,7 +46,7 @@
 > 2026-10-06 변경: 기존 6번(AI 3종 FoundationModels 연동)은 미해결이 아니라
 > **[~] 무효화**로 이관 (아래 무효화 목록 참조). 당시 "사용자 실동작 52건" 표기는 72건이 맞았다(§8-9·8-10·8-11·8-12 누락).
 
-**에이전트가 대신할 수 없는 것**(사용자 실동작 95건·PR·macOS 14 실기)은
+**에이전트가 대신할 수 없는 것**(사용자 실동작 153건·PR·macOS 14 실기)은
 [`OPEN_ITEMS.md`](OPEN_ITEMS.md)에 있다. 이 문서에는 없다 — 두 목록의 경계를
 섞지 않는 것이 이 구조의 목적이다.
 
@@ -666,6 +668,96 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
     (자동화 승인 · 선택 폴더 3건 · 선택 없이 현재 창 1건). 사용자가 단축키를 **⌥E**로 변경해 사용 중.
     남은 7항목(파일 선택→상위 폴더, 터미널 앱 변경, 새 탭, 권한 거부, 특수문자 경로, iTerm2 종료 상태,
     엔타이틀먼트 영향권 회귀)은 미확인 상태로 체크리스트에 남긴다.
+
+---
+
+## 차기 3차 계획 (v1.6~v1.8, 2026-11-09 — 1차 승인·진행 중)
+
+> **2026-11-09 사용자 승인: 1차(T-210~T-212)만 진행.** 2·3차는 1차 결과·실기 확인 후 재승인.
+> 영구 제외 확정: `videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`.
+> 설계·근거·제외 목록: `docs/plans/PLAN_v1.6_next-version-3phases_macos.md`
+> 전제: 제품 방향 동결의 **범위 한정 예외**. 트랙패드 §8-14는 이 계획에서 제외(2026-11-09 사용자 결정).
+
+- [x] **T-210** 1차 — 카탈로그 정직성 (1.5d) — **완료**
+  - 시스템 프리셋으로 이미 실행 가능한 7종 승격: `screenshot`·`newNote`·`newQuickNote`·`wallpaper`·`wakeDisplay`·`moveToFront`·`darkMode` → `.implemented` + `SystemActionExecutor` 위임
+  - 중복 정리: `takeScreenshot`(→`screenshot`), `clipText`(→`getClipboard`/`setClipboard`) 카탈로그 숨김. `drive`/`oneDrive` 표시 키 분리
+  - 실행 경로: `ActionExecutor`가 승격 7종을 시스템 동작으로 실행, 배경화면·앱 전면으로는 `step.target` 파라미터 사용
+  - 단계 설정 UI: `SystemPromotedActionSettingsView`(파일/앱 피커)
+  - 결과: 구현 **52→59**, planned **99→92**(중복 숨김 제외 planned 노출 90 · 스텁 3 포함 UI "준비 중" 93). unit 614건 0실패(2 skip)
+- [x] **T-211** 1차 — 순수 로직 액션 14종 (7d) — **완료**
+  - Vision: `recognizeText`·`scanQRCode`·`recognizeAnimal` — 파일/클립보드 이미지, 경로 지정 시 클립보드 폴백 없음
+  - 언어·수치·날짜: `detectLanguage`(NLLanguageRecognizer), `measurement`(길이·질량·온도·부피), `adjustDate`, `typeDateTime`
+  - UI: `dialog`·`getConfirmation`(NSAlert, 테스트용 runner 주입), `quickLook`(QLPreviewPanel)
+  - 프로세스·데이터·파일: `preventSleep`(IOPMAssertion 전원 어서션), `getDictionary`(JSON/plist·점 표기 중첩), `listActions`, `saveOutput`(덮어쓰기/덧붙이기)
+  - 공통: `NextActionSettingsView` 설정 UI·en/ko 57키·`NextActionsTests` 37건
+  - 결과: 구현 **59→73**, planned **92→78**(중복 숨김 제외 planned 노출 76 · 스텁 3 포함 UI "준비 중" 79). unit 651건 0실패(2 skip)
+- [x] **T-212** 1차 — 검증·릴리스 **v1.6.0**(v0.33 포함) (1.5d) — **검증 완료, v1.7.0에 통합** (v1.6.0 태그 생략)
+  - `release-notes/v1.6.0.md` 작성(v0.33 트랙패드 포함), `MARKETING_VERSION` 1.6.0 범프
+  - unit **651건 0실패**(2 skip) · i18n **1299키 일치** · `xcodebuild clean build` 신규 코드 경고 0
+  - **남은 것**: §8-14 트랙패드 실기 확인 → 사용자 승인 → 태그 `v1.6.0`
+- [x] **T-213** 2차 — 파일 액션 7종(가져오기·이동·이름 변경·압축 해제·외부 저장소·파일 동작·첨부) + 확인/취소 안전장치 (3d) — **완료**
+  - `getFiles`(재귀·숨김·확장자 필터) · `moveFiles` · `renameFiles`(`{name}`·`{index}`·`{date}`·`{ext}`, 확장자 보존, 배치 충돌 감지) · `extractArchive`(zip=`ditto`, tar 계열=`tar`)
+  - `externalStorage`(외부 볼륨 목록/복사) · `fileActions`(copy/move/duplicate/trash/reveal) · `getAttachment`(Mail 선택 메시지 첨부 저장)
+  - 데이터 변경은 `confirmBeforeChange` 기본 켜짐 — 확인/취소 경로를 주입 클로저로 테스트. 실패 사유 14종 구분(경로 없음·폴더 아님·충돌·권한·압축 형식 등)
+  - 결과: 구현 **73→80**, planned **78→71**(스텁 3 포함 UI "준비 중" 79→74). unit **676건 0실패**(2 skip) · i18n **1360키 일치**
+- [x] **T-214** 2차 — Apple 앱 1: Notes·Reminders·Calendar (3d) — **완료**
+  - `createNote`(Notes 메모 생성) · `noteActions`(덧붙이기·열기·폴더 만들기) · `reminders`(추가·목록 이름) · `calendar`(일정 추가·캘린더 이름)
+  - `osascript`에 **argv로 인자를 넘긴다** — 제목·본문의 따옴표·줄바꿈이 스크립트가 되지 않는다. Notes `body`는 HTML이므로 escape 후 `<br>`로 변환
+  - 실패 사유 구분: 자동화 권한 거부(-1743)·메모/목록/캘린더 없음·잘못된 길이·스크립트 오류. 날짜는 로케일 의존 문자열 대신 **지금부터 분 오프셋**
+  - 결과: 구현 **80→84**, planned **71→67**(스텁 3 포함 UI "준비 중" 74→70). unit **698건 0실패**(2 skip) · i18n **1399키 일치**
+- [x] **T-215** 2차 — Apple 앱 2: Mail·Music·Podcasts·Photos (스파이크 1d + 5d) — **완료**
+  - 스파이크: Mail·Music·Photos는 `sdef` 존재(Photos는 `media item`·`export`·`spotlight`·`album` 지원). **Podcasts는 `sdef` 없음(-192)** → URL scheme만 지원
+  - Mail: `mail`·`setMailBody`·`setMailRecipients`·`emailData` — 기본은 **초안 열기**, `sendImmediately`일 때만 발송. 주소 검증·첨부·이전 출력 첨부
+  - Music: `playMusic`(곡/아티스트 검색·재생목록). Podcasts: `podcasts`(앱 열기)·`playPodcast`(URL만, 검색어는 정직한 실패)
+  - Photos: `photos`(최근 목록)·`getLastPhoto`(원본 내보내기 → 파일 경로)·`viewPhotos`·`randomPhoto`·`album`(만들기/목록)
+  - 결과: 구현 **84→96**, planned **67→55**(스텁 3 포함 UI "준비 중" 70→58). unit **721건 0실패**(2 skip) · i18n **1441키 일치**
+- [x] **T-216** 2차 — 문서 앱: Pages·Numbers·TextEdit (2d) — **완료**
+  - `newDocument`·`viewDocument`·`editDocument`·`setParagraphStyle`
+  - TextEdit은 문서 생성·열기·본문 편집(덧붙이기/바꾸기)·글꼴/크기 지정까지 지원. Pages·Numbers는 표준 `open`/`make new document`만 사용
+  - 이 기기에 Pages·Numbers 미설치(`sdef` -43) → **설치 여부를 먼저 확인**하고 "앱 미설치" 사유를 표시. 열기 전에 파일 존재도 확인
+  - 본문 편집·글꼴은 TextEdit 전용(`unsupportedApp`)으로 정직하게 제한. 열린 문서가 없으면 `APEX_NO_DOCUMENT` → `noOpenDocument`
+  - 결과: 구현 **96→100**, planned **55→51**(스텁 3 포함 UI "준비 중" 58→54). unit **742건 0실패**(2 skip) · i18n **1467키 일치**
+- [x] **T-217** 2차 — 자동화 트리거 4종: 파일·외장 드라이브·디스플레이·앱 (3d) — **완료**
+  - `file`: 부모 폴더를 FSEvents로 감시하고 대상 경로와 일치하는 이벤트만 발동(경로 `~` 확장·표준화)
+  - `externalDrive`: `NSWorkspace.didMount/didUnmountNotification` — 드라이브 이름 필터, 연결/분리 선택
+  - `display`: `NSApplication.didChangeScreenParametersNotification` — 화면 수 변화로 연결/분리 판정(해상도 변경은 무시)
+  - `app`: `NSWorkspace.didLaunch/didTerminate/didActivate/didDeactivateApplicationNotification` — 번들 ID 필터
+  - `AutomationSettingsView`에 카테고리·생성 버튼·경로/드라이브/번들 ID/이벤트 편집 추가. 옵저버·스트림은 재구축 시 함께 해제
+  - 결과: 지원 트리거 **4→8종**, unit **755건 0실패**(2 skip) · i18n **1477키 일치**
+- [x] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d) — **완료 (`v1.7.0` 태그 push 완료)**
+  - `FUNCTIONAL_CHECKLIST.md`에 §8-15(v1.7 액션 20항목)·§8-16(트리거 7항목) 추가 — 사용자 실기 확인 대기
+  - `release-notes/v1.7.0.md` 작성(v1.5.0 이후 전체), `v1.6.0.md`에 "배포되지 않음" 명시. `MARKETING_VERSION` 1.7.0
+  - 검증: 버전 가드 1.7.0 통과, unit **755건 0실패**(2 skip), i18n **1477키 일치**
+  - **태그 `v1.7.0` 생성·push 완료** — v1.6.0은 배포하지 않고 통합
+- [x] **T-219** 3차 — 시스템 액션 6종 — **완료** (`9f6fd1b`)
+  - 구현 2종: `network`(networksetup Wi-Fi 상태/켜기/끄기) · `focusMode`(사용자 Shortcuts 단축어 실행)
+  - 영구 제외 4종 확정(2026-11-09): `clearRecents` · `airDrop` · `bluetooth` · `videoDownloader` — `isCatalogHidden`으로 카탈로그에서 숨김(구현 상태는 planned 유지)
+  - 검증: unit **772건 0실패**(2 skip), i18n **1493키 일치**
+- [x] **T-220** 3차 — 미디어 편집·캡처 7종 — **완료** (`9a782fd`)
+  - 구현: `rotateImage` · `cropImage`(CoreImage, 원본 보존·파생 파일) · `trimVideo`(`/usr/bin/avconvert`) · `camera`(AVFoundation + `NSCameraUsageDescription`) · `setVolumeMedia` · `moveMedia`(확인 후 이동) · `musicAndVideo`(AppleScript)
+  - `slideshow`·`bookmark`는 공개 API 부재로 planned 유지, `takeScreenshot`은 `screenshot`과 중복이라 숨김 유지
+  - 검증: unit **795건 0실패**(2 skip), i18n **1539키 일치**
+- [x] **T-221** 3차 — 콘텐츠·위치·웹 8종 — **완료** (`d1f796f`)
+  - 구현: `message`(Messages AppleScript, 기본 확인 후 발송) · `email`(Mail 초안 재사용) · `map`·`transportation`(`maps.apple.com` URL scheme) · `webContent`(URLSession + 로컬 HTML 파싱) · `webIntegration`(fetch/URL 인코딩·디코딩) · `presentation`(Keynote) · `createShortcutIcon`(1024×1024 PNG)
+  - `documentsAndFiles`·`devicesAndSheet`는 공개 경로 부재로 planned 유지
+  - 검증: unit **818건 0실패**(2 skip), i18n **1585키 일치**
+- [x] **T-222** 3차 — App Intents·자동화 카탈로그 7종 — **완료** (`c49b534`)
+  - 구현: `findApp`(설치 앱 이름·번들ID 검색) · `appIntent`(Shortcuts 단축어 실행, 입력은 임시 파일) · `appAction`(앱 URL scheme 열기) · `automation`·`findAutomation`(ApexKey 트리거 목록) · `automationRun`(이름으로 단축어 실행) · `trigger`(트리거 일치 확인 후 즉시 실행)
+  - App Intent를 직접 호출하는 공개 런타임 API가 없어 Shortcuts 단축어 경유로 한계를 문서화
+  - 검증: unit **837건 0실패**(2 skip), i18n **1610키 일치**
+- [x] **T-223** 3차 — 플랫폼 백로그 — **완료**(1건 구현 / 3건 대기)
+  - `{이름}` 사용자 변수 토큰 구현(VariableResolver·ExecutionContext·ExecutionEngine). 특수 변수 우선, 숨김 제외, 중첩 실행 후 이름 표 복원
+  - macOS 14 실기·Developer ID 서명·`error_message_ko.json`은 사용자·환경 대기 — 절차·완료 기준을 `docs/plans/BACKLOG_v1.8_platform_macos.md`에 기록
+  - 검증: unit **848건 0실패**(2 skip)
+- [x] **T-224** 3차 — 검증·릴리스 **v1.8.0** (2d) — **완료 (PR #22 머지·`v1.8.0` 태그 push)**
+  - `release-notes/v1.8.0.md` 작성(v1.5.0 이후 전체 + v1.8 신규 24종·`{이름}` 토큰·영구 제외)
+  - `FUNCTIONAL_CHECKLIST.md` §8-17(v1.8 액션 25항목)·§8-18(변수 토큰 5항목) 추가, §9 한계표 갱신
+  - `STATUS.md` 수치·미해결 표 갱신, 이 PLAN에 §9 3차 완료 기록
+  - 검증: unit **848건 0실패**(2 skip), i18n **1610키 일치**, 카탈로그 구현 **124/154**
+  - **`MARKETING_VERSION` 1.8.0 범프·버전 가드 통과** — **PR #22 머지·`v1.8.0` 태그 push 완료**
+
+**예상**: 1차 9~10일 → 구현 약 73/154 · 2차 16~18일 → 약 93 · 3차 20일 → 약 115.
+**실제**: 1차 73 · 2차 100 · 3차 **124 / 154** (계획 115 초과).
 
 ---
 

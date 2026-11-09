@@ -43,10 +43,31 @@ struct TextActionConfig: Codable, Hashable {
     var prefix: String?
     /// 접미사 (surroundText)
     var suffix: String?
-    /// 날짜 형식 (dateFormatter)
+    /// 날짜 형식 (dateFormatter · adjustDate · typeDateTime)
     var dateFormat: String?
     /// 생성 개수 (uuid)
     var count: Int?
+
+    // === T-211 순수 로직 액션 ===
+
+    /// 측정 변환 — 입력 단위 (비우면 입력 문자열에서 읽는다)
+    var measurementFromUnit: NextActions.MeasurementUnit?
+    /// 측정 변환 — 대상 단위
+    var measurementUnit: NextActions.MeasurementUnit?
+    /// 날짜 조정 값 (adjustDate)
+    var dateAmount: Double?
+    /// 날짜 조정 단위 (adjustDate)
+    var dateUnit: NextActions.DateUnit?
+    /// 잠자기 방지 동작 (preventSleep)
+    var preventSleepMode: NextActions.PreventSleepMode?
+    /// 딕셔너리 조회 키 (getDictionary)
+    var dictionaryKey: String?
+    /// 저장 경로 (saveOutput)
+    var savePath: String?
+    /// 파일에 덧붙일지 (saveOutput) — false면 덮어쓴다
+    var append: Bool?
+    /// 대화상자 기본 입력값 (dialog)
+    var defaultText: String?
 
     /// 특정 액션에서 "이 필드가 반드시 있어야 한다"를 표현한다
     enum CountUnit: String, Codable, CaseIterable, Hashable {

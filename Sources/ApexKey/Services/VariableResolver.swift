@@ -13,6 +13,8 @@ struct VariableResolver {
         var stepOutputs: [UUID: VariableValue] = [:]  // 매직 변수 (단계 출력)
         var lastOutput: VariableValue = .null
         var shortcutInput: VariableValue = .null      // 단축어 입력
+        /// 사용자 변수 **이름** → ID. `{이름}` 토큰을 UUID 없이 쓰기 위한 표 (T-223)
+        var variableNames: [String: UUID] = [:]
         var repeatIndex: Int? = nil
         var repeatItem: VariableValue = .null
         
@@ -69,7 +71,12 @@ struct VariableResolver {
         if let uuid = UUID(uuidString: trimmed) {
             return context.variables[uuid] ?? .null
         }
-        
+
+        // 4. 사용자 변수 이름 (T-223) — 특수 변수가 같은 이름이면 특수 변수가 우선한다
+        if let id = context.variableNames[trimmed] {
+            return context.variables[id] ?? .null
+        }
+
         return .null
     }
     
@@ -146,6 +153,10 @@ struct VariableResolver {
                 let varName = String(resolved[varRange])
                 if let special = SpecialVariable(rawValue: varName) {
                     let value = resolveSpecialVariable(special, context: context)
+                    resolved.replaceSubrange(fullRange, with: escaping(stringValue(value)))
+                } else if let id = context.variableNames[varName] {
+                    // 사용자 변수 이름 토큰 (T-223). 값이 아직 없으면 빈 문자열로 둔다.
+                    let value = context.variables[id] ?? .null
                     resolved.replaceSubrange(fullRange, with: escaping(stringValue(value)))
                 }
             }

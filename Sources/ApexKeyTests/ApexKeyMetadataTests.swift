@@ -14,6 +14,25 @@ final class ApexKeyMetadataTests: XCTestCase {
         }
     }
 
+    /// 표시 이름 키가 액션마다 유일해야 한다 (T-210 — `drive`/`oneDrive` 중복 정리)
+    ///
+    /// 두 액션이 같은 키를 쓰면 카탈로그에 같은 이름이 두 번 나온다.
+    /// 사용자는 어느 쪽을 골라야 하는지 알 수 없고, 한쪽 번역을 고치면
+    /// 다른 쪽 이름까지 같이 바뀐다.
+    func testDisplayNameKeysAreUnique() {
+        var seen: [String: ActionType] = [:]
+        for type in ActionType.allCases {
+            guard let key = ActionType.metadata[type]?.displayNameKey else {
+                XCTFail("\(type.rawValue) 메타데이터 누락")
+                continue
+            }
+            if let other = seen[key] {
+                XCTFail("\(type.rawValue) 와 \(other.rawValue) 가 같은 표시 키를 씀: \(key)")
+            }
+            seen[key] = type
+        }
+    }
+
     func testCategoryMappingIsBidirectional() {
         // 카테고리 목록 합집합 = 전체 케이스 정확히 1회씩 (중복·누락 금지)
         let listed = ActionCategory.allCases.flatMap { $0.actionTypes }

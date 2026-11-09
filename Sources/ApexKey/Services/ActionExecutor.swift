@@ -128,8 +128,18 @@ final class ActionExecutor {
             guard let type = SystemActionType(rawValue: binding.target) else {
                 return (false, "toast.reason.unimplemented".localized)
             }
-            let ok = SystemActionExecutor.execute(type)
-            return (ok, ok ? nil : "error.user.action_failed_fmt".localizedFormat(type.displayName))
+            return executeSystemAction(type, parameter: nil)
+        // 시스템 프리셋으로 이미 구현된 동작을 개별 액션으로 승격 (T-210)
+        // 파라미터(배경화면 경로·앱 번들ID)는 target 에서 온다.
+        case .screenshot, .newNote, .newQuickNote, .wallpaper, .wakeDisplay,
+             .moveToFront, .darkMode:
+            guard let type = binding.actionType.systemActionType else {
+                return (false, "toast.reason.unimplemented".localized)
+            }
+            return executeSystemAction(
+                type,
+                parameter: type.requiresParameter ? binding.target : nil
+            )
         case .paste:
             runPaste(binding.target)
             return (true, nil)
@@ -149,6 +159,15 @@ final class ActionExecutor {
             Logger.error("E-MAC-ACT-3005", "미구현 액션 타입: \(binding.actionType.rawValue)")
             return (false, "toast.reason.unimplemented".localized)
         }
+    }
+
+    /// 시스템 동작 실행 + 사용자용 실패 사유 (T-210 공통 경로)
+    private func executeSystemAction(
+        _ type: SystemActionType,
+        parameter: String?
+    ) -> (success: Bool, message: String?) {
+        let ok = SystemActionExecutor.execute(type, parameter: parameter)
+        return (ok, ok ? nil : "error.user.action_failed_fmt".localizedFormat(type.displayName))
     }
 
     /// 셸 스크립트 실행 결과 (테스트 실행 UI 표시용)

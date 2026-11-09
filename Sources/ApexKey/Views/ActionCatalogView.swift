@@ -3,7 +3,7 @@ import SwiftUI
 /// iOS Shortcuts 스타일 액션 카탈로그 뷰
 struct ActionCatalogView: View {
     @Binding var selectedActionType: ActionType?
-    /// 시스템 프리셋 직접 추가 — System 카테고리에서 8종을 개별 아이템으로 노출.
+    /// 시스템 프리셋 직접 추가 — System 카테고리에서 프리셋을 개별 아이템으로 노출.
     /// 설정 창의 피커와 같은 값(target=프리셋 ID)을 넣으므로 정체성이 깨지지 않는다.
     @Binding var selectedSystemPreset: SystemActionType?
     @Environment(\.theme) private var theme
@@ -122,7 +122,7 @@ struct ActionCatalogView: View {
                             .padding(.vertical, 30)
                         } else {
                             ForEach(results) { actionType in
-                                // .system 단독 행은 노출하지 않는다 — 프리셋 8종으로 대체
+                                // .system 단독 행은 노출하지 않는다 — 프리셋 행으로 대체
                                 if actionType != .system {
                                     actionRow(actionType)
                                 }
@@ -224,12 +224,16 @@ struct ActionCatalogView: View {
 
     // MARK: - 시스템 프리셋 행
 
-    /// .system 단독 행 대신 프리셋 8종을 개별 아이템으로 노출.
+    /// .system 단독 행 대신 시스템 프리셋을 개별 아이템으로 노출.
     /// 고르면 설정 창 피커와 같은 값(target=프리셋 ID)이 들어가므로 정체성이 깨지지 않는다.
+    /// 개별 액션으로 승격된 7종은 중복이므로 여기서 뺀다(T-210).
     @ViewBuilder
     private func catalogRows(for actionType: ActionType) -> some View {
         if actionType == .system {
-            ForEach(SystemActionType.allCases) { type in
+            // 개별 액션으로 승격된 7종은 중복 노출하지 않는다 (T-210)
+            ForEach(SystemActionType.allCases.filter {
+                !ActionType.promotedSystemPresets.contains($0)
+            }) { type in
                 systemPresetRow(type)
             }
         } else {
@@ -265,23 +269,31 @@ struct ActionCatalogView: View {
     }
 
     /// 검색어와 매칭되는 프리셋 — "System" 자체가 매칭되면 전체를 보여준다
+    ///
+    /// 개별 액션으로 승격된 7종은 제외한다(T-210). 같은 동작이 두 행으로 보이면
+    /// 검색 결과에서도 어느 쪽을 골라야 하는지 알 수 없다.
     private var matchingPresets: [SystemActionType] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return [] }
+        let presets = SystemActionType.allCases.filter {
+            !ActionType.promotedSystemPresets.contains($0)
+        }
         if ActionType.system.displayName.localizedCaseInsensitiveContains(q)
             || "system".localizedCaseInsensitiveContains(q) {
-            return SystemActionType.allCases
+            return presets
         }
-        let matched = SystemActionType.allCases.filter {
+        return presets.filter {
             $0.displayName.localizedCaseInsensitiveContains(q)
                 || $0.rawValue.localizedCaseInsensitiveContains(q)
         }
-        return matched
     }
 
     /// 구현되지 않은 액션 수 (토글 문구용)
+    ///
+    /// 중복으로 숨긴 항목은 세지 않는다 — 사용자가 볼 수 없는 수를 표시하면
+    /// "준비 중 92개"와 실제 목록이 어긋난다.
     private var unavailableCount: Int {
-        ActionType.allCases.count { $0.implementation != .implemented }
+        ActionType.allCases.count { $0.implementation != .implemented && !$0.isCatalogHidden }
     }
 
     /// 구현 상태 배지 문구
@@ -300,7 +312,9 @@ struct ActionCatalogView: View {
     /// 단계 설정 창은 정상으로 열리고 저장도 되지만 실행 시 "미구현" 토스트가 뜬다.
     /// "준비 중" 항목은 `showUnavailable`를 켤 때만 접이 형태로 보인다.
     private func filteredActions(for category: ActionCategory) -> [ActionType] {
-        let actions = category.actionTypes.filter { showUnavailable || $0.isSelectable }
+        let actions = category.actionTypes.filter {
+            !$0.isCatalogHidden && (showUnavailable || $0.isSelectable)
+        }
         if searchText.isEmpty { return actions }
         return actions.filter {
             $0.displayName.localizedCaseInsensitiveContains(searchText) ||
@@ -309,7 +323,9 @@ struct ActionCatalogView: View {
     }
 
     private var allFilteredActions: [ActionType] {
-        let base = ActionType.allCases.filter { showUnavailable || $0.isSelectable }
+        let base = ActionType.allCases.filter {
+            !$0.isCatalogHidden && (showUnavailable || $0.isSelectable)
+        }
         return base.filter {
             $0.displayName.localizedCaseInsensitiveContains(searchText) ||
             $0.rawValue.localizedCaseInsensitiveContains(searchText)

@@ -18,7 +18,7 @@ extension ActionType {
 
     /// 액션 구현 상태.
     ///
-    /// **컴파일 타임 정합성**: 아래 switch 에 `default:`가 없고 153개 case를 빠짐없이 나열한다.
+    /// **컴파일 타임 정합성**: 아래 switch 에 `default:`가 없고 154개 case를 빠짐없이 나열한다.
     /// 그래서 `ActionType`에 새 case를 추가하면 여기가 **컴파일 에러**가 된다.
     /// "카탈로그에는 노출되는데 실행은 안 되는" 상태가 구조적으로 재발할 수 없다.
     ///
@@ -43,35 +43,55 @@ extension ActionType {
              // 텍스트·숫자 입력 2종 — E-MAC-TEXT-6003 (ExecutionEngine.executeTypingAction)
              .typeText, .typeNumber,
              // HTML→Markdown 1종 — E-MAC-TEXT-6003 (ExecutionEngine.executeStep)
-             .htmlToMarkdown:
+             .htmlToMarkdown,
+             // 시스템 프리셋으로 이미 실행 가능한 7종 — T-210
+             // (SystemActionExecutor에 위임. 별도 구현 대신 중복을 없앤다)
+             .screenshot, .newNote, .newQuickNote, .wallpaper, .wakeDisplay,
+             .moveToFront, .darkMode,
+             // T-211 순수 로직·UI 액션 14종 (E-MAC-NEXT-6100)
+             .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
+             .measurement, .adjustDate, .typeDateTime, .dialog,
+             .getConfirmation, .quickLook, .preventSleep, .getDictionary,
+             .listActions, .saveOutput,
+             // 파일 액션 7종 — T-213 (ExecutionEngine.executeFileAction)
+             .getFiles, .moveFiles, .renameFiles, .extractArchive,
+             .externalStorage, .fileActions, .getAttachment,
+             // Apple 앱 1 — Notes·Reminders·Calendar — T-214 (ExecutionEngine.executeAppleApp)
+             .createNote, .noteActions, .reminders, .calendar,
+             // Apple 앱 2 — Mail·Music·Podcasts·Photos — T-215 (ExecutionEngine.executeMediaApp)
+             .mail, .setMailBody, .setMailRecipients, .emailData,
+             .playMusic, .playPodcast, .podcasts,
+             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto,
+             // 문서 앱 — Pages·Numbers·TextEdit — T-216 (ExecutionEngine.executeDocumentApp)
+             .newDocument, .viewDocument, .editDocument, .setParagraphStyle,
+             // 시스템 제어 — Wi-Fi·집중 모드 — T-219 (ExecutionEngine.executeSystemControl)
+             .network, .focusMode,
+             // 미디어 편집·캡처 — T-220 (ExecutionEngine.executeMediaEditing)
+             .rotateImage, .cropImage, .trimVideo, .camera,
+             .setVolumeMedia, .moveMedia, .musicAndVideo,
+             // 콘텐츠·위치·웹 — T-221 (ExecutionEngine.executeContentLink)
+             .message, .email, .map, .transportation,
+             .webContent, .presentation, .webIntegration, .createShortcutIcon,
+             // App Intents·자동화 카탈로그 — T-222 (ExecutionEngine.executeAutomationAction)
+             .findApp, .appIntent, .appAction,
+             .automation, .findAutomation, .automationRun, .trigger:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
-        case .dialog, .clipText, .moveToFront, .wakeDisplay,
-             .clearRecents, .preventSleep, .wallpaper, .darkMode, .focusMode,
-             .screenshot, .pdf, .network, .bluetooth, .timer, .stopwatch,
-             .location, .airDrop, .newQuickNote, .newNote, .readTable,
-             .emailData, .date, .quickLook, .photos, .musicAndVideo,
-             .playMusic, .playPodcast, .tuneStation, .radio, .viewPhotos,
-             .album, .randomPhoto, .slideshow, .getLastPhoto, .camera,
-             .rotateImage, .cropImage, .trimVideo, .takeScreenshot,
-             .saveOutput, .setVolumeMedia, .moveMedia, .bookmark, .podcasts,
-             .news, .stocks, .videoDownloader, .editDocument, .translate,
-             .textEditShortcut, .noteActions, .createNote,
-             .setParagraphStyle, .newDocument, .viewDocument, .mail,
-             .setMailBody, .setMailRecipients, .drive, .oneDrive, .box,
-             .getFiles, .moveFiles, .renameFiles, .extractArchive,
-             .externalStorage, .fileActions, .getConfirmation,
-             .getAttachment, .getDictionary, .listActions,
-             .adjustDate,
-             .typeDateTime,
-             .measurement, .scanQRCode,
-             .recognizeText, .recognizeAnimal, .detectLanguage, .map,
-             .transportation, .message, .email, .calendar, .reminders,
-             .webContent, .presentation, .webIntegration, .documentsAndFiles,
-             .devicesAndSheet, .createShortcutIcon, .variableDetail,
-             .clipboardAction, .appIntent, .appAction, .findApp,
-             .automation, .findAutomation, .automationRun, .trigger:
+        case .clipText,
+             .clearRecents,
+             .pdf, .bluetooth, .timer, .stopwatch,
+             .location, .airDrop, .readTable,
+             .date,
+             .tuneStation, .radio,
+             .slideshow, .takeScreenshot,
+             .bookmark,
+             .news, .stocks, .videoDownloader, .translate,
+             .textEditShortcut,
+             .drive, .oneDrive, .box,
+             .documentsAndFiles,
+             .devicesAndSheet, .variableDetail,
+             .clipboardAction:
             return .planned
         }
     }
@@ -81,6 +101,50 @@ extension ActionType {
 
     /// 단계 설정 UI를 제공할 수 있는지
     var hasStepSettingsUI: Bool { implementation == .implemented }
+
+    /// 카탈로그에서 숨길 액션 — 같은 일을 하는 다른 항목으로 통합된 중복
+    ///
+    /// - `takeScreenshot`: 시스템 프리셋 `screenshot`(T-210에서 개별 액션으로 승격)과
+    ///   같은 동작이다.
+    /// - `clipText`: 클립보드 읽기·쓰기는 이미 `getClipboard`·`setClipboard`가 담당한다.
+    ///
+    /// 두 행이 나란히 같은 이름으로 보이면 사용자는 무엇을 골라야 하는지 알 수 없다.
+    /// 구현 상태는 그대로 두고 노출만 막는다.
+    var isCatalogHidden: Bool {
+        switch self {
+        case .takeScreenshot, .clipText: return true
+        // 영구 제외 — 공개 API가 없거나 법적 위험이 있는 항목 (2026-11-09 확정)
+        // 구현 상태는 planned로 두되 카탈로그에서 감춘다. "다음 버전" 목록에 다시 뜨지 않게 한다.
+        case .videoDownloader, .airDrop, .clearRecents, .bluetooth: return true
+        default: return false
+        }
+    }
+
+    /// 시스템 프리셋 실행으로 위임하는 액션의 대응표 (T-210)
+    ///
+    /// 카탈로그에 시스템 프리셋 행이 이미 있어도, 개별 액션으로 선택하면
+    /// 같은 `SystemActionExecutor` 경로로 실행한다. 파라미터는 `ShortcutStep.target`
+    /// (배경화면 경로 · 앱 번들ID)에서 온다.
+    var systemActionType: SystemActionType? {
+        switch self {
+        case .screenshot: return .screenshot
+        case .newNote: return .newNote
+        case .newQuickNote: return .quickNote
+        case .wallpaper: return .wallpaper
+        case .wakeDisplay: return .wakeDisplay
+        case .moveToFront: return .activateApp
+        case .darkMode: return .darkMode
+        default: return nil
+        }
+    }
+
+    /// 카탈로그의 시스템 프리셋 목록에서 제외할 항목 — 개별 액션으로 승격됨
+    ///
+    /// 그대로 두면 같은 동작이 "개별 액션 행 + 시스템 프리셋 행"으로 두 번 보인다.
+    /// 단계 설정의 `.system` 피커는 기존 사용자 설정 호환을 위해 23종을 모두 유지한다.
+    static let promotedSystemPresets: Set<SystemActionType> = [
+        .screenshot, .newNote, .quickNote, .wallpaper, .wakeDisplay, .activateApp, .darkMode,
+    ]
 }
 
 // MARK: - 집계 (테스트·진단용)
@@ -95,8 +159,10 @@ extension ActionType {
         return counts
     }
 
-    /// 카탈로그에서 기본 노출할 액션 (구현 완료만)
-    static var catalogVisible: [ActionType] { allCases.filter(\.isSelectable) }
+    /// 카탈로그에서 기본 노출할 액션 (구현 완료 + 중복 숨김 제외)
+    static var catalogVisible: [ActionType] {
+        allCases.filter { $0.isSelectable && !$0.isCatalogHidden }
+    }
 
     /// 미구현·스텁 목록 (진단·점검용)
     static var notImplemented: [ActionType] {

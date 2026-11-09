@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - 변수 단계 설정
 
@@ -160,6 +161,97 @@ struct DefaultSettingsView: View {
             }
         }
         .sectionCard()
+    }
+}
+
+// MARK: - 시스템 프리셋 승격 액션 설정 (T-210)
+
+/// `.system` 단계로만 가능했던 7종을 개별 액션으로 승격하면서 생긴 설정 화면.
+/// 파라미터가 없는 동작은 제목만, 필요한 동작(배경화면·앱 전면으로)은
+/// 경로·앱 번들ID를 편집한다.
+struct SystemPromotedActionSettingsView: View {
+    @Environment(\.theme) private var theme
+    @Binding var step: ShortcutStep
+
+    private var systemType: SystemActionType? {
+        step.type.systemActionType
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(step.type.displayName)
+                .font(.headline)
+
+            Text("ui.title".localized)
+                .font(.caption)
+                .foregroundColor(theme.secondaryText)
+            TextField("ui.title".localized, text: $step.title)
+                .textFieldStyle(.roundedBorder)
+
+            if let kind = systemType?.parameterKind {
+                switch kind {
+                case .file:
+                    parameterLabel("ui.path")
+                    HStack {
+                        TextField("ui.path".localized, text: $step.target)
+                            .textFieldStyle(.roundedBorder)
+                        Button("ui.browse".localized) { chooseFile() }
+                    }
+                case .app:
+                    parameterLabel("ui.app_detail.bundle_id")
+                    HStack {
+                        TextField("com.apple.Safari", text: $step.target)
+                            .textFieldStyle(.roundedBorder)
+                        Button("ui.browse".localized) { chooseApp() }
+                    }
+                case .none:
+                    Text("ui.step_settings.system_action_hint".localized)
+                        .font(.caption)
+                        .foregroundColor(theme.secondaryText)
+                }
+            } else {
+                Text("ui.step_settings.system_action_hint".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+            }
+        }
+        .sectionCard()
+    }
+
+    private func parameterLabel(_ key: String) -> some View {
+        Text(key.localized)
+            .font(.caption)
+            .foregroundColor(theme.secondaryText)
+    }
+
+    private func chooseFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        if panel.runModal() == .OK, let url = panel.url {
+            step.target = url.path
+            if step.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || step.title == step.type.displayName {
+                step.title = url.lastPathComponent
+            }
+        }
+    }
+
+    private func chooseApp() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.applicationBundle]
+        if panel.runModal() == .OK, let url = panel.url {
+            let bundleID = Bundle(url: url)?.bundleIdentifier ?? url.lastPathComponent
+            step.target = bundleID
+            if step.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || step.title == step.type.displayName {
+                step.title = url.deletingPathExtension().lastPathComponent
+            }
+        }
     }
 }
 

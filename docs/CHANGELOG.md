@@ -3,6 +3,103 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — v1.8.0 검증·릴리스 준비 (T-224, 3차 마무리)
+
+* **시스템 액션 (T-219)** — `network`는 `networksetup`으로 Wi-Fi 상태/켜기/끄기를 수행하고 설정 후 상태를 다시 읽는다. `focusMode`는 사용자가 Shortcuts에서 만든 집중 모드 단축어를 이름으로 실행한다. `videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`는 영구 제외로 확정하고 카탈로그에서 숨겼다.
+* **미디어 편집·캡처 (T-220)** — `rotateImage`·`cropImage`(CoreImage, 원본 보존·파생 파일), `trimVideo`(`avconvert`), `camera`(AVFoundation + `NSCameraUsageDescription`), `setVolumeMedia`, `moveMedia`(확인 후 이동), `musicAndVideo`(AppleScript)를 구현했다.
+* **콘텐츠·위치·웹 (T-221)** — `message`(기본 확인 후 발송), `email`(Mail 초안 기본), `map`·`transportation`(`maps.apple.com`), `webContent`(제목/본문 텍스트), `webIntegration`(fetch·URL 인코딩/디코딩), `presentation`(Keynote), `createShortcutIcon`(1024×1024 PNG)을 구현했다.
+* **App Intents·자동화 (T-222)** — `findApp`, `appIntent`(Shortcuts 단축어 경유, 입력은 임시 파일), `appAction`(URL scheme), `automation`·`findAutomation`, `automationRun`, `trigger`를 구현했다. App Intent를 직접 호출하는 공개 런타임 API가 없어 Shortcuts 경유 한계를 UI·문서에 명시했다.
+* **변수 이름 토큰 (T-223)** — `{이름}`으로 manual 변수를 참조할 수 있다. 특수 변수 우선, 숨김 제외, 중첩 단축어 실행 후 이름 표 복원. macOS 14 실기·서명·`error_message_ko.json`은 `docs/plans/BACKLOG_v1.8_platform_macos.md`에 절차와 완료 기준을 기록했다.
+* **카탈로그** — 전체 154 · 구현 **124** · AI 스텁 3 · planned 27(이 중 6종은 카탈로그 숨김). `FUNCTIONAL_CHECKLIST.md`에 §8-17(25항목)·§8-18(5항목)을 추가했다.
+* **검증** — unit **848건 0실패**(2 skip), i18n ko/en **1610키 일치**. `release-notes/v1.8.0.md` 작성.
+* **버전·태그** — `MARKETING_VERSION`을 1.8.0으로 올렸다. 버전 단일 출처 가드 통과. **PR #22로 main에 머지**, `v1.7.0`·`v1.8.0` 태그 push 완료.
+
+## 2026-11-09 macos — v1.7.0 검증·릴리스 준비 (T-218, 2차 마무리)
+
+* **릴리스 노트** — `release-notes/v1.7.0.md`를 작성했다. v1.6.0을 배포하지 않고 **v1.5.0 이후 전체(트랙패드 + 1차 + 2차)**를 v1.7.0 하나에 통합한다. `v1.6.0.md` 상단에 "배포되지 않음"을 명시했다.
+* **버전** — `MARKETING_VERSION`을 1.6.0 → 1.7.0으로 올렸다. 버전 단일 출처 가드 통과(1.7.0 / build 1).
+* **실기 확인 항목** — `FUNCTIONAL_CHECKLIST.md`에 §8-15(v1.7 액션 20항목)·§8-16(자동화 트리거 7항목)을 추가했다. 데이터 변경 액션은 **확인 창에서 취소했을 때 원본 유지**를 필수 확인 항목으로 넣었다.
+* **검증** — unit **755건 0실패**(2 skip), i18n ko/en **1477키 일치**.
+* **태그** — `v1.7.0` 태그를 생성했다. `v1.6.0` 태그는 만들지 않는다. PR #22 머지 후 `v1.7.0`·`v1.8.0` 태그를 push했다.
+
+## 2026-11-09 macos — 자동화 트리거 4종 (T-217, v1.7 2차)
+
+* **파일 변경** — 대상 파일의 **부모 폴더**를 FSEvents로 감시하고, 경로가 정확히 일치하는 이벤트만 발동한다. 경로는 `~` 확장과 표준화를 거친다. FSEvents가 폴더 단위 API이므로 파일을 직접 감시하지 않는다.
+* **외장 드라이브** — `NSWorkspace.didMountNotification`·`didUnmountNotification`을 구독한다. 드라이브 이름을 비우면 모든 드라이브, 연결/분리 이벤트를 각각 선택할 수 있다.
+* **디스플레이** — `NSApplication.didChangeScreenParametersNotification`에서 **화면 수 변화**만 연결/분리로 판정한다. 해상도·배치만 바뀐 경우는 발동하지 않는다.
+* **앱** — `didLaunch`·`didTerminate`·`didActivate`·`didDeactivateApplicationNotification`을 구독하고 번들 ID로 필터한다.
+* **설정 UI** — 자동화 설정에 파일·외장 드라이브·디스플레이·앱을 추가했다. 경로/파일 피커, 드라이브 이름, 번들 ID, 이벤트 체크박스를 제공한다. 폴더 트리거의 경로 편집도 함께 추가됐다.
+* **자원 해제** — 트리거 재구축 시 FSEvents 스트림과 `NSWorkspace`·화면 알림 옵저버를 모두 해제한다. 감시자 지원 트리거는 4종→8종.
+* **테스트** — `AutomationTriggersTests` 13건(지원 플래그, 경로 정규화, 화면 수 판정, 알림 매핑, 이벤트 페이로드). unit **755건 0실패**(2 skip). i18n **1477키 일치**.
+* **남은 것** — Wi-Fi·블루투스·집중 모드·스테이지 매니저 트리거는 3차. 실제 볼륨 연결·화면 분리·앱 실행은 실기 확인이 필요하다.
+
+## 2026-11-09 macos — 문서 앱: Pages·Numbers·TextEdit (T-216, v1.7 2차)
+
+* **문서 4종** — `newDocument`(새 문서 + 본문), `viewDocument`(기존 문서 열기), `editDocument`(본문 덧붙이기/바꾸기), `setParagraphStyle`(글꼴·크기).
+* **앱별 범위** — TextEdit은 문서 생성·열기·본문 편집·글꼴/크기까지 지원한다. Pages·Numbers는 표준 `open`/`make new document`만 사용한다. 본문 편집·글꼴 지정은 TextEdit 전용이며 다른 앱은 `unsupportedApp` 사유를 돌려준다.
+* **설치 확인** — 이 기기에는 Pages·Numbers가 설치되어 있지 않다(`sdef` -43). 실행 전에 번들 ID로 설치 여부를 확인해 "앱 미설치"를 명확히 알리고, 열기 전에 파일 존재도 확인한다.
+* **열린 문서** — 경로를 비우면 TextEdit의 열린 문서를 대상으로 한다. 열린 문서가 없으면 `APEX_NO_DOCUMENT` → `noOpenDocument` 사유.
+* **설정 UI** — `DocumentSettingsView`가 액션별 입력만 보여준다(앱 피커, 경로 피커, 본문, 편집 방식, 글꼴·크기). en/ko 26키 추가.
+* **테스트** — `DocumentAppsTests` 20건(설치 여부 주입, 인자 구성, 미지원 앱, 파일 없음, sentinel, 엔진 배선). unit **742건 0실패**(2 skip).
+* **결과** — 구현 **96→100**, planned **55→51**. 카탈로그 UI의 "준비 중"은 54종. i18n **1467키 일치**.
+
+## 2026-11-09 macos — Apple 앱 2: Mail·Music·Podcasts·Photos (T-215, v1.7 2차)
+
+* **스파이크 실측** — Mail·Music·Photos는 스크립팅 사전이 있고, Photos는 `media item`·`export`·`spotlight`·`album`을 제공한다. **Podcasts는 사전이 없어**(-192) AppleScript 검색·재생이 불가능하다.
+* **Mail 4종** — `mail`(새 초안), `setMailBody`(열린 초안 본문), `setMailRecipients`(열린 초안 수신자), `emailData`(이전 출력 텍스트·파일을 본문·첨부로). 주소는 쉼표·세미콜론·줄바꿈으로 나누고 `@`를 검사한다. **기본은 초안 열기**이며 `sendImmediately`를 켰을 때만 발송한다.
+* **Music** — `playMusic`이 곡 이름→아티스트 순으로 검색하고, 재생목록 이름이 있으면 그쪽을 우선한다. 검색어가 비면 현재 재생을 이어간다.
+* **Podcasts** — `podcasts`는 앱을 열고, `playPodcast`는 URL만 연다. 검색어 재생은 지원하지 않는다고 사유를 알린다(앱에 스크립팅 사전이 없음).
+* **Photos 5종** — `photos`(최근 파일 이름), `getLastPhoto`(원본 내보내기 → 파일 경로 출력), `viewPhotos`(최근 사진·앨범 열기), `randomPhoto`, `album`(만들기·목록).
+* **설정 UI** — `AppleMediaSettingsView`가 액션별 입력만 보여준다. 메일 발송 스위치는 경고 문구와 함께 둔다. en/ko 42키 추가.
+* **테스트** — `AppleMediaAppsTests` 22건(주소 검증·발송 인자·Podcasts URL·Photos 내보내기 경로·엔진 배선). unit **721건 0실패**(2 skip).
+* **결과** — 구현 **84→96**, planned **67→55**. 카탈로그 UI의 "준비 중"은 58종. i18n **1441키 일치**.
+
+## 2026-11-09 macos — Apple 앱 1: Notes·Reminders·Calendar (T-214, v1.7 2차)
+
+* **Notes** — `createNote`(메모 생성), `noteActions`(대상 메모에 덧붙이기·메모 열기·폴더 만들기). Notes의 `body`는 HTML로 해석되므로 `<`·`>`·`&`를 escape하고 줄바꿈을 `<br>`로 바꾼다.
+* **Reminders** — `reminders`가 제목·목록·메모·마감으로 미리 알림을 추가하고, 목록 이름을 `.list`로 출력한다. 목록을 비우면 기본 목록을 쓴다.
+* **Calendar** — `calendar`가 제목·캘린더·시작·길이·장소·설명으로 일정을 만들고, 캘린더 이름을 `.list`로 출력한다. 캘린더를 비우면 첫 번째 캘린더를 쓴다.
+* **인자 전달** — `osascript`에 AppleScript 소스를 보간하지 않고 `on run argv`로 값을 넘긴다. 따옴표·줄바꿈이 포함된 제목도 스크립트를 깨뜨리지 않는다. 날짜는 로케일에 따라 해석이 달라지는 문자열 대신 **지금부터의 분 오프셋**을 넘긴다.
+* **실패 구분** — 자동화 권한 거부(-1743)·메모/목록/캘린더 없음·일정 길이 오류·스크립트 오류를 사용자 문구로 구분한다.
+* **설정 UI** — `AppleAppSettingsView`가 액션별 입력만 보여준다(동작 피커, 본문, 마감/시작 오프셋). en/ko 39키 추가.
+* **테스트** — `AppleAppsTests`가 실행기를 주입해 인자 구성·성공 출력·실패 분류를 검증한다. unit **698건 0실패**(2 skip).
+* **결과** — 구현 **80→84**, planned **71→67**. 카탈로그 UI의 "준비 중"은 70종. i18n **1399키 일치**.
+
+## 2026-11-09 macos — 파일 액션 7종 (T-213, v1.7 2차)
+
+* **파일 목록** — `getFiles`가 폴더의 파일을 정렬해 `.list` of `.file`로 출력한다. 하위 폴더(`recursive`)·숨김(`includeHidden`)·확장자 필터(`pdf, jpg`)를 지원하고, 패키지(.app 등) 내부로는 내려가지 않는다.
+* **이동·이름 변경·압축 풀기** — `moveFiles`(대상 폴더 자동 생성·이름 충돌 시 실패) · `renameFiles`(`{name}`·`{index}`·`{date}`·`{ext}` 템플릿, 확장자 자동 보존, 배치 충돌 감지, 템플릿이 비면 찾기/바꾸기) · `extractArchive`(zip은 `ditto -x -k`, tar 계열은 `/usr/bin/tar -xf`, 그 외 형식은 실패 사유 반환).
+* **외부 저장소·파일 동작·첨부** — `externalStorage`(`NSWorkspace.mountedVolumeURLs`로 외부·로컬 볼륨만 목록화, 볼륨 이름 선택 후 하위 경로로 복사) · `fileActions`(copy·move·duplicate·trash(`NSWorkspace.recycle`)·reveal) · `getAttachment`(Mail 선택 메시지의 첨부를 폴더에 저장, Mail 미실행·자동화 거부·첨부 없음을 구분).
+* **안전장치** — 사용자 데이터를 바꾸는 동작은 `confirmBeforeChange` 기본 켜짐. 확인 창 앞에 대상과 파일 목록을 미리 보여주고, 취소는 실패 사유(`cancelled`)로 끝나며 원본은 그대로 둔다.
+* **설정 UI** — `FileActionSettingsView`가 액션별 입력만 노출한다(폴더·파일 피커, 볼륨 피커, 확인/덮어쓰기 토글). en/ko 61키 추가.
+* **테스트** — `FileActionsTests` 25건(임시 디렉터리 픽스처, 확인/취소 경로, 엔진 배선). unit **676건 0실패**(2 skip).
+* **결과** — 구현 **73→80**, planned **78→71**. 카탈로그 UI의 "준비 중"은 74종. i18n **1360키 일치**.
+
+## 2026-11-09 macos — v1.6.0 릴리스 준비 (T-212, v1.7.0에 통합)
+
+* **버전 범프** — `project.yml` `MARKETING_VERSION` 1.5.0 → **1.6.0**. 버전 단일 출처 가드 통과.
+* **릴리스 노트** — `release-notes/v1.6.0.md` 작성. 미배포 v0.33·v0.33.1 트랙패드와 T-210·T-211을 함께 포함.
+* **검증** — unit **651건 0실패**(2 skip) · i18n **1299키 ko/en 일치** · `xcodebuild clean build` **BUILD SUCCEEDED**(신규 코드 경고 0, 기존 경고 4건·AppIcon 경고만).
+* **남은 것** — `FUNCTIONAL_CHECKLIST.md` §8-14 트랙패드 실기 11항목 확인 후 태그 `v1.6.0`.
+
+## 2026-11-09 macos — 순수 로직 액션 14종 (T-211, v1.6 1차)
+
+* **Vision 3종** — `recognizeText`(OCR)·`scanQRCode`(QR)·`recognizeAnimal`(동물) 구현. 입력은 파일 경로 또는 클립보드 이미지이며, 경로를 지정했는데 파일이 없으면 클립보드로 몰래 폴백하지 않고 실패를 알린다.
+* **언어·수치·날짜 4종** — `detectLanguage`(NLLanguageRecognizer, `코드 (이름)` 출력), `measurement`(길이·질량·온도·부피 단위 변환, 차원 불일치는 실패), `adjustDate`(Calendar, 입력이 비면 지금), `typeDateTime`(현재 날짜/시간을 지정 형식으로 입력).
+* **UI 3종** — `dialog`(텍스트 입력)·`getConfirmation`(확인/취소, `true`/`false` 출력)·`quickLook`(QLPreviewPanel). NSAlert 응답은 테스트에서 주입할 수 있어 UI 없이 검증한다.
+* **프로세스·데이터·파일 4종** — `preventSleep`(`IOPMAssertion` 전원 어서션, 앱 종료 시 시스템이 자동 해제), `getDictionary`(JSON/plist·점 표기 중첩 키), `listActions`(선택 가능한 액션만 목록화), `saveOutput`(상위 폴더 생성·덮어쓰기/덧붙이기).
+* **설정 UI** — `NextActionSettingsView`가 액션별 입력만 보여준다(이미지/파일 피커, 단위·날짜·모드 피커). en/ko 57키 추가.
+* **테스트** — `NextActionsTests` 37건(순수 로직·실패 경로·엔진 배선). unit **651건 0실패**(2 skip).
+* **결과** — 구현 **59→73**, planned **92→78**. 카탈로그 UI의 "준비 중"은 79종.
+
+## 2026-11-09 macos — 카탈로그 정직성 (T-210, v1.6 1차)
+
+* **시스템 프리셋 중복 7종 승격** — 카탈로그에 "준비 중"으로 보였지만 `시스템` 단계로 이미 실행되던 `screenshot`·`newNote`·`newQuickNote`·`wallpaper`·`wakeDisplay`·`moveToFront`·`darkMode`를 `.implemented`로 승격하고 `SystemActionExecutor`에 위임했다. 이제 개별 액션 행에서 바로 선택·실행할 수 있다.
+* **중복 정리** — `takeScreenshot`은 `screenshot`, `clipText`는 `getClipboard`/`setClipboard`와 같은 동작이므로 카탈로그에서 숨겼다(`isCatalogHidden`). 시스템 프리셋 확장 행에서도 승격 7종을 빼 같은 동작이 두 번 보이지 않는다.
+* **OneDrive 표시 키 분리** — `.oneDrive`가 `.drive`와 같은 `action.drive` 키를 쓰던 문제를 고쳐 `action.oneDrive`로 분리했다. `.drive`는 "OneDrive (항목 세부사항)"으로 구분한다.
+* **실행·설정 배선** — `ActionExecutor`가 승격 7종을 시스템 동작으로 실행하고, 배경화면·앱 전면으로는 `step.target`의 경로/번들ID를 파라미터로 넘긴다. 단계 설정은 `SystemPromotedActionSettingsView`가 파일·앱 피커를 제공한다.
+* **테스트** — `ActionCatalogIntegrityTests`에 승격 매핑·엔진 배선·중복 숨김 가드를 추가하고, `ApexKeyMetadataTests`에 표시 키 유일성 검사를 추가했다. unit **614건 0실패**(2 skip).
+
 ## 2026-11-08 macos — 트랙패드 실기 심화 (v0.33.1, 실기 피드백 3건)
 
 * **방향 뒤집힘 수정(근본 원인)** — 비공개 프레임워크의 `normalized.pos.y`는 **아래가 0, 위가 1**이다. v0.33은 "위로 밀면 y가 작아진다"고 가정해 **위로 밀면 볼륨이 내려가고**, 미리보기 점은 손가락 반대로 움직였다. 실제로 동작하는 Jitouch의 스와이프 판정(`py - startY > 0 → Up`)으로 방향을 확정하고 다음을 함께 뒤집었다.

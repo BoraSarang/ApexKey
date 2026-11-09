@@ -55,6 +55,23 @@ extension ConfigStore {
             }
             return resolved
         }
+        // T-222: 자동화 카탈로그가 전체 목록을 조회한다 — shortcutProvider와 같은 이유로
+        // MainActor 상태를 오프메인에서 직접 읽지 않는다.
+        ExecutionEngine.shared.shortcutListProvider = { [weak self] in
+            guard let self else { return [] }
+            if Thread.isMainThread { return self.shortcuts }
+            var resolved: [ShortcutItem] = []
+            let sem = DispatchSemaphore(value: 0)
+            DispatchQueue.main.async {
+                resolved = self.shortcuts
+                sem.signal()
+            }
+            if sem.wait(timeout: .now() + 5) == .timedOut {
+                Logger.error("E-MAC-AUTO-6901", "자동화 카탈로그 조회 타임아웃 (메인 응답 없음)")
+                return []
+            }
+            return resolved
+        }
         automationManager.unregisterAll()
         for shortcut in shortcuts where !shortcut.automations.isEmpty {
             automationManager.register(shortcut: shortcut)

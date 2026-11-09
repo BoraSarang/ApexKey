@@ -23,6 +23,12 @@ final class ExecutionEngine {
     /// Run Shortcut이 호출할 단축어 조회 클로저 (ConfigStore에서 주입)
     var shortcutProvider: ((UUID) -> ShortcutItem?)?
 
+    /// 자동화 카탈로그(T-222)가 조회할 전체 단축어 목록 (ConfigStore에서 주입)
+    var shortcutListProvider: (() -> [ShortcutItem])?
+
+    /// 앱 찾기(T-222)가 사용할 설치 앱 목록 — 테스트에서 주입한다
+    var appListProvider: (() -> [AppItem])?
+
     /// Run Shortcut 최대 재귀 깊이 (순환 호출 가드)
     static let maxRunShortcutDepth = 10
 
@@ -52,8 +58,18 @@ final class ExecutionEngine {
             return Result(success: false, controlFlow: .continueExecution, error: "error.user.action_failed_fmt".localizedFormat(shortcut.name))
         }
         Logger.info("ExecutionEngine", "실행 시작: \(shortcut.name) (\(shortcut.steps.count)단계)")
-        
+
+        // T-223: 사용자 변수 이름 토큰 `{이름}` 지원. 중첩 단축어가 끝나면
+        // 바깥 이름 표를 되돌려 이름이 새어 나가지 않게 한다.
+        let previousNames = context.variableNames
+        for variable in shortcut.variables where variable.type == .manual && !variable.isHidden {
+            let name = variable.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            context.variableNames[name] = variable.id
+        }
+
         let result = execute(steps: shortcut.steps, context: &context, depth: depth)
+        context.variableNames = previousNames
         
         if result.controlFlow == .continueExecution || result.controlFlow == .stop {
             Logger.info("ExecutionEngine", "실행 완료: \(shortcut.name) (success=\(result.success))")
@@ -277,6 +293,1208 @@ final class ExecutionEngine {
         return .continueRunning
     }
 
+    // MARK: - T-211 순수 로직·UI 액션 14종
+
+    /// 언어 감지·측정 변환·날짜·딕셔너리·목록·저장·OCR/QR·대화상자·QuickLook·잠자기 방지.
+    ///
+    /// 입력 규칙은 텍스트 액션과 같다 — `actionParameters.text`가 우선, 없으면 `target`.
+    /// Magic Variable은 실행 직전에 해석한다.
+    private func executeNextAction(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = TextActionConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let rawInput = config.text?.isEmpty == false ? config.text! : step.target
+        let input = VariableResolver.resolveText(rawInput, context: ctx)
+
+        switch step.type {
+        case .recognizeText:
+            return apply(
+                VisionActions.recognizeText(imageData: VisionActions.imageData(from: input)),
+                step: step,
+                context: &context
+            )
+
+        case .scanQRCode:
+            return apply(
+                VisionActions.scanQRCode(imageData: VisionActions.imageData(from: input)),
+                step: step,
+                context: &context
+            )
+
+        case .recognizeAnimal:
+            return apply(
+                VisionActions.recognizeAnimal(imageData: VisionActions.imageData(from: input)),
+                step: step,
+                context: &context
+            )
+
+        case .detectLanguage:
+            return apply(NextActions.detectLanguage(input), step: step, context: &context)
+
+        case .measurement:
+            return apply(
+                NextActions.measurement(
+                    input,
+                    from: config.measurementFromUnit,
+                    to: config.measurementUnit ?? .meters
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .adjustDate:
+            return apply(
+                NextActions.adjustDate(
+                    input,
+                    amount: config.dateAmount ?? 0,
+                    unit: config.dateUnit ?? .days,
+                    format: config.dateFormat
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .typeDateTime:
+            let text = NextActions.formatDate(
+                Date(),
+                format: config.dateFormat ?? "yyyy-MM-dd HH:mm"
+            )
+            guard TypingActions.typeText(text) else {
+                return Result(
+                    success: false,
+                    controlFlow: .continueExecution,
+                    error: "error.user.text_no_permission".localized
+                )
+            }
+            context.setOutput(.text(text), for: step.id)
+            context.lastOutput = .text(text)
+            Logger.info("ExecutionEngine", "날짜/시간 입력 완료: \(text)")
+            return .continueRunning
+
+        case .dialog:
+            let initial = VariableResolver.resolveText(config.defaultText ?? "", context: ctx)
+            let answer = UserPromptActions.dialog(message: input, defaultText: initial)
+            context.setOutput(.text(answer), for: step.id)
+            context.lastOutput = .text(answer)
+            Logger.info("ExecutionEngine", "대화상자 응답: \(answer.count)자")
+            return .continueRunning
+
+        case .getConfirmation:
+            let confirmed = UserPromptActions.confirmation(message: input)
+            let answer = confirmed ? "true" : "false"
+            context.setOutput(.text(answer), for: step.id)
+            context.lastOutput = .text(answer)
+            Logger.info("ExecutionEngine", "확인 결과: \(answer)")
+            return .continueRunning
+
+        case .quickLook:
+            switch QuickLookActions.shared.preview(path: input) {
+            case .success:
+                context.setOutput(.text(input), for: step.id)
+                context.lastOutput = .text(input)
+                return .continueRunning
+            case .failure(let reason):
+                return Result(
+                    success: false,
+                    controlFlow: .continueExecution,
+                    error: reason.messageKey.localized
+                )
+            }
+
+        case .preventSleep:
+            return executePreventSleep(config, step: step, context: &context)
+
+        case .getDictionary:
+            let content = Self.readTextFileIfExists(input) ?? input
+            let key = VariableResolver.resolveText(config.dictionaryKey ?? "", context: ctx)
+            return apply(
+                NextActions.dictionary(content, key: key),
+                step: step,
+                context: &context
+            )
+
+        case .listActions:
+            return apply(NextActions.listActions(), step: step, context: &context)
+
+        case .saveOutput:
+            let content: String
+            if config.text?.isEmpty == false {
+                content = VariableResolver.resolveText(config.text!, context: ctx)
+            } else {
+                content = outputText(context.lastOutput)
+            }
+            let rawPath = config.savePath?.isEmpty == false ? config.savePath! : step.target
+            let path = VariableResolver.resolveText(rawPath, context: ctx)
+            return apply(
+                NextActions.saveOutput(content, to: path, append: config.append ?? false),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func executePreventSleep(
+        _ config: TextActionConfig,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let controller = PreventSleepController.shared
+        let mode = config.preventSleepMode ?? .toggle
+        switch mode {
+        case .on:
+            guard controller.setActive(true) else {
+                return Result(
+                    success: false,
+                    controlFlow: .continueExecution,
+                    error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+                )
+            }
+        case .off:
+            controller.setActive(false)
+        case .toggle:
+            controller.toggle()
+        case .status:
+            break
+        }
+        let status = controller.statusText
+        context.setOutput(.text(status), for: step.id)
+        context.lastOutput = .text(status)
+        Logger.info("ExecutionEngine", "잠자기 방지: \(mode.rawValue) → \(status)")
+        return .continueRunning
+    }
+
+    /// 액션 결과를 컨텍스트 출력으로 기록하고 엔진 결과로 변환한다
+    private func apply(
+        _ outcome: NextActions.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let value):
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(value.count)자")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-NEXT-6100", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.messageKey.localized
+            )
+        }
+    }
+
+    private func apply(
+        _ outcome: VisionActions.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let value):
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(value.count)자")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-NEXT-6102", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.messageKey.localized
+            )
+        }
+    }
+
+    /// 경로가 실제 파일이면 내용을 읽는다 (딕셔너리 액션 입력)
+    private static func readTextFileIfExists(_ path: String) -> String? {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: expanded, isDirectory: &isDirectory),
+              !isDirectory.boolValue else { return nil }
+        return try? String(contentsOfFile: expanded, encoding: .utf8)
+    }
+
+    /// `lastOutput`을 다음 액션이 쓸 수 있는 텍스트로 바꾼다
+    private func outputText(_ value: VariableValue) -> String {
+        switch value {
+        case .text(let text):
+            return text
+        case .number(let number):
+            return NextActions.formatNumber(number)
+        case .boolean(let flag):
+            return flag ? "true" : "false"
+        case .file(let url):
+            return url.path
+        case .date(let date):
+            return NextActions.formatDate(date)
+        case .list, .dictionary:
+            guard let data = try? JSONEncoder().encode(value),
+                  let text = String(data: data, encoding: .utf8) else { return "" }
+            return text
+        case .image, .null:
+            return ""
+        }
+    }
+
+    // MARK: - T-213 파일 액션 7종
+
+    /// 파일 액션 실행.
+    ///
+    /// 입력 경로 우선순위: `actionParameters.sourcePaths` → 이전 단계 출력(파일/목록/줄바꿈 텍스트)
+    /// → `step.target`. 데이터를 바꾸는 동작은 `confirmBeforeChange`(기본 켜짐)일 때만 확인 창을 띄운다.
+    private func executeFileAction(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = FileActionConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let sources = fileSourcePaths(
+            config,
+            step: step,
+            context: context,
+            resolveContext: ctx,
+            fallbackToTarget: true
+        )
+        let confirm: FileActions.Confirmer = config.shouldConfirm
+            ? FileActions.defaultConfirmer
+            : { _ in true }
+        let destination = VariableResolver.resolveText(
+            config.destination ?? "",
+            context: ctx
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch step.type {
+        case .getFiles:
+            guard let folder = sources.first else {
+                return fileFailure(.emptyPath, step: step)
+            }
+            return fileOutcome(
+                FileActions.listFiles(
+                    path: folder,
+                    recursive: config.recursive ?? false,
+                    includeHidden: config.includeHidden ?? false,
+                    extensions: config.extensions
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .moveFiles:
+            return fileOutcome(
+                FileActions.move(
+                    sources,
+                    to: destination,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .renameFiles:
+            return fileOutcome(
+                FileActions.rename(
+                    sources,
+                    template: config.template,
+                    find: config.findText,
+                    replace: config.replaceText,
+                    startNumber: config.startNumber ?? 1,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .extractArchive:
+            guard let archive = sources.first else {
+                return fileFailure(.emptyPath, step: step)
+            }
+            return fileOutcome(
+                FileActions.extractArchive(
+                    archive: archive,
+                    to: destination.isEmpty ? nil : destination
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .externalStorage:
+            if (config.storageMode ?? .list) == .list {
+                let volumes = FileActions.externalVolumes()
+                guard !volumes.isEmpty else {
+                    return fileFailure(.noExternalVolume, step: step)
+                }
+                return fileSuccess(volumes, step: step, context: &context)
+            }
+            return fileOutcome(
+                FileActions.saveToExternalStorage(
+                    sources,
+                    volumeName: config.volumeName,
+                    subpath: destination.isEmpty ? nil : destination,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .fileActions:
+            return fileOutcome(
+                FileActions.perform(
+                    operation: config.operation ?? .copy,
+                    sourcePaths: sources,
+                    destination: destination.isEmpty ? nil : destination,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .getAttachment:
+            return fileOutcome(
+                FileActions.mailAttachments(to: destination.isEmpty ? nil : destination),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    /// 입력 경로를 설정·이전 출력·`target` 순서로 모은다 (Magic Variable 해석 포함)
+    private func fileSourcePaths(
+        _ config: FileActionConfig,
+        step: ShortcutStep,
+        context: UseModelExecutor.ExecutionContext,
+        resolveContext: VariableResolver.ResolveContext,
+        fallbackToTarget: Bool
+    ) -> [String] {
+        let resolveLines: (String) -> [String] = { text in
+            text.split(whereSeparator: { $0 == "\n" || $0 == "\r" })
+                .map { VariableResolver.resolveText(String($0), context: resolveContext) }
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
+
+        if let configured = config.sourcePaths, !configured.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let lines = resolveLines(configured)
+            if !lines.isEmpty { return lines }
+        }
+
+        if let list = context.lastOutput.asList {
+            let paths = list.compactMap { value -> String? in
+                if case .file(let url) = value { return url.path }
+                if let text = value.asText, !text.isEmpty { return text }
+                return nil
+            }
+            if !paths.isEmpty { return paths }
+        }
+        if let file = context.lastOutput.asFile {
+            return [file.path]
+        }
+        if let text = context.lastOutput.asText, !text.isEmpty {
+            let lines = resolveLines(text)
+            if !lines.isEmpty { return lines }
+        }
+
+        guard fallbackToTarget else { return [] }
+        let target = VariableResolver.resolveText(step.target, context: resolveContext)
+        return target
+            .split(whereSeparator: { $0 == "\n" || $0 == "\r" })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func fileOutcome(
+        _ outcome: FileActions.OperationResult,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let urls):
+            return fileSuccess(urls, step: step, context: &context)
+        case .failure(let reason):
+            return fileFailure(reason, step: step)
+        }
+    }
+
+    private func fileSuccess(
+        _ urls: [URL],
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        context.setOutput(.list(urls.map { .file($0) }), for: step.id)
+        Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(urls.count)개")
+        return .continueRunning
+    }
+
+    private func fileFailure(
+        _ reason: FileActions.FailureReason,
+        step: ShortcutStep
+    ) -> Result {
+        Logger.error("E-MAC-FILE-6200", "\(step.type.rawValue) 실패: \(reason)")
+        return Result(
+            success: false,
+            controlFlow: .continueExecution,
+            error: reason.message
+        )
+    }
+
+    // MARK: - T-214 Apple 앱 1 — Notes·Reminders·Calendar
+
+    /// Notes·Reminders·Calendar 실행.
+    ///
+    /// 모든 텍스트 필드는 Magic Variable을 해석한 뒤 넘긴다. 날짜는 절대 시각이 아니라
+    /// "지금부터 몇 분"으로 전달한다 — 로케일 의존 파싱을 피하기 위해서다.
+    private func executeAppleApp(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = AppleAppConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let text: (String?) -> String = { value in
+            VariableResolver.resolveText(value ?? "", context: ctx)
+        }
+        let title = text(config.title)
+        let body = text(config.body)
+
+        switch step.type {
+        case .createNote:
+            return appleOutcome(
+                AppleApps.createNote(title: title, body: body),
+                step: step,
+                context: &context
+            )
+
+        case .noteActions:
+            return appleOutcome(
+                AppleApps.noteAction(
+                    config.resolvedNoteOperation,
+                    title: title,
+                    text: body,
+                    folderName: text(config.folderName)
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .reminders:
+            switch config.resolvedReminderOperation {
+            case .add:
+                return appleOutcome(
+                    AppleApps.addReminder(
+                        title: title,
+                        listName: text(config.listName),
+                        notes: body,
+                        dueOffsetMinutes: config.dueOffsetMinutes
+                    ),
+                    step: step,
+                    context: &context
+                )
+            case .listLists:
+                return appleListOutcome(
+                    AppleApps.reminderLists(),
+                    step: step,
+                    context: &context
+                )
+            }
+
+        case .calendar:
+            switch config.resolvedCalendarOperation {
+            case .addEvent:
+                return appleOutcome(
+                    AppleApps.addEvent(
+                        title: title,
+                        calendarName: text(config.calendarName),
+                        startOffsetMinutes: config.resolvedStartOffset,
+                        durationMinutes: config.resolvedDuration,
+                        location: text(config.location),
+                        notes: body
+                    ),
+                    step: step,
+                    context: &context
+                )
+            case .listCalendars:
+                return appleListOutcome(
+                    AppleApps.calendarNames(),
+                    step: step,
+                    context: &context
+                )
+            }
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func appleOutcome(
+        _ outcome: AppleApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(value.count)자")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-APPLE-6300", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    /// 목록 결과는 `.list`로 남겨 다음 단계가 선택·반복할 수 있게 한다
+    private func appleListOutcome(
+        _ outcome: AppleApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let values = lines.map { VariableValue.text($0) }
+            context.setOutput(.list(values), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(lines.count)개")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-APPLE-6300", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    // MARK: - T-215 Apple 앱 2 — Mail·Music·Podcasts·Photos
+
+    /// Mail·Music·Podcasts·Photos 실행.
+    ///
+    /// 메일은 기본이 초안 열기다(`sendImmediately`). `emailData`는 본문·첨부가
+    /// 비어 있으면 이전 단계 출력에서 가져온다 — "데이터를 메일로 보내는" 동작이므로
+    /// 입력이 곧 내용이다.
+    private func executeMediaApp(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = AppleMediaConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let text: (String?) -> String = { value in
+            VariableResolver.resolveText(value ?? "", context: ctx)
+        }
+
+        switch step.type {
+        case .mail, .emailData:
+            var attachments = AppleMediaApps.parsePaths(text(config.attachments))
+            if attachments.isEmpty {
+                attachments = filePaths(from: context.lastOutput)
+            }
+            let configuredBody = text(config.body)
+            let body = (step.type == .emailData && configuredBody.isEmpty)
+                ? (context.lastOutput.asText ?? "")
+                : configuredBody
+            return mediaOutcome(
+                AppleMediaApps.composeMail(
+                    to: text(config.to),
+                    cc: text(config.cc),
+                    bcc: text(config.bcc),
+                    subject: text(config.subject),
+                    body: body,
+                    attachments: attachments,
+                    send: config.shouldSend
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .setMailBody:
+            return mediaOutcome(
+                AppleMediaApps.setMailBody(text(config.body)),
+                step: step,
+                context: &context
+            )
+
+        case .setMailRecipients:
+            return mediaOutcome(
+                AppleMediaApps.setMailRecipients(
+                    to: text(config.to),
+                    cc: text(config.cc),
+                    bcc: text(config.bcc)
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .playMusic:
+            return mediaOutcome(
+                AppleMediaApps.playMusic(
+                    query: text(config.query),
+                    playlistName: text(config.playlistName)
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .podcasts:
+            return mediaOutcome(AppleMediaApps.openPodcasts(), step: step, context: &context)
+
+        case .playPodcast:
+            let configured = text(config.podcastURL)
+            let target = configured.isEmpty ? text(step.target) : configured
+            return mediaOutcome(
+                AppleMediaApps.playPodcast(url: target),
+                step: step,
+                context: &context
+            )
+
+        case .photos:
+            return mediaListOutcome(
+                AppleMediaApps.recentPhotos(count: config.resolvedPhotoCount),
+                asFiles: false,
+                step: step,
+                context: &context
+            )
+
+        case .getLastPhoto:
+            return mediaListOutcome(
+                AppleMediaApps.exportLastPhotos(
+                    count: config.resolvedPhotoCount,
+                    to: text(config.destination)
+                ),
+                asFiles: true,
+                step: step,
+                context: &context
+            )
+
+        case .viewPhotos:
+            return mediaOutcome(
+                AppleMediaApps.spotlightLatestPhoto(albumName: text(config.albumName)),
+                step: step,
+                context: &context
+            )
+
+        case .randomPhoto:
+            return mediaOutcome(AppleMediaApps.randomPhoto(), step: step, context: &context)
+
+        case .album:
+            if config.resolvedAlbumOperation == .list {
+                return mediaListOutcome(
+                    AppleMediaApps.albums(),
+                    asFiles: false,
+                    step: step,
+                    context: &context
+                )
+            }
+            return mediaOutcome(
+                AppleMediaApps.createAlbum(name: text(config.albumName)),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    /// 이전 단계 출력에서 파일 경로만 뽑는다
+    private func filePaths(from value: VariableValue) -> [String] {
+        if let list = value.asList {
+            return list.compactMap { item in
+                if case .file(let url) = item { return url.path }
+                return nil
+            }
+        }
+        if let file = value.asFile { return [file.path] }
+        if let text = value.asText, !text.isEmpty {
+            return AppleMediaApps.parsePaths(text)
+        }
+        return []
+    }
+
+    private func mediaOutcome(
+        _ outcome: AppleMediaApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-MEDIA-6400", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    private func mediaListOutcome(
+        _ outcome: AppleMediaApps.Outcome,
+        asFiles: Bool,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let values: [VariableValue] = asFiles
+                ? lines.map { VariableValue.file(URL(fileURLWithPath: $0)) }
+                : lines.map { VariableValue.text($0) }
+            context.setOutput(.list(values), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(lines.count)개")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-MEDIA-6400", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    // MARK: - T-216 문서 앱 — Pages·Numbers·TextEdit
+
+    /// 문서 앱 실행. 경로는 설정 → 이전 단계 파일 → 이전 단계 텍스트 순으로 찾는다.
+    /// 본문 편집·글꼴은 TextEdit 전용이며, 다른 앱은 사유를 돌려준다.
+    private func executeDocumentApp(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = DocumentConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let text: (String?) -> String = { value in
+            VariableResolver.resolveText(value ?? "", context: ctx)
+        }
+        let path = documentPath(config: config, context: context, resolveContext: ctx)
+
+        switch step.type {
+        case .newDocument:
+            let configured = text(config.content)
+            let content = configured.isEmpty ? (context.lastOutput.asText ?? "") : configured
+            return documentOutcome(
+                DocumentApps.createDocument(app: config.resolvedApp, content: content),
+                step: step,
+                context: &context
+            )
+
+        case .viewDocument:
+            return documentOutcome(
+                DocumentApps.viewDocument(
+                    path: path,
+                    app: config.app ?? .defaultApp
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .editDocument:
+            let configured = text(config.content)
+            let content = configured.isEmpty ? (context.lastOutput.asText ?? "") : configured
+            return documentOutcome(
+                DocumentApps.editDocument(
+                    path: path,
+                    text: content,
+                    mode: config.resolvedEditMode,
+                    app: config.app ?? .textEdit
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .setParagraphStyle:
+            return documentOutcome(
+                DocumentApps.setParagraphStyle(
+                    path: path,
+                    fontName: text(config.fontName),
+                    fontSize: config.resolvedFontSize,
+                    app: config.app ?? .textEdit
+                ),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func documentPath(
+        config: DocumentConfig,
+        context: UseModelExecutor.ExecutionContext,
+        resolveContext: VariableResolver.ResolveContext
+    ) -> String {
+        let configured = VariableResolver.resolveText(config.path ?? "", context: resolveContext)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !configured.isEmpty { return configured }
+        if let file = context.lastOutput.asFile { return file.path }
+        if let list = context.lastOutput.asList, case .file(let url) = list.first {
+            return url.path
+        }
+        if let text = context.lastOutput.asText {
+            return text
+                .split(whereSeparator: { $0 == "\n" || $0 == "\r" })
+                .first
+                .map(String.init)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        return ""
+    }
+
+    private func documentOutcome(
+        _ outcome: DocumentApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-DOC-6500", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    // MARK: - 시스템 제어 (T-219)
+
+    private func executeSystemControl(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = SystemControlConfig.decode(from: step.actionParameters)
+        let outcome: SystemControls.Outcome
+
+        switch step.type {
+        case .network:
+            outcome = SystemControls.wifi(action: config.resolvedWiFiAction)
+        case .focusMode:
+            let ctx = makeResolveContext(context)
+            let name = VariableResolver.resolveText(config.shortcutName ?? "", context: ctx)
+            outcome = SystemControls.focus(shortcutName: name)
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-SYS-6600", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    // MARK: - 미디어 편집·캡처 (T-220)
+
+    private func executeMediaEditing(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = MediaEditingConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let resolve: (String?) -> String = { raw in
+            VariableResolver.resolveText(raw ?? "", context: ctx)
+        }
+
+        let path = resolve(config.path)
+        let output = resolve(config.outputPath)
+        let outcome: MediaEditing.Outcome
+
+        switch step.type {
+        case .rotateImage:
+            outcome = MediaEditing.rotateImage(
+                path: path,
+                outputPath: output,
+                angleDegrees: config.resolvedAngle
+            )
+        case .cropImage:
+            outcome = MediaEditing.cropImage(
+                path: path,
+                outputPath: output,
+                x: config.cropX ?? 0,
+                y: config.cropY ?? 0,
+                width: config.cropWidth ?? 0,
+                height: config.cropHeight ?? 0
+            )
+        case .trimVideo:
+            outcome = MediaEditing.trimVideo(
+                path: path,
+                outputPath: output,
+                startSeconds: config.resolvedStart,
+                endSeconds: config.resolvedEnd
+            )
+        case .camera:
+            outcome = MediaEditing.capturePhoto(outputPath: output)
+        case .setVolumeMedia:
+            outcome = MediaEditing.setVolume(percent: config.resolvedVolume)
+        case .moveMedia:
+            outcome = MediaEditing.moveCurrentTrack(
+                destination: resolve(config.destination),
+                confirmBeforeChange: config.resolvedConfirm
+            )
+        case .musicAndVideo:
+            outcome = MediaEditing.music(command: config.resolvedPlayback)
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-MEDIA-6700", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    // MARK: - 콘텐츠·위치·웹 (T-221)
+
+    private func executeContentLink(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = ContentLinkConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let resolve: (String?) -> String = { raw in
+            VariableResolver.resolveText(raw ?? "", context: ctx)
+        }
+
+        let outcome: ContentLinkActions.Outcome
+
+        switch step.type {
+        case .message:
+            outcome = ContentLinkActions.message(
+                recipients: resolve(config.recipients),
+                body: resolve(config.body),
+                preview: config.resolvedPreview
+            )
+        case .email:
+            var resolved = config
+            resolved.recipients = resolve(config.recipients)
+            resolved.subject = resolve(config.subject)
+            resolved.body = resolve(config.body)
+            outcome = ContentLinkActions.email(config: resolved)
+        case .map:
+            outcome = ContentLinkActions.openMap(
+                origin: resolve(config.origin),
+                destination: resolve(config.destination),
+                mode: config.resolvedTravelMode
+            )
+        case .transportation:
+            outcome = ContentLinkActions.openMap(
+                origin: resolve(config.origin),
+                destination: resolve(config.destination),
+                mode: .transit
+            )
+        case .webContent:
+            outcome = ContentLinkActions.webContent(
+                urlString: resolve(config.url),
+                mode: config.resolvedWebContentMode
+            )
+        case .webIntegration:
+            let action = config.resolvedWebAction
+            let input = action == .fetch ? resolve(config.url) : resolve(config.body)
+            outcome = ContentLinkActions.webIntegration(action: action, input: input)
+        case .presentation:
+            outcome = ContentLinkActions.presentation(action: config.resolvedPresentationAction)
+        case .createShortcutIcon:
+            outcome = ContentLinkActions.createIcon(
+                symbolName: resolve(config.symbolName),
+                colorHex: resolve(config.colorHex),
+                outputPath: resolve(config.outputPath)
+            )
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-CONTENT-6800", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    // MARK: - App Intents·자동화 카탈로그 (T-222)
+
+    private func executeAutomationAction(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext,
+        depth: Int
+    ) -> Result {
+        let config = AppIntentAutomationConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let resolve: (String?) -> String = { raw in
+            VariableResolver.resolveText(raw ?? "", context: ctx)
+        }
+
+        switch step.type {
+        case .findApp:
+            let all = appListProvider?() ?? AppFinder.installedApps()
+            let apps = config.resolvedIncludeSystemApps
+                ? all
+                : all.filter { !$0.path.hasPrefix("/System/Applications") }
+            switch AutomationCatalog.findApps(query: resolve(config.query), apps: apps) {
+            case .success(let lines):
+                return finishAutomationStep(step, lines: lines, context: &context)
+            case .failure(let reason):
+                return automationFailure(step, reason: reason)
+            }
+
+        case .appIntent, .appAction:
+            let outcome: AutomationCatalog.Outcome
+            if step.type == .appIntent {
+                outcome = AutomationCatalog.runShortcut(
+                    named: resolve(config.shortcutName),
+                    input: resolve(config.input)
+                )
+            } else {
+                outcome = AutomationCatalog.openURL(resolve(config.url))
+            }
+            switch outcome {
+            case .success(let lines):
+                return finishAutomationStep(step, lines: lines, context: &context)
+            case .failure(let reason):
+                return automationFailure(step, reason: reason)
+            }
+
+        case .automation, .findAutomation:
+            let shortcuts = shortcutListProvider?() ?? []
+            let lines = AutomationCatalog.automationLines(
+                shortcuts: shortcuts,
+                query: resolve(config.query),
+                includeUnsupported: config.resolvedIncludeUnsupported
+            )
+            guard !lines.isEmpty else {
+                return automationFailure(step, reason: .noMatches(resolve(config.query)))
+            }
+            return finishAutomationStep(step, lines: lines, context: &context)
+
+        case .automationRun, .trigger:
+            let shortcuts = shortcutListProvider?() ?? []
+            let name = resolve(config.shortcutName)
+            guard let target = AutomationCatalog.shortcut(named: name, in: shortcuts) else {
+                return automationFailure(step, reason: .shortcutNotInApexKey(name))
+            }
+            if step.type == .trigger {
+                let triggerName = resolve(config.triggerName)
+                guard AutomationCatalog.hasTrigger(shortcut: target, triggerName: triggerName) else {
+                    return automationFailure(step, reason: .triggerMissing(target.name, triggerName))
+                }
+                context.shortcutInput = .text(triggerName)
+            }
+            Logger.info("ExecutionEngine", "자동화 실행: \(target.name)")
+            return execute(target, context: &context, depth: depth + 1)
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func finishAutomationStep(
+        _ step: ShortcutStep,
+        lines: [String],
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let value = lines.joined(separator: "\n")
+        context.setOutput(.text(value), for: step.id)
+        context.lastOutput = .text(value)
+        Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(lines.count)건")
+        return .continueRunning
+    }
+
+    private func automationFailure(
+        _ step: ShortcutStep,
+        reason: AutomationCatalog.FailureReason
+    ) -> Result {
+        Logger.error("E-MAC-AUTO-6900", "\(step.type.rawValue) 실패: \(reason)")
+        return Result(success: false, controlFlow: .continueExecution, error: reason.message)
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -307,6 +1525,51 @@ final class ExecutionEngine {
         case .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
              .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:
             return executeDataAction(step, context: &context)
+
+        // === T-211 순수 로직·UI 액션 14종 ===
+        case .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
+             .measurement, .adjustDate, .typeDateTime, .dialog,
+             .getConfirmation, .quickLook, .preventSleep, .getDictionary,
+             .listActions, .saveOutput:
+            return executeNextAction(step, context: &context)
+
+        // === T-213 파일 액션 7종 ===
+        case .getFiles, .moveFiles, .renameFiles, .extractArchive,
+             .externalStorage, .fileActions, .getAttachment:
+            return executeFileAction(step, context: &context)
+
+        // === T-214 Apple 앱 1 — Notes·Reminders·Calendar ===
+        case .createNote, .noteActions, .reminders, .calendar:
+            return executeAppleApp(step, context: &context)
+
+        // === T-215 Apple 앱 2 — Mail·Music·Podcasts·Photos ===
+        case .mail, .setMailBody, .setMailRecipients, .emailData,
+             .playMusic, .playPodcast, .podcasts,
+             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
+            return executeMediaApp(step, context: &context)
+
+        // === T-216 문서 앱 — Pages·Numbers·TextEdit ===
+        case .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
+            return executeDocumentApp(step, context: &context)
+
+        // === T-219 시스템 제어 — Wi-Fi·집중 모드 ===
+        case .network, .focusMode:
+            return executeSystemControl(step, context: &context)
+
+        // === T-220 미디어 편집·캡처 ===
+        case .rotateImage, .cropImage, .trimVideo, .camera,
+             .setVolumeMedia, .moveMedia, .musicAndVideo:
+            return executeMediaEditing(step, context: &context)
+
+        // === T-221 콘텐츠·위치·웹 ===
+        case .message, .email, .map, .transportation,
+             .webContent, .presentation, .webIntegration, .createShortcutIcon:
+            return executeContentLink(step, context: &context)
+
+        // === T-222 App Intents·자동화 카탈로그 ===
+        case .findApp, .appIntent, .appAction,
+             .automation, .findAutomation, .automationRun, .trigger:
+            return executeAutomationAction(step, context: &context, depth: depth)
 
         // === AI 액션 ===
         case .useModel:
@@ -845,6 +2108,7 @@ final class ExecutionEngine {
         resolveCtx.repeatIndex = context.repeatIndex
         resolveCtx.repeatItem = context.repeatItem
         resolveCtx.shortcutInput = context.shortcutInput
+        resolveCtx.variableNames = context.variableNames
         return resolveCtx
     }
     

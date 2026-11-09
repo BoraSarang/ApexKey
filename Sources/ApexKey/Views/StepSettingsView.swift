@@ -172,9 +172,50 @@ struct StepSettingsView: View {
         case .system:
             // 프리셋 선택지 — 스크립트 표시·수정 없음 (선택=프리셋 ID)
             SystemPresetPickerView(step: $draft)
+        // 시스템 프리셋으로 이미 가능한 7종을 개별 액션으로 승격 (T-210)
+        // 파라미터가 없는 동작은 제목만, 배경화면·앱 전면으로는 경로/번들ID를 편집한다.
+        case .screenshot, .newNote, .newQuickNote, .wallpaper, .wakeDisplay,
+             .moveToFront, .darkMode:
+            SystemPromotedActionSettingsView(step: $draft)
         case .openInTerminal:
             // 터미널 앱·방식은 `target` 한 줄로 표현할 수 없다 (T-195)
             TerminalOpenSettingsView(step: $draft)
+        // T-211 순수 로직·UI 액션 14종
+        case .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
+             .measurement, .adjustDate, .typeDateTime, .dialog,
+             .getConfirmation, .quickLook, .preventSleep, .getDictionary,
+             .listActions, .saveOutput:
+            NextActionSettingsView(step: $draft)
+        // T-213 파일 액션 7종
+        case .getFiles, .moveFiles, .renameFiles, .extractArchive,
+             .externalStorage, .fileActions, .getAttachment:
+            FileActionSettingsView(step: $draft)
+        // T-214 Apple 앱 1 — Notes·Reminders·Calendar
+        case .createNote, .noteActions, .reminders, .calendar:
+            AppleAppSettingsView(step: $draft)
+        // T-215 Apple 앱 2 — Mail·Music·Podcasts·Photos
+        case .mail, .setMailBody, .setMailRecipients, .emailData,
+             .playMusic, .playPodcast, .podcasts,
+             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
+            AppleMediaSettingsView(step: $draft)
+        // T-216 문서 앱 — Pages·Numbers·TextEdit
+        case .newDocument, .viewDocument, .editDocument, .setParagraphStyle:
+            DocumentSettingsView(step: $draft)
+        // T-219 시스템 제어 — Wi-Fi·집중 모드
+        case .network, .focusMode:
+            SystemControlSettingsView(step: $draft)
+        // T-220 미디어 편집·캡처
+        case .rotateImage, .cropImage, .trimVideo, .camera,
+             .setVolumeMedia, .moveMedia, .musicAndVideo:
+            MediaEditingSettingsView(step: $draft)
+        // T-221 콘텐츠·위치·웹
+        case .message, .email, .map, .transportation,
+             .webContent, .presentation, .webIntegration, .createShortcutIcon:
+            ContentLinkSettingsView(step: $draft)
+        // T-222 App Intents·자동화 카탈로그
+        case .findApp, .appIntent, .appAction,
+             .automation, .findAutomation, .automationRun, .trigger:
+            AppIntentAutomationSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)
