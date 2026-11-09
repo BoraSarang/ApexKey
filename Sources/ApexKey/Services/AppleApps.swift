@@ -188,14 +188,19 @@ enum AppleApps {
     static func classify(_ stderr: String, timedOut: Bool, exitCode: Int32) -> FailureReason {
         if timedOut { return .scriptFailed("timeout") }
 
-        let text = stderr
-        if text.contains("-1743") || text.contains("Not authorized")
-            || text.contains("not authorized") || text.contains("not allowed")
-            || text.contains("Not allowed") {
+        if isAutomationDenied(stderr) {
             return .automationDenied
         }
-        let detail = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let detail = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
         return .scriptFailed(detail.isEmpty ? "exit \(exitCode)" : String(detail.prefix(200)))
+    }
+
+    /// TCC 자동화 거부(-1743)를 판별한다 — 다른 Apple 앱 연동도 같은 규칙을 쓴다
+    static func isAutomationDenied(_ text: String) -> Bool {
+        text.contains("-1743") || text.contains("Not authorized")
+            || text.contains("not authorized") || text.contains("not allowed")
+            || text.contains("Not allowed")
     }
 
     // MARK: - 내부

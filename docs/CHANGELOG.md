@@ -3,6 +3,17 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — Apple 앱 2: Mail·Music·Podcasts·Photos (T-215, v1.7 2차)
+
+* **스파이크 실측** — Mail·Music·Photos는 스크립팅 사전이 있고, Photos는 `media item`·`export`·`spotlight`·`album`을 제공한다. **Podcasts는 사전이 없어**(-192) AppleScript 검색·재생이 불가능하다.
+* **Mail 4종** — `mail`(새 초안), `setMailBody`(열린 초안 본문), `setMailRecipients`(열린 초안 수신자), `emailData`(이전 출력 텍스트·파일을 본문·첨부로). 주소는 쉼표·세미콜론·줄바꿈으로 나누고 `@`를 검사한다. **기본은 초안 열기**이며 `sendImmediately`를 켰을 때만 발송한다.
+* **Music** — `playMusic`이 곡 이름→아티스트 순으로 검색하고, 재생목록 이름이 있으면 그쪽을 우선한다. 검색어가 비면 현재 재생을 이어간다.
+* **Podcasts** — `podcasts`는 앱을 열고, `playPodcast`는 URL만 연다. 검색어 재생은 지원하지 않는다고 사유를 알린다(앱에 스크립팅 사전이 없음).
+* **Photos 5종** — `photos`(최근 파일 이름), `getLastPhoto`(원본 내보내기 → 파일 경로 출력), `viewPhotos`(최근 사진·앨범 열기), `randomPhoto`, `album`(만들기·목록).
+* **설정 UI** — `AppleMediaSettingsView`가 액션별 입력만 보여준다. 메일 발송 스위치는 경고 문구와 함께 둔다. en/ko 42키 추가.
+* **테스트** — `AppleMediaAppsTests` 22건(주소 검증·발송 인자·Podcasts URL·Photos 내보내기 경로·엔진 배선). unit **721건 0실패**(2 skip).
+* **결과** — 구현 **84→96**, planned **67→55**. 카탈로그 UI의 "준비 중"은 58종. i18n **1441키 일치**.
+
 ## 2026-11-09 macos — Apple 앱 1: Notes·Reminders·Calendar (T-214, v1.7 2차)
 
 * **Notes** — `createNote`(메모 생성), `noteActions`(대상 메모에 덧붙이기·메모 열기·폴더 만들기). Notes의 `body`는 HTML로 해석되므로 `<`·`>`·`&`를 escape하고 줄바꿈을 `<br>`로 바꾼다.

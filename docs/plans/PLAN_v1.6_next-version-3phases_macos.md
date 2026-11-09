@@ -109,13 +109,18 @@
   HTML escape 후 `<br>`, 날짜는 로케일 독립적인 분 오프셋. `AppleAppsTests` 21건,
   unit 698건 0실패(2 skip), i18n 1399키 일치. 구현 80→84, planned 71→67.
 
-### 3-3. T-215 Apple 앱 연동 2 — Mail·Music·Podcasts·Photos (5d + 스파이크 1d)
+### 3-3. T-215 Apple 앱 연동 2 — Mail·Music·Podcasts·Photos (5d + 스파이크 1d) — **완료 (2026-11-09)**
 
 `mail` · `setMailBody` · `setMailRecipients` · `emailData` · `playMusic` · `playPodcast` · `podcasts` · `photos` · `viewPhotos` · `album` · `randomPhoto` · `getLastPhoto`
 
 - **선행 스파이크**: Photos는 AppleScript 지원이 제한적이라 가능한 동작을 먼저 실측한다.
   안 되면 URL scheme/Shortcuts 호출로 대체하거나 제외.
 - Music/Podcasts는 재생·검색·현재 항목 정도로 범위를 좁힌다.
+- **스파이크 결과**: Mail·Music·Photos는 `sdef` 있음. Photos는 `media item`·`export`·`spotlight`·
+  `album`으로 최근 목록·내보내기·앨범이 가능. **Podcasts는 `sdef`가 없어**(-192) URL scheme만
+  지원하고 검색 재생은 불가능하다고 실패시킨다.
+- **결과**: 12종 구현. 메일은 기본 초안 열기(`sendImmediately`만 발송). `AppleMediaAppsTests` 22건,
+  unit 721건 0실패(2 skip), i18n 1441키 일치. 구현 84→96, planned 67→55.
 
 ### 3-4. T-216 문서 앱 연동 (2d)
 

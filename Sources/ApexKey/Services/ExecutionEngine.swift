@@ -877,6 +877,200 @@ final class ExecutionEngine {
         }
     }
 
+    // MARK: - T-215 Apple 앱 2 — Mail·Music·Podcasts·Photos
+
+    /// Mail·Music·Podcasts·Photos 실행.
+    ///
+    /// 메일은 기본이 초안 열기다(`sendImmediately`). `emailData`는 본문·첨부가
+    /// 비어 있으면 이전 단계 출력에서 가져온다 — "데이터를 메일로 보내는" 동작이므로
+    /// 입력이 곧 내용이다.
+    private func executeMediaApp(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = AppleMediaConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let text: (String?) -> String = { value in
+            VariableResolver.resolveText(value ?? "", context: ctx)
+        }
+
+        switch step.type {
+        case .mail, .emailData:
+            var attachments = AppleMediaApps.parsePaths(text(config.attachments))
+            if attachments.isEmpty {
+                attachments = filePaths(from: context.lastOutput)
+            }
+            let configuredBody = text(config.body)
+            let body = (step.type == .emailData && configuredBody.isEmpty)
+                ? (context.lastOutput.asText ?? "")
+                : configuredBody
+            return mediaOutcome(
+                AppleMediaApps.composeMail(
+                    to: text(config.to),
+                    cc: text(config.cc),
+                    bcc: text(config.bcc),
+                    subject: text(config.subject),
+                    body: body,
+                    attachments: attachments,
+                    send: config.shouldSend
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .setMailBody:
+            return mediaOutcome(
+                AppleMediaApps.setMailBody(text(config.body)),
+                step: step,
+                context: &context
+            )
+
+        case .setMailRecipients:
+            return mediaOutcome(
+                AppleMediaApps.setMailRecipients(
+                    to: text(config.to),
+                    cc: text(config.cc),
+                    bcc: text(config.bcc)
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .playMusic:
+            return mediaOutcome(
+                AppleMediaApps.playMusic(
+                    query: text(config.query),
+                    playlistName: text(config.playlistName)
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .podcasts:
+            return mediaOutcome(AppleMediaApps.openPodcasts(), step: step, context: &context)
+
+        case .playPodcast:
+            let configured = text(config.podcastURL)
+            let target = configured.isEmpty ? text(step.target) : configured
+            return mediaOutcome(
+                AppleMediaApps.playPodcast(url: target),
+                step: step,
+                context: &context
+            )
+
+        case .photos:
+            return mediaListOutcome(
+                AppleMediaApps.recentPhotos(count: config.resolvedPhotoCount),
+                asFiles: false,
+                step: step,
+                context: &context
+            )
+
+        case .getLastPhoto:
+            return mediaListOutcome(
+                AppleMediaApps.exportLastPhotos(
+                    count: config.resolvedPhotoCount,
+                    to: text(config.destination)
+                ),
+                asFiles: true,
+                step: step,
+                context: &context
+            )
+
+        case .viewPhotos:
+            return mediaOutcome(
+                AppleMediaApps.spotlightLatestPhoto(albumName: text(config.albumName)),
+                step: step,
+                context: &context
+            )
+
+        case .randomPhoto:
+            return mediaOutcome(AppleMediaApps.randomPhoto(), step: step, context: &context)
+
+        case .album:
+            if config.resolvedAlbumOperation == .list {
+                return mediaListOutcome(
+                    AppleMediaApps.albums(),
+                    asFiles: false,
+                    step: step,
+                    context: &context
+                )
+            }
+            return mediaOutcome(
+                AppleMediaApps.createAlbum(name: text(config.albumName)),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    /// 이전 단계 출력에서 파일 경로만 뽑는다
+    private func filePaths(from value: VariableValue) -> [String] {
+        if let list = value.asList {
+            return list.compactMap { item in
+                if case .file(let url) = item { return url.path }
+                return nil
+            }
+        }
+        if let file = value.asFile { return [file.path] }
+        if let text = value.asText, !text.isEmpty {
+            return AppleMediaApps.parsePaths(text)
+        }
+        return []
+    }
+
+    private func mediaOutcome(
+        _ outcome: AppleMediaApps.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let value = lines.joined(separator: "\n")
+            context.setOutput(.text(value), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-MEDIA-6400", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
+    private func mediaListOutcome(
+        _ outcome: AppleMediaApps.Outcome,
+        asFiles: Bool,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let lines):
+            let values: [VariableValue] = asFiles
+                ? lines.map { VariableValue.file(URL(fileURLWithPath: $0)) }
+                : lines.map { VariableValue.text($0) }
+            context.setOutput(.list(values), for: step.id)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(lines.count)개")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-MEDIA-6400", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.message
+            )
+        }
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -923,6 +1117,12 @@ final class ExecutionEngine {
         // === T-214 Apple 앱 1 — Notes·Reminders·Calendar ===
         case .createNote, .noteActions, .reminders, .calendar:
             return executeAppleApp(step, context: &context)
+
+        // === T-215 Apple 앱 2 — Mail·Music·Podcasts·Photos ===
+        case .mail, .setMailBody, .setMailRecipients, .emailData,
+             .playMusic, .playPodcast, .podcasts,
+             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
+            return executeMediaApp(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

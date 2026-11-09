@@ -126,6 +126,23 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
+    /// T-215에서 구현한 Apple 앱 2 — Mail·Music·Podcasts·Photos
+    func testMediaActionsAreImplemented() {
+        let implemented: [ActionType] = [
+            .mail, .setMailBody, .setMailRecipients, .emailData,
+            .playMusic, .playPodcast, .podcasts,
+            .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto,
+        ]
+        for type in implemented {
+            XCTAssertEqual(
+                type.implementation, .implemented,
+                "\(type.rawValue) 는 T-215에서 구현했으므로 implemented여야 함"
+            )
+            XCTAssertTrue(type.isSelectable, "\(type.rawValue) 는 카탈로그에서 선택 가능해야 함")
+            XCTAssertTrue(type.hasStepSettingsUI, "\(type.rawValue) 는 설정 UI를 제공해야 함")
+        }
+    }
+
     /// T-214에서 구현한 Apple 앱 1 — Notes·Reminders·Calendar
     func testAppleAppActionsAreImplemented() {
         let implemented: [ActionType] = [.createNote, .noteActions, .reminders, .calendar]

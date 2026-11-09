@@ -57,7 +57,11 @@ extension ActionType {
              .getFiles, .moveFiles, .renameFiles, .extractArchive,
              .externalStorage, .fileActions, .getAttachment,
              // Apple 앱 1 — Notes·Reminders·Calendar — T-214 (ExecutionEngine.executeAppleApp)
-             .createNote, .noteActions, .reminders, .calendar:
+             .createNote, .noteActions, .reminders, .calendar,
+             // Apple 앱 2 — Mail·Music·Podcasts·Photos — T-215 (ExecutionEngine.executeMediaApp)
+             .mail, .setMailBody, .setMailRecipients, .emailData,
+             .playMusic, .playPodcast, .podcasts,
+             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -65,15 +69,15 @@ extension ActionType {
              .clearRecents, .focusMode,
              .pdf, .network, .bluetooth, .timer, .stopwatch,
              .location, .airDrop, .readTable,
-             .emailData, .date, .photos, .musicAndVideo,
-             .playMusic, .playPodcast, .tuneStation, .radio, .viewPhotos,
-             .album, .randomPhoto, .slideshow, .getLastPhoto, .camera,
+             .date, .musicAndVideo,
+             .tuneStation, .radio,
+             .slideshow, .camera,
              .rotateImage, .cropImage, .trimVideo, .takeScreenshot,
-             .setVolumeMedia, .moveMedia, .bookmark, .podcasts,
+             .setVolumeMedia, .moveMedia, .bookmark,
              .news, .stocks, .videoDownloader, .editDocument, .translate,
              .textEditShortcut,
-             .setParagraphStyle, .newDocument, .viewDocument, .mail,
-             .setMailBody, .setMailRecipients, .drive, .oneDrive, .box,
+             .setParagraphStyle, .newDocument, .viewDocument,
+             .drive, .oneDrive, .box,
              .map,
              .transportation, .message, .email,
              .webContent, .presentation, .webIntegration, .documentsAndFiles,

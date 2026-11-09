@@ -705,7 +705,12 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - `osascript`에 **argv로 인자를 넘긴다** — 제목·본문의 따옴표·줄바꿈이 스크립트가 되지 않는다. Notes `body`는 HTML이므로 escape 후 `<br>`로 변환
   - 실패 사유 구분: 자동화 권한 거부(-1743)·메모/목록/캘린더 없음·잘못된 길이·스크립트 오류. 날짜는 로케일 의존 문자열 대신 **지금부터 분 오프셋**
   - 결과: 구현 **80→84**, planned **71→67**(스텁 3 포함 UI "준비 중" 74→70). unit **698건 0실패**(2 skip) · i18n **1399키 일치**
-- [ ] **T-215** 2차 — Apple 앱 2: Mail·Music·Podcasts·Photos (스파이크 1d + 5d)
+- [x] **T-215** 2차 — Apple 앱 2: Mail·Music·Podcasts·Photos (스파이크 1d + 5d) — **완료**
+  - 스파이크: Mail·Music·Photos는 `sdef` 존재(Photos는 `media item`·`export`·`spotlight`·`album` 지원). **Podcasts는 `sdef` 없음(-192)** → URL scheme만 지원
+  - Mail: `mail`·`setMailBody`·`setMailRecipients`·`emailData` — 기본은 **초안 열기**, `sendImmediately`일 때만 발송. 주소 검증·첨부·이전 출력 첨부
+  - Music: `playMusic`(곡/아티스트 검색·재생목록). Podcasts: `podcasts`(앱 열기)·`playPodcast`(URL만, 검색어는 정직한 실패)
+  - Photos: `photos`(최근 목록)·`getLastPhoto`(원본 내보내기 → 파일 경로)·`viewPhotos`·`randomPhoto`·`album`(만들기/목록)
+  - 결과: 구현 **84→96**, planned **67→55**(스텁 3 포함 UI "준비 중" 70→58). unit **721건 0실패**(2 skip) · i18n **1441키 일치**
 - [ ] **T-216** 2차 — 문서 앱: Pages·Numbers·TextEdit (2d)
 - [ ] **T-217** 2차 — 자동화 트리거 4종: 파일·외장 드라이브·디스플레이·앱 (3d)
 - [ ] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d)

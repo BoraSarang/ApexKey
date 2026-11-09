@@ -193,6 +193,11 @@ struct StepSettingsView: View {
         // T-214 Apple 앱 1 — Notes·Reminders·Calendar
         case .createNote, .noteActions, .reminders, .calendar:
             AppleAppSettingsView(step: $draft)
+        // T-215 Apple 앱 2 — Mail·Music·Podcasts·Photos
+        case .mail, .setMailBody, .setMailRecipients, .emailData,
+             .playMusic, .playPodcast, .podcasts,
+             .photos, .viewPhotos, .album, .randomPhoto, .getLastPhoto:
+            AppleMediaSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)
