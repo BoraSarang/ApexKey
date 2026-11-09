@@ -37,13 +37,13 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | 빌드 | 성공, **신규 코드 경고 0**(2026-11-09 v1.7.0) — 클린 빌드 기준 잔여 4건은 2026-10-15 측정값 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
 | 액션 구현 | **124 / 154** (AI 스텁 3, 미구현 27 — 이 중 6종은 카탈로그 숨김) | `ActionType.implementationCounts()` — 2026-11-09 T-223 반영 |
 | i18n | ko/en **1610키 일치** | `*.lproj/Localizable.strings` |
-| 버전 | 1.7.0 (`project.yml`이 유일한 출처) — **v1.8.0 범프·태그는 사용자 승인 대기**(`v1.7.0` 태그는 로컬, push 안 함) | `scripts/check-version.py` |
+| 버전 | **1.8.0** (`project.yml`이 유일한 출처) — **`v1.8.0` 태그 생성(로컬), push 안 함** (`v1.7.0` 태그도 로컬) | `scripts/check-version.py` |
 | 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) · **승인된 1차 3건**(T-210·T-211 완료, T-212 검증 완료·v1.7.0 통합) · **승인된 2차 6건**(T-213~T-218 완료) · **승인된 3차 6건**(T-219~T-224 완료) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 14개 = 미확인 11 + 확인 3) | `OPEN_ITEMS.md` |
 | user 실동작 대기 | **153건** (확인 3건 / 전체 156건 — §8-14 트랙패드 11 + §8-15·16 v1.7 27 + §8-17·18 v1.8 30 포함) | `FUNCTIONAL_CHECKLIST.md` §8 |
 | 브랜치 | `feat/macos-v1.6-catalog-actions` — T-210~T-223 커밋, push 안 함 | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
-| 미배포 배치 | **v1.5.0 이후 미릴리스** — v0.33·v0.33.1 트랙패드 + 1차(T-210·T-211) + 2차(T-213~T-218) + 3차(T-219~T-223). **v1.6.0은 배포하지 않고 v1.7.0에 통합**, v1.7.0 태그는 로컬·push 안 함. **v1.8.0 범프·태그 대기** | — |
+| 미배포 배치 | **v1.5.0 이후 미릴리스** — v0.33·v0.33.1 트랙패드 + 1차(T-210·T-211) + 2차(T-213~T-218) + 3차(T-219~T-223). **v1.6.0은 배포하지 않고 v1.7.0에 통합**, v1.7.0 태그는 로컬·push 안 함. **v1.8.0 태그 생성(로컬, push 안 함)** | — |
 
 ---
 
@@ -51,7 +51,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 작업 | 결과 |
 |---|---|
-| **2026-11-09 3차 v1.8.0 (T-219~T-224)** | **구현 124/154**(AI 스텁 3, planned 27 — 이 중 6종 카탈로그 숨김). T-219 시스템 2종(Wi-Fi·집중 모드), T-220 미디어 편집·캡처 7종, T-221 콘텐츠·위치·웹 8종, T-222 App Intents·자동화 카탈로그 7종, T-223 `{이름}` 변수 토큰 + 플랫폼 백로그 문서. **unit 848건 0실패**(2 skip) · i18n **1610키 일치**. 영구 제외 4종(`videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`)은 카탈로그에서 숨김. macOS 14 실기·Developer ID 서명·`error_message_ko.json`은 대기 — `docs/plans/BACKLOG_v1.8_platform_macos.md`. **v1.8.0 범프·태그는 사용자 승인 대기** |
+| **2026-11-09 3차 v1.8.0 (T-219~T-224)** | **구현 124/154**(AI 스텁 3, planned 27 — 이 중 6종 카탈로그 숨김). T-219 시스템 2종(Wi-Fi·집중 모드), T-220 미디어 편집·캡처 7종, T-221 콘텐츠·위치·웹 8종, T-222 App Intents·자동화 카탈로그 7종, T-223 `{이름}` 변수 토큰 + 플랫폼 백로그 문서. **unit 848건 0실패**(2 skip) · i18n **1610키 일치**. 영구 제외 4종(`videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`)은 카탈로그에서 숨김. macOS 14 실기·Developer ID 서명·`error_message_ko.json`은 대기 — `docs/plans/BACKLOG_v1.8_platform_macos.md`. **`v1.8.0` 태그 생성(로컬), push 안 함** |
 | **2026-11-08 트랙패드 실기 심화 (v0.33.1)** | 실기 피드백 3건 수정 — ① **y축 방향**: 원시 `normalized.pos.y`는 아래가 0이라 위로 밀면 볼륨이 내려가고 미리보기 점이 반대로 움직였다. Jitouch의 실제 판정(`py 증가 = Up`)으로 확정하고 슬라이더·스와이프·에지 띠·팜 리젝트·미리보기를 모두 교정. ② **두 손가락이 띠에 안 들어감**: "전부 띠 안" → **평균 위치 기준**(간격 10% 허용, 기본 폭 15%), 미리보기에 허용 띠 표시. ③ **너무 예민함**: 1스텝 14% 이동·한 프레임 1스텝·쿨다운 120ms·임계 7%, HUD ▲/▼ + 카드에 방향 문구. 시드 기본값과 완전히 같은 규칙만 한 번 보정(`pref.trackpad.tuningVersion`). **609건 0실패**·i18n 1241키. 실기 재확인은 §8-14 |
 | **2026-11-08 트랙패드 제스처 (v0.33, T-196~T-208)** | 에지 슬라이더(우측 두 손가락 위/아래 → 볼륨) + 탭·스와이프 → 워크플로우·단축키·**메뉴 항목**·시스템 액션. **모듈 격리**(`Trackpad/`, 기본 꺼짐), **새 권한 없음**(기존 Accessibility 재사용, Input Monitoring 요구하지 않음). 비공개 `MultitouchSupport`는 `MTBridge.swift` 한 파일에만 두고 `scripts/check-trackpad-boundary.py`가 빌드 게이트(0/6c)로 강제. 저장은 **UserDefaults JSON** — SwiftData 스키마 무변경. 시스템 액션 15→23(볼륨 올리기/내리기 + 스크린샷·새 메모·빠른 메모·배경화면·화면 깨우기·앱 전면으로). 인식기 18 + 리플레이 3 + 저장 8 + 액션 카탈로그 36건 통과, 10,000프레임 처리 1초 미만. **실기 에지 감도·스크롤 억제 체감은 사용자 30초 확인 대기** |
 | **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AppleScript(Finder 자동화)** 로 읽는다(`target of front window`+`selection`, NUL 구분) — AX 초판은 실측 후 폐기(창 `AXDocument` = `-25212`, 행/셀에 `AXURL` 속성 없음 → 절대 경로 불가). **근본 원인 수정: 하드닝 런타임에 `com.apple.security.automation.apple-events` 엔타이틀먼트가 없어 AppleEvent가 프롬프트 없이 `-1743`으로 거부**되고 있었다(tccd: `Policy disallows prompt`) — 메뉴 클릭·AppleScript/JXA·새 탭도 같은 원인으로 깨져 있었고 함께 살아났다. 규칙: 선택 우선 → 현재 창. 스키마 무변경(`actionParameters`). 573건 0실패·i18n 1033키. 라이브 실측 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`) — **사용자 실동작 확인 완료(2026-10-17, 선택 폴더 3건·현재 창 1건), 단축키는 사용자가 ⌥E로 변경. PR #19 main 머지(`7a41b2a`)** |

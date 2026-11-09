@@ -1,6 +1,6 @@
 # PLAN — 차기 3차 작업 (v1.6 ~ v1.8) 초안
 
-> 작성: 2026-11-09 · 플랫폼: macOS · 상태: **1·2·3차 완료(구현 124/154) / v1.8.0 범프·태그만 사용자 승인 대기**
+> 작성: 2026-11-09 · 플랫폼: macOS · 상태: **1·2·3차 완료(구현 124/154) · `v1.8.0` 태그 생성(로컬)**
 > 승인: 사용자 — "1차만 먼저 승인", 영구 제외 항목 확정. **2026-11-09 "2차 진행" 승인**.
 > 근거: `docs/STATUS.md`, `docs/TODO.md`, `docs/FUNCTIONAL_CHECKLIST.md` §9,
 > `ActionType+Implementation.swift`, `AutomationModels.swift`, `SystemActionExecutor.swift`
@@ -287,4 +287,4 @@
 
 **영구 제외 재확인**: `videoDownloader` · `airDrop` · `clearRecents` · `bluetooth` — 구현하지 않는다. AI 3종(`useModel`·`writingTool`·`imagePlayground`)은 2026-10-06 무효화 유지.
 
-**릴리스 상태**: `project.yml`은 아직 1.7.0. v1.8.0 범프·`v1.8.0` 태그 생성은 **사용자 승인 후** 진행한다(로컬 태그만, push 안 함).
+**릴리스 상태**: `MARKETING_VERSION` **1.8.0** 범프·버전 가드 통과. **`v1.8.0` 태그 생성(로컬)** — push 안 함.
