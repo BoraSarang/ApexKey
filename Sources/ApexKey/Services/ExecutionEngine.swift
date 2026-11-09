@@ -277,6 +277,261 @@ final class ExecutionEngine {
         return .continueRunning
     }
 
+    // MARK: - T-211 순수 로직·UI 액션 14종
+
+    /// 언어 감지·측정 변환·날짜·딕셔너리·목록·저장·OCR/QR·대화상자·QuickLook·잠자기 방지.
+    ///
+    /// 입력 규칙은 텍스트 액션과 같다 — `actionParameters.text`가 우선, 없으면 `target`.
+    /// Magic Variable은 실행 직전에 해석한다.
+    private func executeNextAction(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = TextActionConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let rawInput = config.text?.isEmpty == false ? config.text! : step.target
+        let input = VariableResolver.resolveText(rawInput, context: ctx)
+
+        switch step.type {
+        case .recognizeText:
+            return apply(
+                VisionActions.recognizeText(imageData: VisionActions.imageData(from: input)),
+                step: step,
+                context: &context
+            )
+
+        case .scanQRCode:
+            return apply(
+                VisionActions.scanQRCode(imageData: VisionActions.imageData(from: input)),
+                step: step,
+                context: &context
+            )
+
+        case .recognizeAnimal:
+            return apply(
+                VisionActions.recognizeAnimal(imageData: VisionActions.imageData(from: input)),
+                step: step,
+                context: &context
+            )
+
+        case .detectLanguage:
+            return apply(NextActions.detectLanguage(input), step: step, context: &context)
+
+        case .measurement:
+            return apply(
+                NextActions.measurement(
+                    input,
+                    from: config.measurementFromUnit,
+                    to: config.measurementUnit ?? .meters
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .adjustDate:
+            return apply(
+                NextActions.adjustDate(
+                    input,
+                    amount: config.dateAmount ?? 0,
+                    unit: config.dateUnit ?? .days,
+                    format: config.dateFormat
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .typeDateTime:
+            let text = NextActions.formatDate(
+                Date(),
+                format: config.dateFormat ?? "yyyy-MM-dd HH:mm"
+            )
+            guard TypingActions.typeText(text) else {
+                return Result(
+                    success: false,
+                    controlFlow: .continueExecution,
+                    error: "error.user.text_no_permission".localized
+                )
+            }
+            context.setOutput(.text(text), for: step.id)
+            context.lastOutput = .text(text)
+            Logger.info("ExecutionEngine", "날짜/시간 입력 완료: \(text)")
+            return .continueRunning
+
+        case .dialog:
+            let initial = VariableResolver.resolveText(config.defaultText ?? "", context: ctx)
+            let answer = UserPromptActions.dialog(message: input, defaultText: initial)
+            context.setOutput(.text(answer), for: step.id)
+            context.lastOutput = .text(answer)
+            Logger.info("ExecutionEngine", "대화상자 응답: \(answer.count)자")
+            return .continueRunning
+
+        case .getConfirmation:
+            let confirmed = UserPromptActions.confirmation(message: input)
+            let answer = confirmed ? "true" : "false"
+            context.setOutput(.text(answer), for: step.id)
+            context.lastOutput = .text(answer)
+            Logger.info("ExecutionEngine", "확인 결과: \(answer)")
+            return .continueRunning
+
+        case .quickLook:
+            switch QuickLookActions.shared.preview(path: input) {
+            case .success:
+                context.setOutput(.text(input), for: step.id)
+                context.lastOutput = .text(input)
+                return .continueRunning
+            case .failure(let reason):
+                return Result(
+                    success: false,
+                    controlFlow: .continueExecution,
+                    error: reason.messageKey.localized
+                )
+            }
+
+        case .preventSleep:
+            return executePreventSleep(config, step: step, context: &context)
+
+        case .getDictionary:
+            let content = Self.readTextFileIfExists(input) ?? input
+            let key = VariableResolver.resolveText(config.dictionaryKey ?? "", context: ctx)
+            return apply(
+                NextActions.dictionary(content, key: key),
+                step: step,
+                context: &context
+            )
+
+        case .listActions:
+            return apply(NextActions.listActions(), step: step, context: &context)
+
+        case .saveOutput:
+            let content: String
+            if config.text?.isEmpty == false {
+                content = VariableResolver.resolveText(config.text!, context: ctx)
+            } else {
+                content = outputText(context.lastOutput)
+            }
+            let rawPath = config.savePath?.isEmpty == false ? config.savePath! : step.target
+            let path = VariableResolver.resolveText(rawPath, context: ctx)
+            return apply(
+                NextActions.saveOutput(content, to: path, append: config.append ?? false),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    private func executePreventSleep(
+        _ config: TextActionConfig,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let controller = PreventSleepController.shared
+        let mode = config.preventSleepMode ?? .toggle
+        switch mode {
+        case .on:
+            guard controller.setActive(true) else {
+                return Result(
+                    success: false,
+                    controlFlow: .continueExecution,
+                    error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+                )
+            }
+        case .off:
+            controller.setActive(false)
+        case .toggle:
+            controller.toggle()
+        case .status:
+            break
+        }
+        let status = controller.statusText
+        context.setOutput(.text(status), for: step.id)
+        context.lastOutput = .text(status)
+        Logger.info("ExecutionEngine", "잠자기 방지: \(mode.rawValue) → \(status)")
+        return .continueRunning
+    }
+
+    /// 액션 결과를 컨텍스트 출력으로 기록하고 엔진 결과로 변환한다
+    private func apply(
+        _ outcome: NextActions.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let value):
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(value.count)자")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-NEXT-6100", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.messageKey.localized
+            )
+        }
+    }
+
+    private func apply(
+        _ outcome: VisionActions.Outcome,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let value):
+            context.setOutput(.text(value), for: step.id)
+            context.lastOutput = .text(value)
+            Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(value.count)자")
+            return .continueRunning
+        case .failure(let reason):
+            Logger.error("E-MAC-NEXT-6102", "\(step.type.rawValue) 실패: \(reason)")
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: reason.messageKey.localized
+            )
+        }
+    }
+
+    /// 경로가 실제 파일이면 내용을 읽는다 (딕셔너리 액션 입력)
+    private static func readTextFileIfExists(_ path: String) -> String? {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: expanded, isDirectory: &isDirectory),
+              !isDirectory.boolValue else { return nil }
+        return try? String(contentsOfFile: expanded, encoding: .utf8)
+    }
+
+    /// `lastOutput`을 다음 액션이 쓸 수 있는 텍스트로 바꾼다
+    private func outputText(_ value: VariableValue) -> String {
+        switch value {
+        case .text(let text):
+            return text
+        case .number(let number):
+            return NextActions.formatNumber(number)
+        case .boolean(let flag):
+            return flag ? "true" : "false"
+        case .file(let url):
+            return url.path
+        case .date(let date):
+            return NextActions.formatDate(date)
+        case .list, .dictionary:
+            guard let data = try? JSONEncoder().encode(value),
+                  let text = String(data: data, encoding: .utf8) else { return "" }
+            return text
+        case .image, .null:
+            return ""
+        }
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -307,6 +562,13 @@ final class ExecutionEngine {
         case .changeCase, .sort, .surroundText, .wordCount, .calculate, .math,
              .number, .outputDifference, .base64Encode, .hash, .uuid, .dateFormatter:
             return executeDataAction(step, context: &context)
+
+        // === T-211 순수 로직·UI 액션 14종 ===
+        case .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
+             .measurement, .adjustDate, .typeDateTime, .dialog,
+             .getConfirmation, .quickLook, .preventSleep, .getDictionary,
+             .listActions, .saveOutput:
+            return executeNextAction(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

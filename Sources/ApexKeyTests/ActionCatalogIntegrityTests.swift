@@ -116,13 +116,34 @@ final class ActionCatalogIntegrityTests: XCTestCase {
     /// "카탈로그에는 노출되는데 실행은 안 되는" 상태(T-159)가 되돌아온다.
     func testKnownUnimplementedRemainPlanned() {
         let known: [ActionType] = [
-            .translate, .scanQRCode, .recognizeText,
+            .translate, .readTable, .editDocument,
         ]
         for type in known {
             XCTAssertEqual(
                 type.implementation, .planned,
                 "\(type.rawValue) 는 미구현이므로 planned여야 함"
             )
+        }
+    }
+
+    /// T-211에서 구현한 14종이 implemented로 유지되는지
+    ///
+    /// 하나라도 planned로 되돌아가면 카탈로그가 "준비 중"으로 숨기는데
+    /// 실행 엔진에는 분기가 남아 있는, 설명과 반대의 상태가 된다.
+    func testNextActionsAreImplemented() {
+        let implemented: [ActionType] = [
+            .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
+            .measurement, .adjustDate, .typeDateTime, .dialog,
+            .getConfirmation, .quickLook, .preventSleep, .getDictionary,
+            .listActions, .saveOutput,
+        ]
+        for type in implemented {
+            XCTAssertEqual(
+                type.implementation, .implemented,
+                "\(type.rawValue) 는 T-211에서 구현했으므로 implemented여야 함"
+            )
+            XCTAssertTrue(type.isSelectable, "\(type.rawValue) 는 카탈로그에서 선택 가능해야 함")
+            XCTAssertTrue(type.hasStepSettingsUI, "\(type.rawValue) 는 설정 UI를 제공해야 함")
         }
     }
 

@@ -684,7 +684,13 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - 실행 경로: `ActionExecutor`가 승격 7종을 시스템 동작으로 실행, 배경화면·앱 전면으로는 `step.target` 파라미터 사용
   - 단계 설정 UI: `SystemPromotedActionSettingsView`(파일/앱 피커)
   - 결과: 구현 **52→59**, planned **99→92**(중복 숨김 제외 planned 노출 90 · 스텁 3 포함 UI "준비 중" 93). unit 614건 0실패(2 skip)
-- [ ] **T-211** 1차 — 순수 로직 액션 14종: OCR/QR/동물 인식·언어 감지·측정/날짜·대화상자/확인/QuickLook·잠자기 방지·딕셔너리/목록/출력 저장 (7d)
+- [x] **T-211** 1차 — 순수 로직 액션 14종 (7d) — **완료**
+  - Vision: `recognizeText`·`scanQRCode`·`recognizeAnimal` — 파일/클립보드 이미지, 경로 지정 시 클립보드 폴백 없음
+  - 언어·수치·날짜: `detectLanguage`(NLLanguageRecognizer), `measurement`(길이·질량·온도·부피), `adjustDate`, `typeDateTime`
+  - UI: `dialog`·`getConfirmation`(NSAlert, 테스트용 runner 주입), `quickLook`(QLPreviewPanel)
+  - 프로세스·데이터·파일: `preventSleep`(IOPMAssertion 전원 어서션), `getDictionary`(JSON/plist·점 표기 중첩), `listActions`, `saveOutput`(덮어쓰기/덧붙이기)
+  - 공통: `NextActionSettingsView` 설정 UI·en/ko 57키·`NextActionsTests` 37건
+  - 결과: 구현 **59→73**, planned **92→78**(중복 숨김 제외 planned 노출 76 · 스텁 3 포함 UI "준비 중" 79). unit 651건 0실패(2 skip)
 - [ ] **T-212** 1차 — 검증·릴리스 **v1.6.0**(v0.33 포함, §8-14 확인 후 태그) (1.5d)
 - [ ] **T-213** 2차 — 파일 액션 7종(가져오기·이동·이름 변경·압축 해제·외부 저장소·파일 동작·첨부) + 확인/취소 안전장치 (3d)
 - [ ] **T-214** 2차 — Apple 앱 1: Notes·Reminders·Calendar (3d)

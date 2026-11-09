@@ -3,6 +3,16 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — 순수 로직 액션 14종 (T-211, v1.6 1차)
+
+* **Vision 3종** — `recognizeText`(OCR)·`scanQRCode`(QR)·`recognizeAnimal`(동물) 구현. 입력은 파일 경로 또는 클립보드 이미지이며, 경로를 지정했는데 파일이 없으면 클립보드로 몰래 폴백하지 않고 실패를 알린다.
+* **언어·수치·날짜 4종** — `detectLanguage`(NLLanguageRecognizer, `코드 (이름)` 출력), `measurement`(길이·질량·온도·부피 단위 변환, 차원 불일치는 실패), `adjustDate`(Calendar, 입력이 비면 지금), `typeDateTime`(현재 날짜/시간을 지정 형식으로 입력).
+* **UI 3종** — `dialog`(텍스트 입력)·`getConfirmation`(확인/취소, `true`/`false` 출력)·`quickLook`(QLPreviewPanel). NSAlert 응답은 테스트에서 주입할 수 있어 UI 없이 검증한다.
+* **프로세스·데이터·파일 4종** — `preventSleep`(`IOPMAssertion` 전원 어서션, 앱 종료 시 시스템이 자동 해제), `getDictionary`(JSON/plist·점 표기 중첩 키), `listActions`(선택 가능한 액션만 목록화), `saveOutput`(상위 폴더 생성·덮어쓰기/덧붙이기).
+* **설정 UI** — `NextActionSettingsView`가 액션별 입력만 보여준다(이미지/파일 피커, 단위·날짜·모드 피커). en/ko 57키 추가.
+* **테스트** — `NextActionsTests` 37건(순수 로직·실패 경로·엔진 배선). unit **651건 0실패**(2 skip).
+* **결과** — 구현 **59→73**, planned **92→78**. 카탈로그 UI의 "준비 중"은 79종.
+
 ## 2026-11-09 macos — 카탈로그 정직성 (T-210, v1.6 1차)
 
 * **시스템 프리셋 중복 7종 승격** — 카탈로그에 "준비 중"으로 보였지만 `시스템` 단계로 이미 실행되던 `screenshot`·`newNote`·`newQuickNote`·`wallpaper`·`wakeDisplay`·`moveToFront`·`darkMode`를 `.implemented`로 승격하고 `SystemActionExecutor`에 위임했다. 이제 개별 액션 행에서 바로 선택·실행할 수 있다.

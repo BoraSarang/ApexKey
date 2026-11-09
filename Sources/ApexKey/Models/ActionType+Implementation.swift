@@ -47,30 +47,31 @@ extension ActionType {
              // 시스템 프리셋으로 이미 실행 가능한 7종 — T-210
              // (SystemActionExecutor에 위임. 별도 구현 대신 중복을 없앤다)
              .screenshot, .newNote, .newQuickNote, .wallpaper, .wakeDisplay,
-             .moveToFront, .darkMode:
+             .moveToFront, .darkMode,
+             // T-211 순수 로직·UI 액션 14종 (E-MAC-NEXT-6100)
+             .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
+             .measurement, .adjustDate, .typeDateTime, .dialog,
+             .getConfirmation, .quickLook, .preventSleep, .getDictionary,
+             .listActions, .saveOutput:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
-        case .dialog, .clipText,
-             .clearRecents, .preventSleep, .focusMode,
+        case .clipText,
+             .clearRecents, .focusMode,
              .pdf, .network, .bluetooth, .timer, .stopwatch,
              .location, .airDrop, .readTable,
-             .emailData, .date, .quickLook, .photos, .musicAndVideo,
+             .emailData, .date, .photos, .musicAndVideo,
              .playMusic, .playPodcast, .tuneStation, .radio, .viewPhotos,
              .album, .randomPhoto, .slideshow, .getLastPhoto, .camera,
              .rotateImage, .cropImage, .trimVideo, .takeScreenshot,
-             .saveOutput, .setVolumeMedia, .moveMedia, .bookmark, .podcasts,
+             .setVolumeMedia, .moveMedia, .bookmark, .podcasts,
              .news, .stocks, .videoDownloader, .editDocument, .translate,
              .textEditShortcut, .noteActions, .createNote,
              .setParagraphStyle, .newDocument, .viewDocument, .mail,
              .setMailBody, .setMailRecipients, .drive, .oneDrive, .box,
              .getFiles, .moveFiles, .renameFiles, .extractArchive,
-             .externalStorage, .fileActions, .getConfirmation,
-             .getAttachment, .getDictionary, .listActions,
-             .adjustDate,
-             .typeDateTime,
-             .measurement, .scanQRCode,
-             .recognizeText, .recognizeAnimal, .detectLanguage, .map,
+             .externalStorage, .fileActions,
+             .getAttachment, .map,
              .transportation, .message, .email, .calendar, .reminders,
              .webContent, .presentation, .webIntegration, .documentsAndFiles,
              .devicesAndSheet, .createShortcutIcon, .variableDetail,

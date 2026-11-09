@@ -54,7 +54,7 @@
 **결과**: 구현 **52→59**, planned **99→92**(중복 숨김 제외 planned 노출 90 · 스텁 3 포함 UI "준비 중" 93). unit 614건 0실패(2 skip).
 사용자가 보는 "준비 중" 목록이 실제와 가까워진다.
 
-### 2-2. T-211 순수 로직 액션 14종 (7d)
+### 2-2. T-211 순수 로직 액션 14종 (7d) — **완료 (2026-11-09)**
 
 | 묶음 | 액션 | 방법 | 예상 |
 |---|---|---|---:|
@@ -62,12 +62,17 @@
 | 언어 | `detectLanguage` | `NLLanguageRecognizer` | 0.25d |
 | 수치·날짜 | `measurement`, `adjustDate`, `typeDateTime` | MeasurementFormatter / Calendar / 기존 `KeySender` | 1d |
 | UI | `dialog`, `getConfirmation`, `quickLook` | NSAlert / QLPreviewPanel | 1.5d |
-| 프로세스 | `preventSleep` | `caffeinate` 프로세스 토글(기존 `wakeDisplay` 인프라 재사용) | 0.5d |
+| 프로세스 | `preventSleep` | `IOPMAssertion` 전원 어서션(프로세스 종료 시 자동 해제) | 0.5d |
 | 데이터·파일 | `getDictionary`, `listActions`, `saveOutput` | plist/JSON 읽기, 카탈로그 목록 반환, FileManager 저장 | 1.5d |
 
 - 공통: 액션당 **설정 UI + en/ko 키 + 단위 테스트** 포함(위 예상에 반영).
-- `getDictionary`·`listActions`는 Shortcuts 원본 의미가 모호하므로 **착수 전 0.5d 사양 확정**.
+- `getDictionary`: JSON/plist를 읽고 `user.name` 점 표기로 중첩 탐색. 키가 비면 정렬 JSON 전체 출력.
+- `listActions`: 카탈로그에서 실제 선택 가능한 액션만 `이름 (rawValue)` 줄 목록으로 출력 — 미구현을 섞지 않는다.
+- `saveOutput`: 상위 폴더 생성, 경로가 폴더면 `output.txt`, `append`로 덧붙이기(기본 덮어쓰기).
+- `typeDateTime`은 `TypingActions`를 재사용해 XCTest에서 실제 전송을 억제한다.
 - 제외: `readTable`(의미 불명), `emailData`(Mail 연동은 2차).
+
+**결과**: 구현 **59→73**, planned **92→78**(중복 숨김 제외 planned 노출 76 · 스텁 3 포함 UI "준비 중" 79). unit 651건 0실패(2 skip).
 
 ### 2-3. T-212 검증·릴리스 v1.6.0 (1.5d)
 

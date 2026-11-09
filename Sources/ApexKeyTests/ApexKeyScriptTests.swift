@@ -49,9 +49,10 @@ final class ApexKeyScriptTests: XCTestCase {
 
     func testEngineReportsUnimplementedActionFailure() {
         // R-01: 미구현 타입이 성공으로 둔갑하지 않음
+        // `.dialog`는 T-211에서 구현됐으므로 아직 미구현인 `.translate`로 검증한다.
         let shortcut = ShortcutItem(
             name: "미구현",
-            steps: [ShortcutStep(type: .dialog, target: "", title: "대화상자")]
+            steps: [ShortcutStep(type: .translate, target: "", title: "번역")]
         )
         var ctx = UseModelExecutor.ExecutionContext()
         let result = ExecutionEngine.shared.execute(shortcut, context: &ctx)

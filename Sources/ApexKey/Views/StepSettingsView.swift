@@ -180,6 +180,12 @@ struct StepSettingsView: View {
         case .openInTerminal:
             // 터미널 앱·방식은 `target` 한 줄로 표현할 수 없다 (T-195)
             TerminalOpenSettingsView(step: $draft)
+        // T-211 순수 로직·UI 액션 14종
+        case .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
+             .measurement, .adjustDate, .typeDateTime, .dialog,
+             .getConfirmation, .quickLook, .preventSleep, .getDictionary,
+             .listActions, .saveOutput:
+            NextActionSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)
