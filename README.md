@@ -33,7 +33,7 @@ ApexKey sits in your **menu bar** and lets you trigger any app's **menu command*
 - **App control** — launch/toggle apps, trigger any app's menu command from anywhere
 - **Workflows** — chain steps (scripts, keys, clicks, conditions, variables) into one shortcut
 - **Menu Shortcut HUD** — every shortcut of the frontmost app at a glance
-- **Automation** — time/folder/battery/charger triggers run workflows for you
+- **Automation** — time/folder/file/external-drive/display/battery/charger/app triggers run workflows for you
 
 Supporting: system presets, command palette, clipboard history, URL scheme, themes. AI actions are not on the table.
 
@@ -48,9 +48,9 @@ Supporting: system presets, command palette, clipboard history, URL scheme, them
 | **Clipboard history** | `⌥;` — last 100 clips / 30 days, with image previews |
 | **Instant Send** | `⌃⌥D` — selected text straight into a workflow as input |
 | **Shared hotkeys** | One combo, many targets — a picker with pinning when combos collide |
-| **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action (52 of 154 catalog actions fully wired; the rest read "Coming soon") |
+| **Shortcut Station** | Chain **steps** — open app, key input, script, paste, wait, click — into one action (100 of 154 catalog actions fully wired; the rest read "Coming soon") |
 | **Flow control** | If / repeat / menu choice, variables, output-to-variable |
-| **Automation** | Time, folder, battery and charger triggers (display, wifi, bluetooth, app: planned) |
+| **Automation** | Time, folder, file, external drive, display, battery, charger and app triggers (wifi, bluetooth, focus, stage manager: planned) |
 | **AI actions** | Use model / writing tool / image playground — **not planned**: they fail gracefully by design (see docs: AI is out of scope) |
 | **System actions** | Lock, mute, dark mode, and more via built-in presets |
 | **Menu Shortcut HUD** | Fullscreen / floating view of the current app's shortcuts, with in-place submenu drill-in + breadcrumb |

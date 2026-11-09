@@ -724,7 +724,11 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - `app`: `NSWorkspace.didLaunch/didTerminate/didActivate/didDeactivateApplicationNotification` — 번들 ID 필터
   - `AutomationSettingsView`에 카테고리·생성 버튼·경로/드라이브/번들 ID/이벤트 편집 추가. 옵저버·스트림은 재구축 시 함께 해제
   - 결과: 지원 트리거 **4→8종**, unit **755건 0실패**(2 skip) · i18n **1477키 일치**
-- [ ] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d)
+- [x] **T-218** 2차 — 검증·릴리스 **v1.7.0** (1.5d) — **완료(태그 대기)**
+  - `FUNCTIONAL_CHECKLIST.md`에 §8-15(v1.7 액션 20항목)·§8-16(트리거 7항목) 추가 — 사용자 실기 확인 대기
+  - `release-notes/v1.7.0.md` 작성(v1.5.0 이후 전체), `v1.6.0.md`에 "배포되지 않음" 명시. `MARKETING_VERSION` 1.7.0
+  - 검증: 버전 가드 1.7.0 통과, unit **755건 0실패**(2 skip), i18n **1477키 일치**
+  - **태그 `v1.7.0`은 사용자 승인 후 생성** (v1.6.0은 배포하지 않고 통합)
 - [ ] **T-219** 3차 — 시스템 액션 6종(집중 모드·최근 항목·AirDrop·Wi-Fi·블루투스, 일부 보류/제외) (4d)
 - [ ] **T-220** 3차 — 미디어 편집·캡처(카메라 권한 포함, `videoDownloader` 제외 권장) (5d)
 - [ ] **T-221** 3차 — 콘텐츠·위치·웹 URL scheme 10종 (3d)

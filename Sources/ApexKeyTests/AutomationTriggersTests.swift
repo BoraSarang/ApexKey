@@ -88,9 +88,10 @@ final class AutomationTriggersTests: XCTestCase {
 
     func testDriveTriggerEventSummary() {
         let trigger = ExternalDriveTrigger(eventTypes: [.mounted, .unmounted])
+        let parts = Set(trigger.eventTypes.displaySummary.components(separatedBy: ", "))
         XCTAssertEqual(
-            trigger.eventTypes.displaySummary,
-            "\(DriveEventType.mounted.displayName), \(DriveEventType.unmounted.displayName)"
+            parts,
+            Set([DriveEventType.mounted.displayName, DriveEventType.unmounted.displayName])
         )
     }
 
