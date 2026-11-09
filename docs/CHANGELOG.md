@@ -3,6 +3,17 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — v1.8.0 검증·릴리스 준비 (T-224, 3차 마무리)
+
+* **시스템 액션 (T-219)** — `network`는 `networksetup`으로 Wi-Fi 상태/켜기/끄기를 수행하고 설정 후 상태를 다시 읽는다. `focusMode`는 사용자가 Shortcuts에서 만든 집중 모드 단축어를 이름으로 실행한다. `videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`는 영구 제외로 확정하고 카탈로그에서 숨겼다.
+* **미디어 편집·캡처 (T-220)** — `rotateImage`·`cropImage`(CoreImage, 원본 보존·파생 파일), `trimVideo`(`avconvert`), `camera`(AVFoundation + `NSCameraUsageDescription`), `setVolumeMedia`, `moveMedia`(확인 후 이동), `musicAndVideo`(AppleScript)를 구현했다.
+* **콘텐츠·위치·웹 (T-221)** — `message`(기본 확인 후 발송), `email`(Mail 초안 기본), `map`·`transportation`(`maps.apple.com`), `webContent`(제목/본문 텍스트), `webIntegration`(fetch·URL 인코딩/디코딩), `presentation`(Keynote), `createShortcutIcon`(1024×1024 PNG)을 구현했다.
+* **App Intents·자동화 (T-222)** — `findApp`, `appIntent`(Shortcuts 단축어 경유, 입력은 임시 파일), `appAction`(URL scheme), `automation`·`findAutomation`, `automationRun`, `trigger`를 구현했다. App Intent를 직접 호출하는 공개 런타임 API가 없어 Shortcuts 경유 한계를 UI·문서에 명시했다.
+* **변수 이름 토큰 (T-223)** — `{이름}`으로 manual 변수를 참조할 수 있다. 특수 변수 우선, 숨김 제외, 중첩 단축어 실행 후 이름 표 복원. macOS 14 실기·서명·`error_message_ko.json`은 `docs/plans/BACKLOG_v1.8_platform_macos.md`에 절차와 완료 기준을 기록했다.
+* **카탈로그** — 전체 154 · 구현 **124** · AI 스텁 3 · planned 27(이 중 6종은 카탈로그 숨김). `FUNCTIONAL_CHECKLIST.md`에 §8-17(25항목)·§8-18(5항목)을 추가했다.
+* **검증** — unit **848건 0실패**(2 skip), i18n ko/en **1610키 일치**. `release-notes/v1.8.0.md` 작성.
+* **버전·태그** — `MARKETING_VERSION` 1.8.0 범프와 `v1.8.0` 태그 생성은 **사용자 승인 후** 진행한다(로컬 태그만, push 안 함).
+
 ## 2026-11-09 macos — v1.7.0 검증·릴리스 준비 (T-218, 2차 마무리)
 
 * **릴리스 노트** — `release-notes/v1.7.0.md`를 작성했다. v1.6.0을 배포하지 않고 **v1.5.0 이후 전체(트랙패드 + 1차 + 2차)**를 v1.7.0 하나에 통합한다. `v1.6.0.md` 상단에 "배포되지 않음"을 명시했다.

@@ -1,6 +1,6 @@
 # PLAN — 차기 3차 작업 (v1.6 ~ v1.8) 초안
 
-> 작성: 2026-11-09 · 플랫폼: macOS · 상태: **1·2차 완료(v1.7.0 통합 태그 생성) / 3차 재승인 대기**
+> 작성: 2026-11-09 · 플랫폼: macOS · 상태: **1·2·3차 완료(구현 124/154) / v1.8.0 범프·태그만 사용자 승인 대기**
 > 승인: 사용자 — "1차만 먼저 승인", 영구 제외 항목 확정. **2026-11-09 "2차 진행" 승인**.
 > 근거: `docs/STATUS.md`, `docs/TODO.md`, `docs/FUNCTIONAL_CHECKLIST.md` §9,
 > `ActionType+Implementation.swift`, `AutomationModels.swift`, `SystemActionExecutor.swift`
@@ -13,7 +13,7 @@
 1. **제품 방향 예외**: `STATUS.md` §2는 "신규 기능 동결"이다. 이 계획은 카탈로그에
    "준비 중"으로 남은 기능을 실제로 구현하는 작업이므로 **동결 예외를 다시 여는 결정**이다.
    범위를 아래 3차로 한정하고, 끝나면 동결로 돌아간다.
-   → **2026-11-09 승인: 1차 진행 → 완료.** 2차는 2026-11-09 추가 승인받아 진행 중. 3차는 2차 결과 후 재승인.
+   → **2026-11-09 승인: 1차 → 완료, 2차 → 완료, 3차 → 완료.** 3차 결과는 §9에 기록했다.
 2. **v1.6.0 선행 조건**: 현재 `MARKETING_VERSION`은 1.5.0인데 v0.33(트랙패드)이
    main에만 있고 미배포다. 1차 릴리스는 **v0.33 + 이번 문서 정합 + 1차 작업**을 함께 묶는다.
    단, 트랙패드 실기 확인(§8-14)이 끝나기 전에는 릴리스하지 않는다.
@@ -258,3 +258,33 @@
 2. **영구 제외 확정**: `videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`.
 3. v1.6.0에 v0.33 포함 — **§8-14 실기 확인 후 태그** 조건 유지.
 4. `getDictionary`·`listActions`는 착수 전 0.5d 사양 확정(불명확하면 1차에서 제외하고 2차로 이동).
+
+---
+
+## 9. 3차 완료 기록 (2026-11-09)
+
+**결과: 완료 — 구현 124 / 154** (계획 "약 115" 초과 달성)
+
+| 작업 | 결과 | 커밋 |
+|---|---|---|
+| T-219 시스템 액션 | `network`(networksetup Wi-Fi 상태/켜기/끄기) · `focusMode`(사용자가 만든 Shortcuts 단축어 실행). 나머지 4종은 영구 제외 | `9f6fd1b` |
+| T-220 미디어 편집·캡처 | `rotateImage` · `cropImage`(CoreImage, 원본 보존) · `trimVideo`(`avconvert`) · `camera`(AVFoundation + 카메라 권한) · `setVolumeMedia` · `moveMedia`(확인 후 이동) · `musicAndVideo`(AppleScript) | `9a782fd` |
+| T-221 콘텐츠·위치·웹 | `message` · `email` · `map` · `transportation` · `webContent` · `webIntegration` · `presentation` · `createShortcutIcon`. `documentsAndFiles`·`devicesAndSheet`는 공개 경로 부재로 planned 유지 | `d1f796f` |
+| T-222 App Intents·자동화 | `findApp` · `appIntent`(Shortcuts 경유) · `appAction`(URL scheme) · `automation` · `findAutomation` · `automationRun` · `trigger` | `c49b534` |
+| T-223 플랫폼 백로그 | `{이름}` manual 변수 토큰 구현. macOS 14 실기·서명·`error_message_ko.json`은 대기 — `BACKLOG_v1.8_platform_macos.md` | `d3db1eb` |
+| T-224 검증·릴리스 | `release-notes/v1.8.0.md`, `FUNCTIONAL_CHECKLIST.md` §8-17·§8-18, `STATUS.md`·`TODO.md` 갱신. **v1.8.0 범프·태그는 사용자 승인 대기** | — |
+
+**계획 대비 변경**
+- T-221은 10종 계획 → 공개 경로가 확인된 **8종 구현**, 2종(`documentsAndFiles`·`devicesAndSheet`)은 planned로 남겼다.
+- T-220의 `slideshow`·`bookmark`는 공개 API 부재로 planned, `takeScreenshot`은 `screenshot`과 중복이라 숨김 유지.
+- T-219의 Wi-Fi·집중 모드는 "트리거"가 아니라 **액션**으로 구현했다. 자동화 트리거 4종(Wi-Fi·블루투스·집중 모드·스테이지 매니저)은 감시자 미지원 상태를 유지한다.
+- App Intent를 이름으로 직접 호출하는 공개 런타임 API가 없어 **Shortcuts 단축어 경유**로 구현하고 한계를 UI 힌트·릴리스 노트에 명시했다.
+
+**검증**
+- unit **848건 0실패**(2 skip) · i18n **ko/en 1610키 일치**
+- 카탈로그: 전체 154 · 구현 124 · AI 스텁 3 · planned 27 (이 중 `takeScreenshot`·`clipText`·`videoDownloader`·`airDrop`·`clearRecents`·`bluetooth` 6종은 카탈로그 숨김)
+- 사용자 실기 확인 대기: `FUNCTIONAL_CHECKLIST.md` §8-17(25항목)·§8-18(5항목)
+
+**영구 제외 재확인**: `videoDownloader` · `airDrop` · `clearRecents` · `bluetooth` — 구현하지 않는다. AI 3종(`useModel`·`writingTool`·`imagePlayground`)은 2026-10-06 무효화 유지.
+
+**릴리스 상태**: `project.yml`은 아직 1.7.0. v1.8.0 범프·`v1.8.0` 태그 생성은 **사용자 승인 후** 진행한다(로컬 태그만, push 안 함).

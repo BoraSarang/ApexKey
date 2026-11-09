@@ -10,7 +10,7 @@
 
 macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy**하지만
 **배포 서명이 없어 릴리스 사용자가 버전업마다 권한을 재승인해야 하고**,
-카탈로그 154종 중 54종은 아직 "준비 중"이다.
+카탈로그 154종 중 **124종 구현**, 27종은 "준비 중"(영구 제외 4종은 카탈로그에서 숨김)이다.
 
 ## 2. 제품 방향 (2026-10-06 확정 — v1.4 이후)
 
@@ -32,25 +32,26 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 지표 | 값 | 출처 |
 |---|---|---|
-| 테스트 | **755건 0실패**(2 skip, 2026-11-09 — T-217 `AutomationTriggersTests` 13건 포함) | `./build_and_run.sh test macos unit` |
+| 테스트 | **848건 0실패**(2 skip, 2026-11-09 — T-219~T-223 반영) | `./build_and_run.sh test macos unit` |
 | 스모크 | 75건 0실패 | `test macos smoke` |
 | 빌드 | 성공, **신규 코드 경고 0**(2026-11-09 v1.7.0) — 클린 빌드 기준 잔여 4건은 2026-10-15 측정값 | `xcodebuild clean build` — 점진 빌드는 경고를 숨긴다. 잔여분은 `CommandPaletteView`(Combine 2·NSEvent 1)·`ConflictPaletteView`(NSEvent 1) + AppIcon 에셋 경고이며 2026-10-15 이전부터 있었다 |
-| 액션 구현 | **100 / 154** (스텁 3, 미구현 51) | `ActionType.implementationCounts()` — 2026-11-09 T-216 반영 |
-| i18n | ko/en **1477키 일치** | `*.lproj/Localizable.strings` |
-| 버전 | 1.7.0 (`project.yml`이 유일한 출처) — **`v1.7.0` 태그 생성(로컬), push 안 함** | `scripts/check-version.py` |
-| 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) · **승인된 1차 3건**(T-210·T-211 완료, T-212 검증 완료·v1.7.0 통합) · **승인된 2차 6건**(T-213~T-218 완료) | `TODO.md` |
+| 액션 구현 | **124 / 154** (AI 스텁 3, 미구현 27 — 이 중 6종은 카탈로그 숨김) | `ActionType.implementationCounts()` — 2026-11-09 T-223 반영 |
+| i18n | ko/en **1610키 일치** | `*.lproj/Localizable.strings` |
+| 버전 | 1.7.0 (`project.yml`이 유일한 출처) — **v1.8.0 범프·태그는 사용자 승인 대기**(`v1.7.0` 태그는 로컬, push 안 함) | `scripts/check-version.py` |
+| 미해결 작업 | **7건** (+ 무효화 6건, T-187~189 완료) · **승인된 1차 3건**(T-210·T-211 완료, T-212 검증 완료·v1.7.0 통합) · **승인된 2차 6건**(T-213~T-218 완료) · **승인된 3차 6건**(T-219~T-224 완료) | `TODO.md` |
 | 미완료 항목 | **6개** (체크박스 14개 = 미확인 11 + 확인 3) | `OPEN_ITEMS.md` |
-| user 실동작 대기 | **123건** (확인 3건 / 전체 126건 — §8-14 트랙패드 11 + §8-15·16 v1.7 27항목 포함) | `FUNCTIONAL_CHECKLIST.md` §8 |
-| 브랜치 | `feat/macos-v1.6-catalog-actions` — T-210~T-217 커밋, push 안 함 | — |
+| user 실동작 대기 | **153건** (확인 3건 / 전체 156건 — §8-14 트랙패드 11 + §8-15·16 v1.7 27 + §8-17·18 v1.8 30 포함) | `FUNCTIONAL_CHECKLIST.md` §8 |
+| 브랜치 | `feat/macos-v1.6-catalog-actions` — T-210~T-223 커밋, push 안 함 | — |
 | 릴리스 | **v1.5.0** — PR #15 머지 + 태그 푸시, `ApexKey-1.5.0-macOS.dmg` 배포됨 | — |
-| 미배포 배치 | **v1.5.0 이후 미릴리스** — v0.33·v0.33.1 트랙패드 + 1차(T-210·T-211) + 2차(T-213~T-218). **v1.6.0은 배포하지 않고 v1.7.0에 통합**, `v1.7.0` 태그 생성(로컬)·push 안 함 | — |
+| 미배포 배치 | **v1.5.0 이후 미릴리스** — v0.33·v0.33.1 트랙패드 + 1차(T-210·T-211) + 2차(T-213~T-218) + 3차(T-219~T-223). **v1.6.0은 배포하지 않고 v1.7.0에 통합**, v1.7.0 태그는 로컬·push 안 함. **v1.8.0 범프·태그 대기** | — |
 
 ---
 
-## 3. 최근 완료분 (2026-09-27 ~ 11-08)
+## 3. 최근 완료분 (2026-09-27 ~ 11-09)
 
 | 작업 | 결과 |
 |---|---|
+| **2026-11-09 3차 v1.8.0 (T-219~T-224)** | **구현 124/154**(AI 스텁 3, planned 27 — 이 중 6종 카탈로그 숨김). T-219 시스템 2종(Wi-Fi·집중 모드), T-220 미디어 편집·캡처 7종, T-221 콘텐츠·위치·웹 8종, T-222 App Intents·자동화 카탈로그 7종, T-223 `{이름}` 변수 토큰 + 플랫폼 백로그 문서. **unit 848건 0실패**(2 skip) · i18n **1610키 일치**. 영구 제외 4종(`videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`)은 카탈로그에서 숨김. macOS 14 실기·Developer ID 서명·`error_message_ko.json`은 대기 — `docs/plans/BACKLOG_v1.8_platform_macos.md`. **v1.8.0 범프·태그는 사용자 승인 대기** |
 | **2026-11-08 트랙패드 실기 심화 (v0.33.1)** | 실기 피드백 3건 수정 — ① **y축 방향**: 원시 `normalized.pos.y`는 아래가 0이라 위로 밀면 볼륨이 내려가고 미리보기 점이 반대로 움직였다. Jitouch의 실제 판정(`py 증가 = Up`)으로 확정하고 슬라이더·스와이프·에지 띠·팜 리젝트·미리보기를 모두 교정. ② **두 손가락이 띠에 안 들어감**: "전부 띠 안" → **평균 위치 기준**(간격 10% 허용, 기본 폭 15%), 미리보기에 허용 띠 표시. ③ **너무 예민함**: 1스텝 14% 이동·한 프레임 1스텝·쿨다운 120ms·임계 7%, HUD ▲/▼ + 카드에 방향 문구. 시드 기본값과 완전히 같은 규칙만 한 번 보정(`pref.trackpad.tuningVersion`). **609건 0실패**·i18n 1241키. 실기 재확인은 §8-14 |
 | **2026-11-08 트랙패드 제스처 (v0.33, T-196~T-208)** | 에지 슬라이더(우측 두 손가락 위/아래 → 볼륨) + 탭·스와이프 → 워크플로우·단축키·**메뉴 항목**·시스템 액션. **모듈 격리**(`Trackpad/`, 기본 꺼짐), **새 권한 없음**(기존 Accessibility 재사용, Input Monitoring 요구하지 않음). 비공개 `MultitouchSupport`는 `MTBridge.swift` 한 파일에만 두고 `scripts/check-trackpad-boundary.py`가 빌드 게이트(0/6c)로 강제. 저장은 **UserDefaults JSON** — SwiftData 스키마 무변경. 시스템 액션 15→23(볼륨 올리기/내리기 + 스크린샷·새 메모·빠른 메모·배경화면·화면 깨우기·앱 전면으로). 인식기 18 + 리플레이 3 + 저장 8 + 액션 카탈로그 36건 통과, 10,000프레임 처리 1초 미만. **실기 에지 감도·스크롤 억제 체감은 사용자 30초 확인 대기** |
 | **2026-10-17 터미널에서 열기 (T-195)** | `openInTerminal` 카탈로그 등록(153→154). Finder 경로를 **AppleScript(Finder 자동화)** 로 읽는다(`target of front window`+`selection`, NUL 구분) — AX 초판은 실측 후 폐기(창 `AXDocument` = `-25212`, 행/셀에 `AXURL` 속성 없음 → 절대 경로 불가). **근본 원인 수정: 하드닝 런타임에 `com.apple.security.automation.apple-events` 엔타이틀먼트가 없어 AppleEvent가 프롬프트 없이 `-1743`으로 거부**되고 있었다(tccd: `Policy disallows prompt`) — 메뉴 클릭·AppleScript/JXA·새 탭도 같은 원인으로 깨져 있었고 함께 살아났다. 규칙: 선택 우선 → 현재 창. 스키마 무변경(`actionParameters`). 573건 0실패·i18n 1033키. 라이브 실측 `folder=/Users/lee/Documents/Files/Qwen2.5-32B`. 사용자 저장소에 워크플로우 1건 직접 등록(`터미널에서 열기`) — **사용자 실동작 확인 완료(2026-10-17, 선택 폴더 3건·현재 창 1건), 단축키는 사용자가 ⌥E로 변경. PR #19 main 머지(`7a41b2a`)** |
@@ -126,7 +127,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 |---|---|---|
 | **Developer ID 서명 + notarization** | Apple Developer Program(연 $99) 가입이 선행 | 사용자 가입. 코드(`release.yml`)는 그 다음 |
 | **`saveContext` → `Bool`** | **검증 수단이 없음.** chmod는 소유자에게 통하지 않고, SQLite 배타 락은 저장 실패가 아니라 **무한 대기**를 유발 | SwiftData 저장 실패를 결정적으로 재현하는 수단 (예: 읽기 전용 볼륨 위의 store) |
-| **미구현 액션 51종** | 미디어 편집·캡처, 시스템 프리셋, 웹·위치 URL scheme, App Intents 등 | 앱별 API 조사 또는 시스템 프리셋 위임 필요 |
+| **미구현 액션 27종** | 공개 API가 없거나(북마크·슬라이드쇼·표 읽기 등) 영구 제외(4종)·계획 밖. T-219~T-223에서 공개 경로가 있는 항목은 모두 구현 | 추가 구현 없음 — 영구 제외 4종은 카탈로그에서 숨김. 남은 27종은 `docs/plans/BACKLOG_v1.8_platform_macos.md` §6 |
 | **macOS 14 실기 검증** | 이 세션은 macOS 26에서만 실행 | macOS 14 기기 또는 가상머신 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월 | `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
 | **트랙패드 실기 감도** | 30초짜리 손 동작이 필요하다 — 에이전트가 대신할 수 없다. 2026-11-08 방향·두 손가락 인식·체감은 사용자가 "동작은 잘 되는 것 같음"으로 정성 확인 | 나머지 §8-14 항목(스크롤 억제·⌥ 건너뛰기·제스처/메뉴 실행·재시작 유지) 사용자 확인. 필요하면 감도·에지 폭(기본 15%)·시작 임계(7%) 조정 |
@@ -140,7 +141,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 
 | 항목 | 왜 안 했나 |
 |---|---|
-| **사용자 실동작 검증 96건** | 에이전트가 대신할 수 없음 (스레드·핫키·권한·UI). `FUNCTIONAL_CHECKLIST.md` §8. **8-7·8-9·8-10(17건)이 특히 위험** — 스레드 모델을 바꿨다. 이번에 8-9(키 입력)·8-10(debounce)이 추가됐다. 2026-10-02 변경(`shortcutProvider` 홉·메뉴 홉·`KeySender`)도 8-7에서 재확인 필요 |
+| **사용자 실동작 검증 153건** | 에이전트가 대신할 수 없음 (스레드·핫키·권한·UI). `FUNCTIONAL_CHECKLIST.md` §8. **8-7·8-9·8-10(17건)이 특히 위험** — 스레드 모델을 바꿨다. 이번에 8-9(키 입력)·8-10(debounce)이 추가됐다. 2026-10-02 변경(`shortcutProvider` 홉·메뉴 홉·`KeySender`)도 8-7에서 재확인 필요 |
 | **PR #7 병합 후 리뷰** | main에 병합은 됐으나 **커밋 단위 리뷰는 안 됐다.** 59커밋을 한 번에 올렸다 |
 | **macOS 14 런타임 실기 검증** | 이 작업은 macOS 26에서만 수행됐다 |
 | **`error_message_ko.json`** | `rules/quality.md`가 요구하지만 파일이 없고, 현재 `error.user.*`가 en까지 포함해 기능적으로 우월. `~/.config/opencode/rules/`는 **프로젝트 밖**이라 사용자 지시 없이 건드리지 않음 |
@@ -190,7 +191,7 @@ PR #7의 첫 CI에서 `MenuActionPathTests.testMissingMenuItemProduces1728` 1건
 
 **2순위 — 규모 있음**
 - T-036 (메뉴 명령 단계 실행 불가 + 앱/메뉴 선택 UI)
-- 미구현 액션 51종 — **영역별 API 조사 선행 필요**
+- 미구현 액션 27종 — **공개 API 부재·영구 제외·계획 밖으로 확정** (3차에서 조사 종료, 추가 구현 없음)
 
 **착수 불가 (조건 대기)**
 - Developer ID 서명 — Apple Developer Program 가입 대기
