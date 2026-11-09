@@ -3,6 +3,16 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-09 macos — 파일 액션 7종 (T-213, v1.7 2차)
+
+* **파일 목록** — `getFiles`가 폴더의 파일을 정렬해 `.list` of `.file`로 출력한다. 하위 폴더(`recursive`)·숨김(`includeHidden`)·확장자 필터(`pdf, jpg`)를 지원하고, 패키지(.app 등) 내부로는 내려가지 않는다.
+* **이동·이름 변경·압축 풀기** — `moveFiles`(대상 폴더 자동 생성·이름 충돌 시 실패) · `renameFiles`(`{name}`·`{index}`·`{date}`·`{ext}` 템플릿, 확장자 자동 보존, 배치 충돌 감지, 템플릿이 비면 찾기/바꾸기) · `extractArchive`(zip은 `ditto -x -k`, tar 계열은 `/usr/bin/tar -xf`, 그 외 형식은 실패 사유 반환).
+* **외부 저장소·파일 동작·첨부** — `externalStorage`(`NSWorkspace.mountedVolumeURLs`로 외부·로컬 볼륨만 목록화, 볼륨 이름 선택 후 하위 경로로 복사) · `fileActions`(copy·move·duplicate·trash(`NSWorkspace.recycle`)·reveal) · `getAttachment`(Mail 선택 메시지의 첨부를 폴더에 저장, Mail 미실행·자동화 거부·첨부 없음을 구분).
+* **안전장치** — 사용자 데이터를 바꾸는 동작은 `confirmBeforeChange` 기본 켜짐. 확인 창 앞에 대상과 파일 목록을 미리 보여주고, 취소는 실패 사유(`cancelled`)로 끝나며 원본은 그대로 둔다.
+* **설정 UI** — `FileActionSettingsView`가 액션별 입력만 노출한다(폴더·파일 피커, 볼륨 피커, 확인/덮어쓰기 토글). en/ko 61키 추가.
+* **테스트** — `FileActionsTests` 25건(임시 디렉터리 픽스처, 확인/취소 경로, 엔진 배선). unit **676건 0실패**(2 skip).
+* **결과** — 구현 **73→80**, planned **78→71**. 카탈로그 UI의 "준비 중"은 74종. i18n **1360키 일치**.
+
 ## 2026-11-09 macos — v1.6.0 릴리스 준비 (T-212, 태그 대기)
 
 * **버전 범프** — `project.yml` `MARKETING_VERSION` 1.5.0 → **1.6.0**. 버전 단일 출처 가드 통과.

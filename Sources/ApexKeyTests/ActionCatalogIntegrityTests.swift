@@ -126,6 +126,22 @@ final class ActionCatalogIntegrityTests: XCTestCase {
         }
     }
 
+    /// T-213에서 구현한 파일 액션 7종이 implemented로 유지되는지
+    func testFileActionsAreImplemented() {
+        let implemented: [ActionType] = [
+            .getFiles, .moveFiles, .renameFiles, .extractArchive,
+            .externalStorage, .fileActions, .getAttachment,
+        ]
+        for type in implemented {
+            XCTAssertEqual(
+                type.implementation, .implemented,
+                "\(type.rawValue) 는 T-213에서 구현했으므로 implemented여야 함"
+            )
+            XCTAssertTrue(type.isSelectable, "\(type.rawValue) 는 카탈로그에서 선택 가능해야 함")
+            XCTAssertTrue(type.hasStepSettingsUI, "\(type.rawValue) 는 설정 UI를 제공해야 함")
+        }
+    }
+
     /// T-211에서 구현한 14종이 implemented로 유지되는지
     ///
     /// 하나라도 planned로 되돌아가면 카탈로그가 "준비 중"으로 숨기는데

@@ -186,6 +186,10 @@ struct StepSettingsView: View {
              .getConfirmation, .quickLook, .preventSleep, .getDictionary,
              .listActions, .saveOutput:
             NextActionSettingsView(step: $draft)
+        // T-213 파일 액션 7종
+        case .getFiles, .moveFiles, .renameFiles, .extractArchive,
+             .externalStorage, .fileActions, .getAttachment:
+            FileActionSettingsView(step: $draft)
         default:
             // 기본 단계: 대상/제목 편집
             DefaultSettingsView(step: $draft)

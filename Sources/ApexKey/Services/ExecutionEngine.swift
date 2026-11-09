@@ -532,6 +532,217 @@ final class ExecutionEngine {
         }
     }
 
+    // MARK: - T-213 파일 액션 7종
+
+    /// 파일 액션 실행.
+    ///
+    /// 입력 경로 우선순위: `actionParameters.sourcePaths` → 이전 단계 출력(파일/목록/줄바꿈 텍스트)
+    /// → `step.target`. 데이터를 바꾸는 동작은 `confirmBeforeChange`(기본 켜짐)일 때만 확인 창을 띄운다.
+    private func executeFileAction(
+        _ step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        let config = FileActionConfig.decode(from: step.actionParameters)
+        let ctx = makeResolveContext(context)
+        let sources = fileSourcePaths(
+            config,
+            step: step,
+            context: context,
+            resolveContext: ctx,
+            fallbackToTarget: true
+        )
+        let confirm: FileActions.Confirmer = config.shouldConfirm
+            ? FileActions.defaultConfirmer
+            : { _ in true }
+        let destination = VariableResolver.resolveText(
+            config.destination ?? "",
+            context: ctx
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch step.type {
+        case .getFiles:
+            guard let folder = sources.first else {
+                return fileFailure(.emptyPath, step: step)
+            }
+            return fileOutcome(
+                FileActions.listFiles(
+                    path: folder,
+                    recursive: config.recursive ?? false,
+                    includeHidden: config.includeHidden ?? false,
+                    extensions: config.extensions
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .moveFiles:
+            return fileOutcome(
+                FileActions.move(
+                    sources,
+                    to: destination,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .renameFiles:
+            return fileOutcome(
+                FileActions.rename(
+                    sources,
+                    template: config.template,
+                    find: config.findText,
+                    replace: config.replaceText,
+                    startNumber: config.startNumber ?? 1,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .extractArchive:
+            guard let archive = sources.first else {
+                return fileFailure(.emptyPath, step: step)
+            }
+            return fileOutcome(
+                FileActions.extractArchive(
+                    archive: archive,
+                    to: destination.isEmpty ? nil : destination
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .externalStorage:
+            if (config.storageMode ?? .list) == .list {
+                let volumes = FileActions.externalVolumes()
+                guard !volumes.isEmpty else {
+                    return fileFailure(.noExternalVolume, step: step)
+                }
+                return fileSuccess(volumes, step: step, context: &context)
+            }
+            return fileOutcome(
+                FileActions.saveToExternalStorage(
+                    sources,
+                    volumeName: config.volumeName,
+                    subpath: destination.isEmpty ? nil : destination,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .fileActions:
+            return fileOutcome(
+                FileActions.perform(
+                    operation: config.operation ?? .copy,
+                    sourcePaths: sources,
+                    destination: destination.isEmpty ? nil : destination,
+                    overwrite: config.shouldOverwrite,
+                    confirm: confirm
+                ),
+                step: step,
+                context: &context
+            )
+
+        case .getAttachment:
+            return fileOutcome(
+                FileActions.mailAttachments(to: destination.isEmpty ? nil : destination),
+                step: step,
+                context: &context
+            )
+
+        default:
+            return Result(
+                success: false,
+                controlFlow: .continueExecution,
+                error: "error.user.action_failed_fmt".localizedFormat(step.type.displayName)
+            )
+        }
+    }
+
+    /// 입력 경로를 설정·이전 출력·`target` 순서로 모은다 (Magic Variable 해석 포함)
+    private func fileSourcePaths(
+        _ config: FileActionConfig,
+        step: ShortcutStep,
+        context: UseModelExecutor.ExecutionContext,
+        resolveContext: VariableResolver.ResolveContext,
+        fallbackToTarget: Bool
+    ) -> [String] {
+        let resolveLines: (String) -> [String] = { text in
+            text.split(whereSeparator: { $0 == "\n" || $0 == "\r" })
+                .map { VariableResolver.resolveText(String($0), context: resolveContext) }
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
+
+        if let configured = config.sourcePaths, !configured.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let lines = resolveLines(configured)
+            if !lines.isEmpty { return lines }
+        }
+
+        if let list = context.lastOutput.asList {
+            let paths = list.compactMap { value -> String? in
+                if case .file(let url) = value { return url.path }
+                if let text = value.asText, !text.isEmpty { return text }
+                return nil
+            }
+            if !paths.isEmpty { return paths }
+        }
+        if let file = context.lastOutput.asFile {
+            return [file.path]
+        }
+        if let text = context.lastOutput.asText, !text.isEmpty {
+            let lines = resolveLines(text)
+            if !lines.isEmpty { return lines }
+        }
+
+        guard fallbackToTarget else { return [] }
+        let target = VariableResolver.resolveText(step.target, context: resolveContext)
+        return target
+            .split(whereSeparator: { $0 == "\n" || $0 == "\r" })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func fileOutcome(
+        _ outcome: FileActions.OperationResult,
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        switch outcome {
+        case .success(let urls):
+            return fileSuccess(urls, step: step, context: &context)
+        case .failure(let reason):
+            return fileFailure(reason, step: step)
+        }
+    }
+
+    private func fileSuccess(
+        _ urls: [URL],
+        step: ShortcutStep,
+        context: inout UseModelExecutor.ExecutionContext
+    ) -> Result {
+        context.setOutput(.list(urls.map { .file($0) }), for: step.id)
+        Logger.info("ExecutionEngine", "\(step.type.rawValue) 완료: \(urls.count)개")
+        return .continueRunning
+    }
+
+    private func fileFailure(
+        _ reason: FileActions.FailureReason,
+        step: ShortcutStep
+    ) -> Result {
+        Logger.error("E-MAC-FILE-6200", "\(step.type.rawValue) 실패: \(reason)")
+        return Result(
+            success: false,
+            controlFlow: .continueExecution,
+            error: reason.message
+        )
+    }
+
     // MARK: - 단계 실행
 
     private func executeStep(_ step: ShortcutStep, context: inout UseModelExecutor.ExecutionContext, depth: Int = 0) -> Result {
@@ -569,6 +780,11 @@ final class ExecutionEngine {
              .getConfirmation, .quickLook, .preventSleep, .getDictionary,
              .listActions, .saveOutput:
             return executeNextAction(step, context: &context)
+
+        // === T-213 파일 액션 7종 ===
+        case .getFiles, .moveFiles, .renameFiles, .extractArchive,
+             .externalStorage, .fileActions, .getAttachment:
+            return executeFileAction(step, context: &context)
 
         // === AI 액션 ===
         case .useModel:

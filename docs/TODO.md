@@ -695,7 +695,11 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - `release-notes/v1.6.0.md` 작성(v0.33 트랙패드 포함), `MARKETING_VERSION` 1.6.0 범프
   - unit **651건 0실패**(2 skip) · i18n **1299키 일치** · `xcodebuild clean build` 신규 코드 경고 0
   - **남은 것**: §8-14 트랙패드 실기 확인 → 사용자 승인 → 태그 `v1.6.0`
-- [ ] **T-213** 2차 — 파일 액션 7종(가져오기·이동·이름 변경·압축 해제·외부 저장소·파일 동작·첨부) + 확인/취소 안전장치 (3d)
+- [x] **T-213** 2차 — 파일 액션 7종(가져오기·이동·이름 변경·압축 해제·외부 저장소·파일 동작·첨부) + 확인/취소 안전장치 (3d) — **완료**
+  - `getFiles`(재귀·숨김·확장자 필터) · `moveFiles` · `renameFiles`(`{name}`·`{index}`·`{date}`·`{ext}`, 확장자 보존, 배치 충돌 감지) · `extractArchive`(zip=`ditto`, tar 계열=`tar`)
+  - `externalStorage`(외부 볼륨 목록/복사) · `fileActions`(copy/move/duplicate/trash/reveal) · `getAttachment`(Mail 선택 메시지 첨부 저장)
+  - 데이터 변경은 `confirmBeforeChange` 기본 켜짐 — 확인/취소 경로를 주입 클로저로 테스트. 실패 사유 14종 구분(경로 없음·폴더 아님·충돌·권한·압축 형식 등)
+  - 결과: 구현 **73→80**, planned **78→71**(스텁 3 포함 UI "준비 중" 79→74). unit **676건 0실패**(2 skip) · i18n **1360키 일치**
 - [ ] **T-214** 2차 — Apple 앱 1: Notes·Reminders·Calendar (3d)
 - [ ] **T-215** 2차 — Apple 앱 2: Mail·Music·Podcasts·Photos (스파이크 1d + 5d)
 - [ ] **T-216** 2차 — 문서 앱: Pages·Numbers·TextEdit (2d)

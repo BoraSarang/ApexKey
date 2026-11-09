@@ -52,7 +52,10 @@ extension ActionType {
              .recognizeText, .scanQRCode, .recognizeAnimal, .detectLanguage,
              .measurement, .adjustDate, .typeDateTime, .dialog,
              .getConfirmation, .quickLook, .preventSleep, .getDictionary,
-             .listActions, .saveOutput:
+             .listActions, .saveOutput,
+             // 파일 액션 7종 — T-213 (ExecutionEngine.executeFileAction)
+             .getFiles, .moveFiles, .renameFiles, .extractArchive,
+             .externalStorage, .fileActions, .getAttachment:
             return .implemented
         case .imagePlayground, .useModel, .writingTool:
             return .stub
@@ -69,9 +72,7 @@ extension ActionType {
              .textEditShortcut, .noteActions, .createNote,
              .setParagraphStyle, .newDocument, .viewDocument, .mail,
              .setMailBody, .setMailRecipients, .drive, .oneDrive, .box,
-             .getFiles, .moveFiles, .renameFiles, .extractArchive,
-             .externalStorage, .fileActions,
-             .getAttachment, .map,
+             .map,
              .transportation, .message, .email, .calendar, .reminders,
              .webContent, .presentation, .webIntegration, .documentsAndFiles,
              .devicesAndSheet, .createShortcutIcon, .variableDetail,
