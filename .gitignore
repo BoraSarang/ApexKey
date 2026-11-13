@@ -47,3 +47,6 @@ docs/screenshots/
 __pycache__/
 Sources/extracted_*.json
 Sources/extracted_*.txt
+
+# agent scratch — 커밋 금지 (_workspace/)
+_workspace/
