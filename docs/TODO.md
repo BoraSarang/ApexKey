@@ -756,6 +756,15 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
   - 검증: unit **848건 0실패**(2 skip), i18n **1610키 일치**, 카탈로그 구현 **124/154**
   - **`MARKETING_VERSION` 1.8.0 범프·버전 가드 통과** — **PR #22 머지·`v1.8.0` 태그 push 완료**
 
+## v1.8.1 — 시스템 볼륨 HUD (2026-11-15, PLAN_v1.8.1_volume-hud)
+
+- [x] **T-225 시스템 볼륨·음소거 HUD** (0.5d) — **완료 (2026-11-15 사용자 실동작 확인)**
+  - 원인: 볼륨 액션이 CoreAudio로 값을 직접 바꿔 시스템 HUD(미디어 키 반응)를 건너뛴다
+  - 변경: `SystemMediaKey`(NX_SYSDEFINED 주입) 신규 + `SystemActionExecutor` 볼륨/음소거를 미디어 키 우선으로.
+    주입 실패 시 CoreAudio/AppleScript 폴백. mute는 실제 음소거 플래그(볼륨 보존)
+  - 실측(2026-11-15, macOS 27.2.1): CoreAudio → HUD 없음 / 미디어 키 → 1/16 스텝 + `MenuBarAgent` HUD
+  - 검증: `SystemMediaKeyTests` + unit + 사용자 단축키 실동작(시스템 HUD)
+
 **예상**: 1차 9~10일 → 구현 약 73/154 · 2차 16~18일 → 약 93 · 3차 20일 → 약 115.
 **실제**: 1차 73 · 2차 100 · 3차 **124 / 154** (계획 115 초과).
 
