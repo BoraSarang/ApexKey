@@ -201,11 +201,11 @@ enum SystemActionExecutor {
     static func execute(_ type: SystemActionType, parameter: String? = nil) -> Bool {
         switch type {
         case .volumeUp:
-            return SystemVolume.adjust(by: EdgeSliderRecognizer.stepValue) != nil
+            return adjustVolume(up: true)
         case .volumeDown:
-            return SystemVolume.adjust(by: -EdgeSliderRecognizer.stepValue) != nil
+            return adjustVolume(up: false)
         case .mute:
-            // AppleScript 없는 순수 볼륨 토글
+            // 시스템 미디어 키 우선 — 실제 음소거 플래그 + 네이티브 HUD
             return toggleMute()
         case .screenshot:
             return takeScreenshot()
@@ -344,7 +344,36 @@ enum SystemActionExecutor {
         }
     }
 
+    /// 볼륨 1스텝 조절.
+    ///
+    /// 시스템 미디어 키를 주입해 **네이티브 HUD**를 띄운다(스텝 1/16 — 기존 CoreAudio 경로와 동일).
+    /// 권한·이벤트 생성 문제로 주입이 불가하면 CoreAudio로 폴백한다(HUD는 없지만 기능 유지).
+    private static func adjustVolume(up: Bool) -> Bool {
+        let before = SystemVolume.current()
+        if SystemMediaKey.post(up ? .soundUp : .soundDown) {
+            Logger.info("SystemActionExecutor", "볼륨 \(up ? "올리기" : "내리기") — 미디어 키 (이전 \(percent(before)))")
+            return true
+        }
+        let delta = up ? EdgeSliderRecognizer.stepValue : -EdgeSliderRecognizer.stepValue
+        guard SystemVolume.adjust(by: delta) != nil else {
+            Logger.error("E-MAC-SYS-8014", "볼륨 조절 실패")
+            return false
+        }
+        Logger.info("SystemActionExecutor", "볼륨 \(up ? "올리기" : "내리기") — CoreAudio 폴백")
+        return true
+    }
+
+    private static func percent(_ value: Float?) -> String {
+        guard let value else { return "?" }
+        return "\(Int((value * 100).rounded()))%"
+    }
+
     private static func toggleMute() -> Bool {
+        // 네이티브 음소거 키 — 볼륨 값 보존 + 시스템 HUD. 기존 "0 ↔ 60" 토글을 대체한다.
+        if SystemMediaKey.post(.mute) {
+            Logger.info("SystemActionExecutor", "음소거 토글 — 미디어 키")
+            return true
+        }
         let source = defaultAppleScripts[.mute] ?? ""
         guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         let r = ScriptExecutor.runAppleScript(source)
@@ -352,7 +381,7 @@ enum SystemActionExecutor {
             Logger.error("E-MAC-SYS-8002", "음소거 실행 실패: \(r.errorOutput.prefix(500))")
             return false
         }
-        Logger.info("SystemActionExecutor", "음소거 토글")
+        Logger.info("SystemActionExecutor", "음소거 토글 — AppleScript 폴백")
         return true
     }
 

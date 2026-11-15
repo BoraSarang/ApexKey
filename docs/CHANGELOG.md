@@ -3,6 +3,13 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-15 macos — 시스템 볼륨·음소거 HUD (T-225)
+
+* **원인** — 볼륨 올리기/내리기가 `SystemVolume`(CoreAudio)로 값을 직접 바꿔 **시스템 볼륨 HUD를 건너뛰었다**. macOS HUD는 볼륨 값 변경이 아니라 **하드웨어 미디어 키 이벤트**에 반응해 `MenuBarAgent`가 그린다.
+* **변경** — `SystemMediaKey`(신규)가 `NX_SYSDEFINED`(subtype 8) 볼륨 업/다운/뮤트 키를 `.cghidEventTap`에 주입한다. `SystemActionExecutor`의 볼륨·음소거가 미디어 키를 우선 사용하고, 주입 실패(접근성 권한·이벤트 생성) 시 CoreAudio/AppleScript로 폴백한다. 스텝은 기존과 같은 1/16.
+* **동작 변화** — 음소거 토글이 "볼륨 0 ↔ 60"에서 **실제 음소거 플래그**(볼륨 값 보존)로 바뀐다. 레이블("음소거 토글")과 일치하고 시스템 HUD가 뜬다.
+* **검증** — 실측(macOS 27.2.1): CoreAudio 변경은 HUD 없음, 미디어 키 주입은 1/16 스텝 + HUD 표시. unit **851건 0실패**(3 skip). **사용자 단축키 실동작 확인 완료(2026-11-15)** — 볼륨 업/다운/음소거 모두 시스템 HUD 표시.
+
 ## 2026-11-09 macos — v1.8.0 검증·릴리스 준비 (T-224, 3차 마무리)
 
 * **시스템 액션 (T-219)** — `network`는 `networksetup`으로 Wi-Fi 상태/켜기/끄기를 수행하고 설정 후 상태를 다시 읽는다. `focusMode`는 사용자가 Shortcuts에서 만든 집중 모드 단축어를 이름으로 실행한다. `videoDownloader`·`airDrop`·`clearRecents`·`bluetooth`는 영구 제외로 확정하고 카탈로그에서 숨겼다.
