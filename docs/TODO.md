@@ -758,7 +758,7 @@ Apple 앱 연동이 대부분이라 순수 로직으로 처리할 수 없다.
 
 ## v1.8.1 — 시스템 볼륨 HUD (2026-11-15, PLAN_v1.8.1_volume-hud)
 
-- [x] **T-225 시스템 볼륨·음소거 HUD** (0.5d) — **완료 (2026-11-15 사용자 실동작 확인)**
+- [x] **T-225 시스템 볼륨·음소거 HUD** (0.5d) — **완료 (2026-11-15 사용자 실동작 확인 · PR #23)**
   - 원인: 볼륨 액션이 CoreAudio로 값을 직접 바꿔 시스템 HUD(미디어 키 반응)를 건너뛴다
   - 변경: `SystemMediaKey`(NX_SYSDEFINED 주입) 신규 + `SystemActionExecutor` 볼륨/음소거를 미디어 키 우선으로.
     주입 실패 시 CoreAudio/AppleScript 폴백. mute는 실제 음소거 플래그(볼륨 보존)
