@@ -15,53 +15,54 @@ extension ConfigStore {
 
         trackpadEnabled = defaults.bool(forKey: PrefKeys.trackpadEnabled)
 
-        let savedSliderData = defaults.data(forKey: PrefKeys.trackpadSliders)
-        var slidersDecoded = false
-        if let data = savedSliderData,
+        if let data = defaults.data(forKey: PrefKeys.trackpadSliders),
            let rules = try? JSONDecoder().decode([EdgeSliderRule].self, from: data) {
             trackpadSliders = rules
-            slidersDecoded = true
+        } else {
+            trackpadSliders = []
         }
         if let data = defaults.data(forKey: PrefKeys.trackpadGestures),
            let rules = try? JSONDecoder().decode([GestureRule].self, from: data) {
             trackpadGestures = rules
+        } else {
+            trackpadGestures = []
         }
 
-        // 첫 실행 — 기본 규칙 1개(오른쪽 에지 · 두 손가락 · 볼륨)를 넣어 둔다.
-        // 사용자가 지우면 다시 넣지 않는다(플래그).
-        //
-        // `slidersDecoded` 조건이 없으면 구버전 버그 상태를 복구하지 못한다:
-        // 시드가 저장되지 않은 채 `didSeed`만 1이 되어, 재실행해도 규칙이 0개로 남는다.
-        // 사용자가 **직접 비운** 경우에는 빈 배열(`[]`)이 저장되어 디코드되므로 재시드하지 않는다.
-        let needsSeed = trackpadSliders.isEmpty
-            && (!defaults.bool(forKey: PrefKeys.trackpadDidSeed) || !slidersDecoded)
-        if needsSeed {
-            trackpadSliders = [EdgeSliderRule()]
-            defaults.set(true, forKey: PrefKeys.trackpadDidSeed)
-        }
+        // v2(2026-11-19)부터 **자동 시드를 만들지 않는다.**
+        // 사용자가 규칙을 전부 지운 상태를 존중하고, 빈 화면에서
+        // "권장 설정 불러오기" 버튼으로 명시적으로 만든다.
+        var migrated = false
 
-        // 로드 중 저장을 막았으므로(무한 되쓰기 방지) 시드는 여기서 한 번 명시적으로 저장한다.
-        // 이 줄이 없으면 앱을 껐다 켤 때 기본 규칙이 사라진다(플래그만 남아 재시드도 안 됨).
-        //
         // v0.33.1: 실기 피드백(너무 예민함 · 두 손가락이 띠에 안 들어감)으로 권장값을
         // 넓고 둔감하게 바꿨다. **시드 기본값 그대로인 규칙만** 한 번 보정한다.
         // 사용자가 직접 만진 값(감도·폭·임계값·쿨다운)은 덮어쓰지 않는다.
-        var tuningMigrated = false
         if defaults.integer(forKey: PrefKeys.trackpadTuningVersion) < 2 {
-            let recommended = EdgeSliderRule()
             for index in trackpadSliders.indices where trackpadSliders[index].isLegacySeedDefault {
-                var rule = trackpadSliders[index]
-                rule.edgeWidth = recommended.edgeWidth
-                rule.startThreshold = recommended.startThreshold
-                rule.cooldown = recommended.cooldown
-                trackpadSliders[index] = rule
-                tuningMigrated = true
+                trackpadSliders[index].edgeWidth = 0.15
+                trackpadSliders[index].startThreshold = 0.07
+                trackpadSliders[index].cooldown = 0.12
+                migrated = true
             }
             defaults.set(2, forKey: PrefKeys.trackpadTuningVersion)
         }
 
+        // v2 프로필(v3): 기본값 그대로인 v0.33 규칙만 1손가락·연속 매핑으로 올린다.
+        // 사용자가 만진 규칙은 그대로 둔다 — 저장된 동작이 바뀌지 않아야 한다.
+        if defaults.integer(forKey: PrefKeys.trackpadTuningVersion) < 3 {
+            let recommended = EdgeSliderRule()
+            for index in trackpadSliders.indices where trackpadSliders[index].isSeedV2Default {
+                trackpadSliders[index].fingers = recommended.fingers
+                trackpadSliders[index].edgeWidth = recommended.edgeWidth
+                trackpadSliders[index].startThreshold = recommended.startThreshold
+                trackpadSliders[index].sensitivity = recommended.sensitivity
+                trackpadSliders[index].mapping = recommended.mapping
+                migrated = true
+            }
+            defaults.set(3, forKey: PrefKeys.trackpadTuningVersion)
+        }
+
         isLoadingTrackpad = false
-        if needsSeed || tuningMigrated {
+        if migrated {
             saveTrackpadSliders()
         }
     }
@@ -114,9 +115,15 @@ extension ConfigStore {
         trackpadGestures.removeAll { $0.id == id }
     }
 
-    /// 규칙 0개 → 기본 규칙 1개 만들기
+    /// 규칙 0개 → 권장 프로필 1개 만들기 (오른쪽 에지 · 한 손가락 · 볼륨 · 연속)
     func createDefaultTrackpadSlider() {
         upsertTrackpadSlider(EdgeSliderRule())
+    }
+
+    /// 빈 상태의 "권장 설정 불러오기" — 기존 규칙은 건드리지 않는다.
+    func applyRecommendedTrackpadPreset() {
+        guard trackpadSliders.isEmpty else { return }
+        createDefaultTrackpadSlider()
     }
 
     // MARK: - 표시용 이름 해석

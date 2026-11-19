@@ -22,9 +22,17 @@ enum SliderTarget: String, Codable, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
     var displayName: String { "trackpad.target.\(rawValue)".localized }
+}
 
-    /// v0.33에서 실제로 동작하는 대상인가 (밝기는 P1)
-    var isAvailable: Bool { self != .brightness }
+/// 슬라이더 값 매핑 방식
+enum SliderMapping: String, Codable, CaseIterable, Identifiable, Hashable {
+    /// 이동량을 그대로 값에 반영 (v2 기본)
+    case continuous
+    /// 14% 이동마다 1/16 스텝 (v0.33 방식 — 고급)
+    case stepped
+
+    var id: String { rawValue }
+    var displayName: String { "trackpad.mapping.\(rawValue)".localized }
 }
 
 /// 제스처 종류
@@ -136,14 +144,14 @@ struct EdgeSliderRule: Identifiable, Codable, Hashable {
     var edge: TrackpadEdge
     var fingers: Int
     var target: SliderTarget
-    /// 0.5 ... 2.0
+    /// 0.5 ... 3.0
     var sensitivity: Double
     var inverted: Bool
-    /// 트랙패드 폭 대비 비율 0.06 ... 0.25
+    /// 트랙패드 폭 대비 비율 0.04 ... 0.25
     var edgeWidth: Double
-    /// 이만큼 움직여야 켜진다 0.02 ... 0.12
+    /// 이만큼 움직여야 켜진다 0.005 ... 0.08
     var startThreshold: Double
-    /// 값이 다시 바뀌는 최소 간격(초) 0.1 ... 0.6
+    /// 스텝 모드에서 값이 다시 바뀌는 최소 간격(초)
     var cooldown: Double
     /// 하단 15%에서 시작한 터치 무시 (팜 리젝트)
     var ignoreThumb: Bool
@@ -151,21 +159,27 @@ struct EdgeSliderRule: Identifiable, Codable, Hashable {
     var suppressScroll: Bool
     /// `.shortcut` 대상일 때 실행할 워크플로우
     var shortcutID: UUID?
+    /// 이 조합이 **정확히** 눌렸을 때만 발동한다 (비어 있으면 무수정자)
+    var modifiers: GestureModifiers
+    /// 연속 / 스텝
+    var mapping: SliderMapping
 
     init(
         id: UUID = UUID(),
         enabled: Bool = true,
         edge: TrackpadEdge = .right,
-        fingers: Int = 2,
+        fingers: Int = 1,
         target: SliderTarget = .volume,
-        sensitivity: Double = 1.0,
+        sensitivity: Double = 1.5,
         inverted: Bool = false,
-        edgeWidth: Double = 0.15,
-        startThreshold: Double = 0.07,
+        edgeWidth: Double = 0.07,
+        startThreshold: Double = 0.015,
         cooldown: Double = 0.12,
         ignoreThumb: Bool = true,
         suppressScroll: Bool = true,
-        shortcutID: UUID? = nil
+        shortcutID: UUID? = nil,
+        modifiers: GestureModifiers = [],
+        mapping: SliderMapping = .continuous
     ) {
         self.id = id
         self.enabled = enabled
@@ -180,6 +194,35 @@ struct EdgeSliderRule: Identifiable, Codable, Hashable {
         self.ignoreThumb = ignoreThumb
         self.suppressScroll = suppressScroll
         self.shortcutID = shortcutID
+        self.modifiers = modifiers
+        self.mapping = mapping
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, enabled, edge, fingers, target, sensitivity, inverted
+        case edgeWidth, startThreshold, cooldown, ignoreThumb, suppressScroll, shortcutID
+        case modifiers, mapping
+    }
+
+    /// 하위 호환 — v1.8.1까지 저장된 JSON에는 `modifiers`·`mapping` 키가 없다.
+    /// 없는 키는 각각 "없음"·"스텝"으로 읽는다(당시 동작 유지). 롤백해도 깨지지 않는다.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        edge = try container.decodeIfPresent(TrackpadEdge.self, forKey: .edge) ?? .right
+        fingers = try container.decodeIfPresent(Int.self, forKey: .fingers) ?? 2
+        target = try container.decodeIfPresent(SliderTarget.self, forKey: .target) ?? .volume
+        sensitivity = try container.decodeIfPresent(Double.self, forKey: .sensitivity) ?? 1.0
+        inverted = try container.decodeIfPresent(Bool.self, forKey: .inverted) ?? false
+        edgeWidth = try container.decodeIfPresent(Double.self, forKey: .edgeWidth) ?? 0.15
+        startThreshold = try container.decodeIfPresent(Double.self, forKey: .startThreshold) ?? 0.07
+        cooldown = try container.decodeIfPresent(Double.self, forKey: .cooldown) ?? 0.12
+        ignoreThumb = try container.decodeIfPresent(Bool.self, forKey: .ignoreThumb) ?? true
+        suppressScroll = try container.decodeIfPresent(Bool.self, forKey: .suppressScroll) ?? true
+        shortcutID = try container.decodeIfPresent(UUID.self, forKey: .shortcutID)
+        modifiers = try container.decodeIfPresent(GestureModifiers.self, forKey: .modifiers) ?? []
+        mapping = try container.decodeIfPresent(SliderMapping.self, forKey: .mapping) ?? .stepped
     }
 }
 
@@ -197,17 +240,20 @@ struct GestureRule: Identifiable, Codable, Hashable {
     var scope: GestureScope
     /// `scope == .apps`일 때만 사용
     var appBundleIDs: [String]
+    /// 이 조합이 **정확히** 눌렸을 때만 발동한다 (비어 있으면 무수정자)
+    var modifiers: GestureModifiers
 
     init(
         id: UUID = UUID(),
         enabled: Bool = true,
         kind: GestureKind = .tap,
-        fingers: Int = 3,
+        fingers: Int = 4,
         direction: GestureDirection = .left,
         repeats: Bool = false,
         action: GestureAction = GestureAction(),
         scope: GestureScope = .global,
-        appBundleIDs: [String] = []
+        appBundleIDs: [String] = [],
+        modifiers: GestureModifiers = []
     ) {
         self.id = id
         self.enabled = enabled
@@ -218,6 +264,27 @@ struct GestureRule: Identifiable, Codable, Hashable {
         self.action = action
         self.scope = scope
         self.appBundleIDs = appBundleIDs
+        self.modifiers = modifiers
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, enabled, kind, fingers, direction, repeats, action, scope, appBundleIDs
+        case modifiers
+    }
+
+    /// 하위 호환 — `modifiers` 키가 없으면 "없음"으로 읽는다.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        kind = try container.decodeIfPresent(GestureKind.self, forKey: .kind) ?? .tap
+        fingers = try container.decodeIfPresent(Int.self, forKey: .fingers) ?? 3
+        direction = try container.decodeIfPresent(GestureDirection.self, forKey: .direction) ?? .left
+        repeats = try container.decodeIfPresent(Bool.self, forKey: .repeats) ?? false
+        action = try container.decodeIfPresent(GestureAction.self, forKey: .action) ?? GestureAction()
+        scope = try container.decodeIfPresent(GestureScope.self, forKey: .scope) ?? .global
+        appBundleIDs = try container.decodeIfPresent([String].self, forKey: .appBundleIDs) ?? []
+        modifiers = try container.decodeIfPresent(GestureModifiers.self, forKey: .modifiers) ?? []
     }
 }
 
@@ -234,38 +301,56 @@ extension EdgeSliderRule {
             && !inverted
     }
 
-    /// "오른쪽 에지 · 두 손가락 · 세로"
+    /// v0.33.1 시드 기본값 그대로인가 — v2 프로필로 올릴 대상.
+    /// (오른쪽 에지 · 두 손가락 · 볼륨 · 폭 15% · 7% · 쿨다운 120ms · 감도 1.0)
+    var isSeedV2Default: Bool {
+        edge == .right
+            && fingers == 2
+            && target == .volume
+            && sensitivity == 1.0
+            && !inverted
+            && edgeWidth == 0.15
+            && startThreshold == 0.07
+            && cooldown == 0.12
+            && shortcutID == nil
+            && modifiers.isEmpty
+    }
+
+    /// "⌥ 오른쪽 에지 · 한 손가락 · 세로"
     var gestureSummary: String {
         let axis = edge.isVertical ? "trackpad.axis.vertical".localized : "trackpad.axis.horizontal".localized
-        return "trackpad.summary.slider.fmt".localizedFormat(
+        return modifiers.summaryPrefix + "trackpad.summary.slider.fmt".localizedFormat(
             edge.displayName, TrackpadFormatting.fingerWord(fingers), axis
         )
     }
 
-    /// "볼륨 · 감도 1.0x · 반전"
+    /// "볼륨 · 감도 1.5x · 반전 · 1/16 스텝"
     var targetSummary: String {
-        var text: String
-        switch target {
-        case .volume: text = SliderTarget.volume.displayName
-        case .brightness: text = "trackpad.target.brightness_p1".localized
-        case .shortcut: text = "trackpad.target.shortcut".localized
-        }
+        var text = target.displayName
         text += " · " + "trackpad.sensitivity.value".localizedFormat(sensitivity)
         if inverted { text += " · " + "trackpad.inverted".localized }
+        if mapping == .stepped { text += " · " + SliderMapping.stepped.displayName }
         return text
+    }
+
+    /// 같은 에지·수정자 조합을 두 규칙이 쓰는지 비교하기 위한 키
+    var gestureKey: String {
+        "slider:\(edge.rawValue):\(modifiers.rawValue)"
     }
 }
 
 extension GestureRule {
-    /// "세 손가락 탭" / "네 손가락 스와이프 ↓"
+    /// "⌥ 네 손가락 탭" / "네 손가락 스와이프 ↓"
     var gestureSummary: String {
         let fingers = TrackpadFormatting.fingerWord(self.fingers)
+        let base: String
         switch kind {
         case .tap:
-            return "trackpad.summary.tap.fmt".localizedFormat(fingers)
+            base = "trackpad.summary.tap.fmt".localizedFormat(fingers)
         case .swipe:
-            return "trackpad.summary.swipe.fmt".localizedFormat(fingers, direction.word)
+            base = "trackpad.summary.swipe.fmt".localizedFormat(fingers, direction.word)
         }
+        return modifiers.summaryPrefix + base
     }
 
     /// "워크플로우 · 터미널에서 열기" — 이름 해석은 저장소가 필요하므로 호출부가 넘긴다.
@@ -282,10 +367,18 @@ extension GestureRule {
 
     /// 같은 제스처를 두 규칙이 쓰는지 비교하기 위한 키
     var gestureKey: String {
+        let base: String
         switch kind {
-        case .tap: return "tap:\(fingers)"
-        case .swipe: return "swipe:\(fingers):\(direction.rawValue)"
+        case .tap: base = "tap:\(fingers)"
+        case .swipe: base = "swipe:\(fingers):\(direction.rawValue)"
         }
+        return "\(base):m\(modifiers.rawValue)"
+    }
+
+    /// macOS 시스템 제스처와 겹칠 수 있는 조합인가.
+    /// 3·4손가락 스와이프는 Mission Control·Exposé·스페이스 전환과 같은 입력이다.
+    var hasSystemConflict: Bool {
+        kind == .swipe && (fingers == 3 || fingers == 4)
     }
 }
 
@@ -304,6 +397,15 @@ enum TrackpadFormatting {
 
     static func percent(_ value: Double) -> String {
         "\(Int((value * 100).rounded()))%"
+    }
+
+    /// 작은 값은 소수 첫째 자리까지 — 1.5%와 2%를 구분해야 한다.
+    static func percentFine(_ value: Double) -> String {
+        let percent = value * 100
+        if percent < 10 {
+            return String(format: "%.1f%%", percent)
+        }
+        return "\(Int(percent.rounded()))%"
     }
 
     static func milliseconds(_ seconds: Double) -> String {

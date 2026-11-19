@@ -179,6 +179,56 @@ private struct TrackpadSheetFooter<Leading: View>: View {
     }
 }
 
+/// 수정자 키 칩 — 여러 개를 동시에 고를 수 있다. 선택은 "정확히 이 조합"이다.
+private struct TrackpadModifierChips: View {
+    @Environment(\.theme) private var theme
+    @Binding var selection: GestureModifiers
+    let allowed: GestureModifiers
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(GestureModifiers.displayOrder, id: \.rawValue) { modifier in
+                if allowed.contains(modifier) {
+                    chip(modifier)
+                }
+            }
+            Button {
+                selection = []
+            } label: {
+                Text("trackpad.modifier.none".localized)
+                    .font(.caption2)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(selection.isEmpty ? theme.accentColor : theme.tertiaryBackground)
+                    .foregroundColor(selection.isEmpty ? theme.primaryBackground : theme.secondaryText)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+            .help("trackpad.hint.modifier_none".localized)
+        }
+    }
+
+    private func chip(_ modifier: GestureModifiers) -> some View {
+        let on = selection.contains(modifier)
+        return Button {
+            if on {
+                selection.remove(modifier)
+            } else {
+                selection.insert(modifier)
+            }
+        } label: {
+            Text(modifier.symbol)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 26, height: 22)
+                .background(on ? theme.accentColor : theme.tertiaryBackground)
+                .foregroundColor(on ? theme.primaryBackground : theme.secondaryText)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+        }
+        .buttonStyle(.plain)
+        .help(modifier.keyName)
+    }
+}
+
 // MARK: - 추가 선택
 
 struct TrackpadChooserSheet: View {
@@ -256,6 +306,7 @@ struct TrackpadSliderSheet: View {
     @Environment(\.theme) private var theme
 
     @State private var rule: EdgeSliderRule
+    @State private var advancedExpanded = false
     private let isEditing: Bool
 
     init(rule: EdgeSliderRule, isEditing: Bool) {
@@ -287,13 +338,19 @@ struct TrackpadSliderSheet: View {
                         }
                         TrackpadField("trackpad.field.fingers".localized, hint: "trackpad.hint.fingers".localized) {
                             Picker("", selection: $rule.fingers) {
-                                ForEach(1...3, id: \.self) { count in
-                                    Text("\(count)").tag(count)
-                                }
+                                Text("trackpad.finger.one".localized).tag(1)
+                                Text("trackpad.finger.two".localized).tag(2)
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
                             .frame(width: 140)
+                        }
+                        if rule.fingers > 1 {
+                            TrackpadWarningNote(
+                                text: (rule.edge == .right
+                                       ? "trackpad.warning.two_finger_right"
+                                       : "trackpad.warning.two_finger").localized
+                            )
                         }
                         TrackpadField("trackpad.field.axis".localized, hint: "trackpad.hint.axis".localized) {
                             Text(rule.edge.isVertical
@@ -333,9 +390,12 @@ struct TrackpadSliderSheet: View {
                                 }
                             }
                         }
+                        TrackpadField("trackpad.field.modifiers".localized, hint: "trackpad.hint.modifiers_slider".localized) {
+                            TrackpadModifierChips(selection: $rule.modifiers, allowed: GestureModifiers.sliderMask)
+                        }
                         TrackpadField("trackpad.field.sensitivity".localized, hint: "trackpad.hint.sensitivity".localized) {
                             HStack(spacing: 8) {
-                                Slider(value: $rule.sensitivity, in: 0.5...2.0, step: 0.1)
+                                Slider(value: $rule.sensitivity, in: 0.5...3.0, step: 0.1)
                                     .frame(width: 160)
                                 Text("trackpad.sensitivity.value".localizedFormat(rule.sensitivity))
                                     .font(.caption2)
@@ -352,55 +412,9 @@ struct TrackpadSliderSheet: View {
                         }
                     }
 
-                    TrackpadSheetGroup(title: "trackpad.group.recognition".localized) {
-                        TrackpadField("trackpad.field.edge_width".localized, hint: "trackpad.hint.edge_width".localized) {
-                            HStack(spacing: 8) {
-                                Slider(value: $rule.edgeWidth, in: 0.06...0.25, step: 0.01)
-                                    .frame(width: 160)
-                                Text(TrackpadFormatting.percent(rule.edgeWidth))
-                                    .font(.caption2)
-                                    .monospacedDigit()
-                                    .foregroundColor(theme.secondaryText)
-                                    .frame(width: 48, alignment: .trailing)
-                            }
-                        }
-                        TrackpadField("trackpad.field.threshold".localized, hint: "trackpad.hint.threshold".localized) {
-                            HStack(spacing: 8) {
-                                Slider(value: $rule.startThreshold, in: 0.02...0.12, step: 0.01)
-                                    .frame(width: 160)
-                                Text(TrackpadFormatting.percent(rule.startThreshold))
-                                    .font(.caption2)
-                                    .monospacedDigit()
-                                    .foregroundColor(theme.secondaryText)
-                                    .frame(width: 48, alignment: .trailing)
-                            }
-                        }
-                        TrackpadField("trackpad.field.cooldown".localized, hint: "trackpad.hint.cooldown".localized) {
-                            HStack(spacing: 8) {
-                                Slider(value: $rule.cooldown, in: 0.1...0.6, step: 0.025)
-                                    .frame(width: 160)
-                                Text(TrackpadFormatting.milliseconds(rule.cooldown))
-                                    .font(.caption2)
-                                    .monospacedDigit()
-                                    .foregroundColor(theme.secondaryText)
-                                    .frame(width: 48, alignment: .trailing)
-                            }
-                        }
-                        TrackpadField("trackpad.field.thumb".localized, hint: "trackpad.hint.thumb".localized) {
-                            Toggle("", isOn: $rule.ignoreThumb)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                                .controlSize(.small)
-                        }
-                        TrackpadField("trackpad.field.suppress".localized, hint: "trackpad.hint.suppress".localized) {
-                            Toggle("", isOn: $rule.suppressScroll)
-                                .labelsHidden()
-                                .toggleStyle(.switch)
-                                .controlSize(.small)
-                        }
-                    }
+                    advancedGroup
 
-                    if rule.target == .brightness {
+                    if rule.target == .brightness && !DisplayBrightness.shared.isAvailable {
                         TrackpadWarningNote(text: "trackpad.warning.brightness".localized)
                     }
                 }
@@ -420,7 +434,7 @@ struct TrackpadSliderSheet: View {
                 }
             }
         }
-        .frame(width: 640, height: 660)
+        .frame(width: 640, height: 700)
         .background(theme.primaryBackground)
     }
 
@@ -435,9 +449,96 @@ struct TrackpadSliderSheet: View {
         let axis = rule.edge.isVertical
             ? "trackpad.axis.vertical".localized
             : "trackpad.axis.horizontal".localized
-        return "trackpad.sheet.slider_summary".localizedFormat(
+        let base = "trackpad.sheet.slider_summary".localizedFormat(
             rule.edge.displayName, TrackpadFormatting.fingerWord(rule.fingers), axis, target
         )
+        return rule.modifiers.summaryPrefix + base
+    }
+
+    /// 고급 — 기본값으로는 건드릴 일이 없는 손잡이만 모은다.
+    private var advancedGroup: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    advancedExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: advancedExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundColor(theme.tertiaryText)
+                    Text("trackpad.advanced.title".localized)
+                        .font(.caption)
+                    Text("trackpad.advanced.short".localized)
+                        .font(.caption2)
+                        .foregroundColor(theme.tertiaryText)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .padding(.vertical, 4)
+            }
+            .buttonStyle(.plain)
+
+            if advancedExpanded {
+                TrackpadSheetGroup(title: "trackpad.group.recognition".localized) {
+                    TrackpadField("trackpad.field.mapping".localized, hint: "trackpad.hint.mapping".localized) {
+                        Picker("", selection: $rule.mapping) {
+                            ForEach(SliderMapping.allCases) { mapping in
+                                Text(mapping.displayName).tag(mapping)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(width: 170)
+                    }
+                    TrackpadField("trackpad.field.edge_width".localized, hint: "trackpad.hint.edge_width".localized) {
+                        HStack(spacing: 8) {
+                            Slider(value: $rule.edgeWidth, in: 0.04...0.25, step: 0.005)
+                                .frame(width: 160)
+                            Text(TrackpadFormatting.percentFine(rule.edgeWidth))
+                                .font(.caption2)
+                                .monospacedDigit()
+                                .foregroundColor(theme.secondaryText)
+                                .frame(width: 48, alignment: .trailing)
+                        }
+                    }
+                    TrackpadField("trackpad.field.threshold".localized, hint: "trackpad.hint.threshold".localized) {
+                        HStack(spacing: 8) {
+                            Slider(value: $rule.startThreshold, in: 0.005...0.08, step: 0.005)
+                                .frame(width: 160)
+                            Text(TrackpadFormatting.percentFine(rule.startThreshold))
+                                .font(.caption2)
+                                .monospacedDigit()
+                                .foregroundColor(theme.secondaryText)
+                                .frame(width: 48, alignment: .trailing)
+                        }
+                    }
+                    TrackpadField("trackpad.field.cooldown".localized, hint: "trackpad.hint.cooldown".localized) {
+                        HStack(spacing: 8) {
+                            Slider(value: $rule.cooldown, in: 0.1...0.6, step: 0.025)
+                                .frame(width: 160)
+                            Text(TrackpadFormatting.milliseconds(rule.cooldown))
+                                .font(.caption2)
+                                .monospacedDigit()
+                                .foregroundColor(theme.secondaryText)
+                                .frame(width: 48, alignment: .trailing)
+                        }
+                    }
+                    TrackpadField("trackpad.field.thumb".localized, hint: "trackpad.hint.thumb".localized) {
+                        Toggle("", isOn: $rule.ignoreThumb)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                    }
+                    TrackpadField("trackpad.field.suppress".localized, hint: "trackpad.hint.suppress".localized) {
+                        Toggle("", isOn: $rule.suppressScroll)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                    }
+                }
+            }
+        }
     }
 
     private var targetHint: String {
@@ -527,13 +628,22 @@ struct TrackpadGestureSheet: View {
                         }
                         TrackpadField("trackpad.field.fingers".localized, hint: "trackpad.hint.fingers_gesture".localized) {
                             Picker("", selection: $rule.fingers) {
-                                ForEach(2...5, id: \.self) { count in
-                                    Text("\(count)").tag(count)
+                                ForEach(3...5, id: \.self) { count in
+                                    Text(TrackpadFormatting.fingerWord(count)).tag(count)
                                 }
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
-                            .frame(width: 180)
+                            .frame(width: 210)
+                        }
+                        if rule.hasSystemConflict {
+                            VStack(alignment: .leading, spacing: 6) {
+                                TrackpadWarningNote(text: "trackpad.warning.system_gesture".localized)
+                                Button("trackpad.warning.open_settings".localized) {
+                                    openTrackpadSettings()
+                                }
+                                .controlSize(.small)
+                            }
                         }
                         if rule.kind == .swipe {
                             TrackpadField("trackpad.field.direction".localized, hint: "trackpad.hint.direction".localized) {
@@ -552,6 +662,9 @@ struct TrackpadGestureSheet: View {
                                     .toggleStyle(.switch)
                                     .controlSize(.small)
                             }
+                        }
+                        TrackpadField("trackpad.field.modifiers".localized, hint: "trackpad.hint.modifiers_gesture".localized) {
+                            TrackpadModifierChips(selection: $rule.modifiers, allowed: GestureModifiers.all)
                         }
                     }
 
@@ -682,6 +795,14 @@ struct TrackpadGestureSheet: View {
     private func save() {
         store.upsertTrackpadGesture(rule)
         dismiss()
+    }
+
+    /// 시스템 설정의 트랙패드 패널 — macOS 제스처를 끄러 갈 때 쓴다.
+    private func openTrackpadSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.Trackpad-Settings.extension") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 }
 

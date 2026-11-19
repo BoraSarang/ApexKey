@@ -119,6 +119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Logger.info("AppDelegate", "[APP] ApexKey 종료")
+        // 커서 고정·스크롤 억제는 어떤 경우에도 되돌린다 (P5 — 실패해도 원상복구)
+        TrackpadEngine.shared.forceCleanup()
         // debounce로 예약된 저장을 먼저 실제 기록한다 (E-MAC-STORE-5011).
         // 이게 빠지면 창을 닫은 직후(0.4초 이내)에 편집한 내용이 유실된다.
         store?.flushPendingSaves()

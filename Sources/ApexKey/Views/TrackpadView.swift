@@ -183,14 +183,20 @@ struct TrackpadView: View {
             HStack(spacing: 6) {
                 Circle()
                     .fill(store.trackpadEnabled && engine.status == .running
-                          ? theme.successColor : theme.tertiaryText)
+                          ? (engine.preview.isSliderActive ? theme.accentColor : theme.successColor)
+                          : theme.tertiaryText)
                     .frame(width: 6, height: 6)
-                Text(store.trackpadEnabled ? "trackpad.status.running".localized : "trackpad.status.off".localized)
+                Text(store.trackpadEnabled
+                     ? (engine.preview.isSliderActive
+                        ? "trackpad.status.active".localized
+                        : "trackpad.status.running".localized)
+                     : "trackpad.status.off".localized)
                     .font(.caption2)
                     .foregroundColor(theme.secondaryText)
                 Spacer()
-                if let volume = engine.preview.volume {
-                    Text("trackpad.volume".localized + " " + "\(Int((volume * 100).rounded()))%")
+                if let value = engine.preview.value {
+                    Text((engine.preview.valueTarget ?? .volume).displayName
+                         + " " + "\(Int((value * 100).rounded()))%")
                         .font(.caption2)
                         .monospacedDigit()
                         .foregroundColor(theme.secondaryText)
@@ -211,29 +217,24 @@ struct TrackpadView: View {
         guard let rule = store.trackpadSliders.first(where: { $0.enabled }) ?? store.trackpadSliders.first else {
             return "trackpad.preview.desc".localized
         }
-        let hint = rule.edge.isVertical
-            ? "trackpad.preview.hint".localized
-            : "trackpad.preview.hint.horizontal".localized
-        return "\(rule.edge.displayName) · \(hint)"
+        // 손가락 수·수정자까지 규칙 그대로 보여 준다 — 고정 문구는 규칙과 어긋난다.
+        return "\(rule.gestureSummary) · \(rule.target.displayName)"
     }
 
     /// 지금 방향이 어느 쪽인지 한 줄로 못 박아 준다 — 실기에서 "방향을 모르겠다"는 피드백.
     private var previewDirectionHint: String? {
         guard let rule = store.trackpadSliders.first(where: { $0.enabled }) ?? store.trackpadSliders.first,
-              rule.target == .volume else { return nil }
+              rule.target != .shortcut else { return nil }
+        let family = rule.target == .brightness ? "brightness" : "volume"
         if rule.edge.isVertical {
-            return (rule.inverted
-                    ? "trackpad.preview.dir.volume.down"
-                    : "trackpad.preview.dir.volume.up").localized
+            return "trackpad.preview.dir.\(family).\((rule.inverted ? "down" : "up"))".localized
         }
-        return (rule.inverted
-                ? "trackpad.preview.dir.volume.left"
-                : "trackpad.preview.dir.volume.right").localized
+        return "trackpad.preview.dir.\(family).\((rule.inverted ? "left" : "right"))".localized
     }
 
     private func trackpadPreview(size: CGSize) -> some View {
         let activeEdge = store.trackpadSliders.first(where: { $0.enabled })?.edge
-        let edgeWidth = store.trackpadSliders.first(where: { $0.enabled })?.edgeWidth ?? 0.12
+        let edgeWidth = store.trackpadSliders.first(where: { $0.enabled })?.edgeWidth ?? 0.07
         let live = store.trackpadEnabled && engine.status == .running
         return ZStack {
             RoundedRectangle(cornerRadius: 12)
@@ -281,12 +282,13 @@ struct TrackpadView: View {
                     .foregroundColor(theme.tertiaryText)
             }
 
-            // 볼륨 HUD 목업
-            if let volume = engine.preview.volume, live {
+            // 값 HUD 목업
+            if let value = engine.preview.value, live {
+                let target = engine.preview.valueTarget ?? .volume
                 VStack {
                     Spacer()
                     HStack(spacing: 7) {
-                        Image(systemName: "speaker.wave.2.fill")
+                        Image(systemName: target == .brightness ? "sun.max.fill" : "speaker.wave.2.fill")
                             .font(.caption2)
                         Capsule()
                             .fill(theme.tertiaryBackground)
@@ -294,11 +296,11 @@ struct TrackpadView: View {
                                 GeometryReader { bar in
                                     Capsule()
                                         .fill(theme.accentColor)
-                                        .frame(width: max(4, bar.size.width * CGFloat(volume)))
+                                        .frame(width: max(4, bar.size.width * CGFloat(value)))
                                 }
                             }
                             .frame(width: 96, height: 5)
-                        Text("\(Int((volume * 100).rounded()))%")
+                        Text("\(Int((value * 100).rounded()))%")
                             .font(.caption2)
                             .monospacedDigit()
                     }
@@ -314,11 +316,9 @@ struct TrackpadView: View {
     }
 
     private func edgeBand(edge: TrackpadEdge, edgeWidth: Double, size: CGSize) -> some View {
-        // 인식은 "손가락 평균 위치" 기준이라 두 손가락이 조금 벌어져도 된다.
-        // 진한 띠 = 기준 폭, 옅은 띠 = 손가락이 벗어나도 허용되는 폭.
-        let core = max(10, (edge.isVertical ? size.width : size.height) * edgeWidth)
-        let halo = max(core + 6, (edge.isVertical ? size.width : size.height)
-                       * (edgeWidth + EdgeSliderRecognizer.fingerSpread))
+        // 진한 띠 = 인식 폭, 옅은 띠 = 손가락이 살짝 벗어나도 유지되는 여유.
+        let core = max(8, (edge.isVertical ? size.width : size.height) * edgeWidth)
+        let halo = core + max(6, (edge.isVertical ? size.width : size.height) * 0.03)
         return Group {
             switch edge {
             case .right:
@@ -438,12 +438,30 @@ struct TrackpadView: View {
             }
 
             if store.trackpadSliders.isEmpty {
-                emptyRow(text: "trackpad.sliders.empty".localized) {
-                    Button("trackpad.sliders.create_default".localized) {
-                        store.createDefaultTrackpadSlider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("trackpad.sliders.empty".localized)
+                        .font(.caption)
+                        .foregroundColor(theme.secondaryText)
+                    HStack(spacing: 8) {
+                        Button {
+                            store.applyRecommendedTrackpadPreset()
+                            TrackpadEngine.shared.refreshRules()
+                        } label: {
+                            Label("trackpad.sliders.load_recommended".localized, systemImage: "wand.and.stars")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        Button("trackpad.sliders.add".localized) {
+                            activeSheet = .slider(EdgeSliderRule(), isEditing: false)
+                        }
+                        .controlSize(.small)
                     }
-                    .controlSize(.small)
+                    Text("trackpad.sliders.empty_hint".localized)
+                        .font(.caption2)
+                        .foregroundColor(theme.tertiaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(.vertical, 4)
             } else {
                 VStack(spacing: 0) {
                     ForEach(store.trackpadSliders) { rule in
@@ -555,6 +573,17 @@ struct TrackpadView: View {
                     .lineLimit(1)
             }
             Spacer()
+            if rule.hasSystemConflict {
+                Text("trackpad.badge.conflict".localized)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(theme.warningColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(theme.warningColor.opacity(0.12))
+                    .clipShape(Capsule())
+                    .help("trackpad.warning.system_gesture".localized)
+            }
             Text(rule.scopeSummary)
                 .font(.caption2)
                 .foregroundColor(theme.secondaryText)
@@ -618,14 +647,14 @@ struct TrackpadView: View {
                 VStack(spacing: 0) {
                     advancedRow(
                         title: "trackpad.advanced.edge_width".localized,
-                        detail: "trackpad.advanced.edge_width.desc".localizedFormat(TrackpadFormatting.percent(reference.edgeWidth)),
-                        value: TrackpadFormatting.percent(reference.edgeWidth)
+                        detail: "trackpad.advanced.edge_width.desc".localizedFormat(TrackpadFormatting.percentFine(reference.edgeWidth)),
+                        value: TrackpadFormatting.percentFine(reference.edgeWidth)
                     )
                     Divider()
                     advancedRow(
                         title: "trackpad.advanced.threshold".localized,
-                        detail: "trackpad.advanced.threshold.desc".localizedFormat(TrackpadFormatting.percent(reference.startThreshold)),
-                        value: TrackpadFormatting.percent(reference.startThreshold)
+                        detail: "trackpad.advanced.threshold.desc".localizedFormat(TrackpadFormatting.percentFine(reference.startThreshold)),
+                        value: TrackpadFormatting.percentFine(reference.startThreshold)
                     )
                     Divider()
                     advancedRow(
