@@ -10,7 +10,7 @@
 * **실측 근거** — `LSUIElement=1` + `.accessory` + 상태 아이템/창 없는 프로브에서 두 번째 `open`이 같은 pid로 `applicationShouldHandleReopen`을 호출하고, 설정 창이 Dock 아이콘 없이 key/active가 됨을 확인했다. `HotKeyService`는 `NSStatusItem`을 참조하지 않아 단축키 등록과 독립이다.
 * **검증** — unit **861건 0실패**(3 skip, 43초/60초). 게이트 3종 통과, i18n en/ko **1614키 일치**, 클린 빌드 신규 경고 0. 이후 상태 아이템 생성 조건 1줄을 추가하고 클린 빌드 성공까지 확인했다.
 * **사용자 실동작** — 2026-11-19 확인 완료("다 잘 되네"). §8-20 1~5번(아이콘 끄기·단축키·재실행·종료·복원) 확인, 로그인 자동 시작(선택)은 미확인.
-* **버전** — `MARKETING_VERSION` 1.8.0 → 1.8.1. GitHub Releases 배포는 미실시.
+* **버전·PR** — `MARKETING_VERSION` 1.8.0 → 1.8.1. **PR #25**로 main에 머지. GitHub Releases 배포는 미실시.
 
 ## 2026-11-15 macos — 시스템 볼륨·음소거 HUD (T-225)
 
