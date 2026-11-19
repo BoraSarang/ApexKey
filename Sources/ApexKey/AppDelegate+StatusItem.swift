@@ -31,6 +31,10 @@ extension AppDelegate {
     }
 
     func removeStatusItem() {
+        // 팝오버가 열려 있으면 앵커가 사라지므로 먼저 닫는다.
+        if let popover = hubPopover, popover.isShown {
+            popover.performClose(nil)
+        }
         if let statusItem {
             NSStatusBar.system.removeStatusItem(statusItem)
         }

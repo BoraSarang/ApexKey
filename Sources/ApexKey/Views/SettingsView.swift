@@ -8,7 +8,8 @@ struct SettingsView: View {
     @EnvironmentObject var store: ConfigStore
     @Environment(\.theme) private var theme
     @AppStorage("launchAtLogin") private var launchAtLogin = false
-    @State private var showGuardAlert = false
+    @State private var showHideLastIconAlert = false
+    @State private var pendingIconChange: (() -> Void)?
     @State private var showRestartBanner = false
     @State private var showUpdateSheet = false
     @State private var selectedTab: SettingsTab = .general
@@ -90,10 +91,16 @@ struct SettingsView: View {
             }
             .environmentObject(store)
         }
-        .alert("alert.menubar_cannot_disable.title".localized, isPresented: $showGuardAlert) {
-            Button("ui.settings.ok".localized, role: .cancel) {}
+        .alert("alert.hide_last_icon.title".localized, isPresented: $showHideLastIconAlert) {
+            Button("ui.cancel".localized, role: .cancel) {
+                pendingIconChange = nil
+            }
+            Button("ui.continue".localized, role: .destructive) {
+                pendingIconChange?()
+                pendingIconChange = nil
+            }
         } message: {
-            Text("alert.menubar_cannot_disable.message".localized)
+            Text("alert.hide_last_icon.message".localized)
         }
         .sheet(isPresented: $showUpdateSheet) {
             if let release = store.availableUpdate {
@@ -257,6 +264,21 @@ struct SettingsView: View {
                       isOn: dockBinding,
                       description: "settings.show_in_dock.description")
         }
+        if !store.showInMenuBar && !store.showInDock {
+            HStack(spacing: 8) {
+                Image(systemName: "eye.slash")
+                    .foregroundColor(theme.accentColor)
+                Text("settings.general.iconless_hint".localized)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.tertiaryBackground.opacity(0.45))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
         groupBox("settings.keycap") {
             HStack {
                 Text("settings.keycap.style".localized).font(.body)
@@ -351,6 +373,20 @@ struct SettingsView: View {
             }
             .padding(.vertical, 2)
             caption("settings.permissions.accessibility.description")
+        }
+        groupBox("settings.general.app") {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ui.menu.quit".localizedFormat("ApexKey"))
+                        .font(.body)
+                    caption("settings.general.quit.description")
+                }
+                Spacer()
+                Button("ui.quit".localized) {
+                    NSApp.terminate(nil)
+                }
+            }
+            .padding(.vertical, 2)
         }
         groupBox("settings.language") {
             HStack {
@@ -470,23 +506,37 @@ struct SettingsView: View {
         }
     }
 
-    /// 메뉴바 토글 — Dock도 꺼져 있으면 거부 + 안내
+    /// 메뉴바 토글 — 마지막 아이콘을 끄면 확인 후 적용한다 (무아이콘 모드).
     private var menuBarBinding: Binding<Bool> {
         Binding(
             get: { store.showInMenuBar },
             set: { newValue in
-                if !store.setMenuBarVisible(newValue) {
-                    showGuardAlert = true
+                if !newValue && !store.showInDock {
+                    requestHideLastIcon { store.setMenuBarVisible(false) }
+                } else {
+                    store.setMenuBarVisible(newValue)
                 }
             }
         )
     }
 
+    /// Dock 토글 — 메뉴바가 꺼진 상태에서 마지막 아이콘이면 확인 후 적용한다.
     private var dockBinding: Binding<Bool> {
         Binding(
             get: { store.showInDock },
-            set: { store.setDockVisible($0) }
+            set: { newValue in
+                if !newValue && !store.showInMenuBar {
+                    requestHideLastIcon { store.setDockVisible(false) }
+                } else {
+                    store.setDockVisible(newValue)
+                }
+            }
         )
+    }
+
+    private func requestHideLastIcon(_ apply: @escaping () -> Void) {
+        pendingIconChange = apply
+        showHideLastIconAlert = true
     }
 
     private func applyLaunchAtLogin(_ enabled: Bool) {
