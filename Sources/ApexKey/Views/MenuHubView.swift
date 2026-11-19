@@ -37,6 +37,8 @@ struct MenuHubView: View {
     @Environment(\.theme) private var theme
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @State private var tab: HubTab = .run
+    @State private var showHideLastIconAlert = false
+    @State private var pendingMenuBarValue: Bool?
 
     /// AppDelegate가 주입하는 단일 디스패치 (닫기+실행 보장용).
     var onAction: (MenuHubAction) -> Void = { _ in }
@@ -80,6 +82,19 @@ struct MenuHubView: View {
         )
         .padding(.horizontal, HubMetrics.padding)
         .padding(.vertical, HubMetrics.padding)
+        .alert("alert.hide_last_icon.title".localized, isPresented: $showHideLastIconAlert) {
+            Button("ui.cancel".localized, role: .cancel) {
+                pendingMenuBarValue = nil
+            }
+            Button("ui.continue".localized, role: .destructive) {
+                if let value = pendingMenuBarValue {
+                    store.setMenuBarVisible(value)
+                }
+                pendingMenuBarValue = nil
+            }
+        } message: {
+            Text("alert.hide_last_icon.message".localized)
+        }
     }
 
     // MARK: - 헤더 + 탭
@@ -348,11 +363,18 @@ struct MenuHubView: View {
         .padding(.horizontal, 12)
     }
 
-    /// 메뉴바 토글 — Dock도 꺼져 있으면 거부돼 값이 그대로라 토글이 원위치한다.
+    /// 메뉴바 토글 — 마지막 아이콘을 끄면 확인 후 적용한다 (무아이콘 모드).
     private var menuBarBinding: Binding<Bool> {
         Binding(
             get: { store.showInMenuBar },
-            set: { _ = store.setMenuBarVisible($0) }
+            set: { newValue in
+                if !newValue && !store.showInDock {
+                    pendingMenuBarValue = newValue
+                    showHideLastIconAlert = true
+                } else {
+                    store.setMenuBarVisible(newValue)
+                }
+            }
         )
     }
 

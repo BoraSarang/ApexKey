@@ -3,6 +3,15 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-19 macos — 무아이콘 모드: 메뉴바·Dock 없이 실행 (T-226)
+
+* **배경** — 메뉴바 아이콘이 많아 ApexKey 아이콘을 숨기고 싶지만, 기존에는 `setMenuBarVisible(false)`가 "Dock도 꺼져 있으면" 거부했다. 게다가 `setDockVisible(false)`에는 가드가 없어 메뉴바를 끈 뒤 Dock을 끄면 둘 다 꺼져 앱에 접근할 수 없었다.
+* **변경** — 두 아이콘을 모두 끄는 **무아이콘 모드**를 허용한다. `applicationShouldHandleReopen`이 보이는 창이 없으면 설정 창을 열고, 꺼진 상태의 수동 실행도 설정 창을 1회 띄운다. 로그인 자동 시작은 `keyAELaunchedAsLogInItem`으로 구분해 숨김을 유지한다. 마지막 아이콘을 끌 때 확인 알림, 설정 창에 **ApexKey 종료** 버튼과 "아이콘 없이 실행 중" 안내를 추가했다.
+* **실측 근거** — `LSUIElement=1` + `.accessory` + 상태 아이템/창 없는 프로브에서 두 번째 `open`이 같은 pid로 `applicationShouldHandleReopen`을 호출하고, 설정 창이 Dock 아이콘 없이 key/active가 됨을 확인했다. `HotKeyService`는 `NSStatusItem`을 참조하지 않아 단축키 등록과 독립이다.
+* **검증** — unit **861건 0실패**(3 skip, 43초/60초). 게이트 3종 통과, i18n en/ko **1614키 일치**, 클린 빌드 신규 경고 0. 이후 상태 아이템 생성 조건 1줄을 추가하고 클린 빌드 성공까지 확인했다.
+* **사용자 실동작** — 2026-11-19 확인 완료("다 잘 되네"). §8-20 1~5번(아이콘 끄기·단축키·재실행·종료·복원) 확인, 로그인 자동 시작(선택)은 미확인.
+* **버전** — `MARKETING_VERSION` 1.8.0 → 1.8.1. GitHub Releases 배포는 미실시.
+
 ## 2026-11-15 macos — 시스템 볼륨·음소거 HUD (T-225)
 
 * **원인** — 볼륨 올리기/내리기가 `SystemVolume`(CoreAudio)로 값을 직접 바꿔 **시스템 볼륨 HUD를 건너뛰었다**. macOS HUD는 볼륨 값 변경이 아니라 **하드웨어 미디어 키 이벤트**에 반응해 `MenuBarAgent`가 그린다.

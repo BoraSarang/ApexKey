@@ -34,6 +34,7 @@ key_files/
 coverage/
 playwright-report/
 test-results/
+*.profraw
 
 # 로그
 *.log

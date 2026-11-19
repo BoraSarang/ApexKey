@@ -465,4 +465,29 @@ final class ConfigStoreMutationTests: XCTestCase {
         let store = makeStore()
         XCTAssertNotNil(store.container, "손상 store에서 컨테이너를 얻지 못함 — 앱이 무음 no-op 상태가 된다")
     }
+
+    // MARK: - 무아이콘 모드 (T-226)
+
+    func testMenuBarAndDockCanBeHiddenTogether() {
+        let store = makeStore()
+        XCTAssertTrue(store.showInMenuBar)
+        XCTAssertFalse(store.showInDock)
+
+        store.setMenuBarVisible(false)
+
+        XCTAssertFalse(store.showInMenuBar)
+        XCTAssertFalse(store.showInDock, "메뉴바·Dock 둘 다 꺼진 상태를 허용해야 한다")
+    }
+
+    func testDockCanBeHiddenWhileMenuBarIsHidden() {
+        // 기존 구멍: 메뉴바를 끈 뒤 Dock을 끄면 가드 없이 둘 다 꺼졌다.
+        // 무아이콘 모드에서는 이 경로도 의도된 상태다.
+        let store = makeStore()
+        store.setDockVisible(true)
+        store.setMenuBarVisible(false)
+        store.setDockVisible(false)
+
+        XCTAssertFalse(store.showInMenuBar)
+        XCTAssertFalse(store.showInDock)
+    }
 }

@@ -86,17 +86,13 @@ extension ConfigStore {
         Logger.info("ConfigStore", "[KEYCAP] 표시 방법 변경: \(style.rawValue)")
     }
 
-    /// 메뉴바 표시를 전환. Dock도 꺼져 있으면 접근 불가가 되므로 거부하고 false 반환.
-    /// - Returns: 적용되면 true, 경고로 거부되면 false
-    func setMenuBarVisible(_ visible: Bool) -> Bool {
-        if !visible && !showInDock {
-            return false
-        }
+    /// 메뉴바 표시를 전환. 둘 다 꺼도 `.app` 재실행으로 설정 창에 도달할 수 있다
+    /// (`AppDelegate+Reopen.swift` — 무아이콘 모드).
+    func setMenuBarVisible(_ visible: Bool) {
         showInMenuBar = visible
-        return true
     }
 
-    /// Dock 표시 전환. (Dock이 켜지면 접근 경로가 생기므로 항상 허용)
+    /// Dock 표시 전환. 메뉴바와 독립적으로 끌 수 있다 (무아이콘 모드 허용).
     func setDockVisible(_ visible: Bool) {
         showInDock = visible
     }

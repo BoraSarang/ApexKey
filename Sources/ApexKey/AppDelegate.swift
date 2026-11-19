@@ -64,13 +64,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         applyActivationPolicy(store)
         setupSystemMenu()
-        setupStatusItem()
+        if store.showInMenuBar {
+            setupStatusItem()
+        }
         setupPanel(with: store)
         observe(store)
 
         // 첫 실행 가이드 — 미완료 설치에서만 1회 (M-06)
         if !OnboardingState.isCompleted() {
             showOnboardingGuide()
+        } else {
+            // 아이콘을 모두 끈 사용자가 .app을 직접 열면 설정 창으로 복구한다.
+            showSettingsOnLaunchIfNeeded()
         }
 
         // 메뉴바 아이콘 캐시 예열 — 첫 ⌥]가 즉시 뜨게 (M-03). 실패해도 조용.
@@ -127,20 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toastTimer = nil
     }
 
-    // Dock/파인더 등에서 재실행(open) 시 빈 창을 만들지 않도록, 존재하는 창 중 하나를
-    // 앞으로 가져오거나(창이 있을 때) 아무것도 만들지 않는다(메뉴바 앱).
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        Logger.info("AppDelegate", "[REOPEN] 재실행 수신 (hasVisibleWindows=\(flag))")
-        if flag {
-            if panel?.isVisible == true {
-                NSApp.activate(ignoringOtherApps: true)
-                panel?.orderFrontRegardless()
-            }
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        return true
-    }
+    // Dock/파인더 등에서 재실행(open) 시의 창 라우팅은 `AppDelegate+Reopen.swift`가 담당한다.
 
     // MARK: - 상태 관찰 (alwaysOnTop / menuBar / dock)
 
