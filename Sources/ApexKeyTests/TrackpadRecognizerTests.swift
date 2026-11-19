@@ -16,17 +16,30 @@ final class TrackpadRecognizerTests: XCTestCase {
         )
     }
 
-    private func rightEdgeRule(
-        fingers: Int = 2,
-        ignoreThumb: Bool = false,
-        cooldown: Double = 0.1
+    /// v2 기본값(1손가락·폭 7%·임계값 1.5%·감도 1.5·연속)을 쓰는 규칙
+    private func rule(
+        modifiers: GestureModifiers = [],
+        mapping: SliderMapping = .continuous,
+        cooldown: Double = 0.12,
+        ignoreThumb: Bool = false
     ) -> EdgeSliderRule {
         EdgeSliderRule(
-            edge: .right,
-            fingers: fingers,
             cooldown: cooldown,
-            ignoreThumb: ignoreThumb
+            ignoreThumb: ignoreThumb,
+            modifiers: modifiers,
+            mapping: mapping
         )
+    }
+
+    /// 오른쪽 에지 최외곽에서 시작해 `startThreshold`를 넘긴 상태까지 진행한다.
+    @discardableResult
+    private func activate(
+        _ recognizer: EdgeSliderRecognizer,
+        at time: Double = 1.0,
+        modifiers: GestureModifiers = []
+    ) -> [SliderOutput] {
+        _ = recognizer.feed(frame([(0.98, 0.40)], at: time), modifiers: modifiers)
+        return recognizer.feed(frame([(0.98, 0.42)], at: time + 0.02), modifiers: modifiers)
     }
 
     // MARK: - EdgeZone
@@ -71,147 +84,273 @@ final class TrackpadRecognizerTests: XCTestCase {
         XCTAssertEqual(EdgeZone(edge: .top, width: 0.1).axisPosition(touch), 0.91, accuracy: 0.0001)
     }
 
-    // MARK: - 에지 슬라이더 상태머신
+    // MARK: - 진입 판정
 
-    func testSliderActivatesAfterThresholdAndEmitsValue() {
-        let recognizer = EdgeSliderRecognizer(rule: rightEdgeRule())
-        let start: [(Float, Float)] = [(0.95, 0.60), (0.92, 0.58)]
+    /// 패드 안쪽에서 시작한 손가락은 슬라이더가 아니다 — 손을 뗄 때까지 재심사하지 않는다.
+    func testSliderRejectsEntryThatStartsInsideThePad() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
 
-        XCTAssertEqual(recognizer.feed(frame(start, at: 1.0)), [])
-        XCTAssertEqual(recognizer.state, .tracking)
+        XCTAssertEqual(recognizer.feed(frame([(0.90, 0.50)], at: 1.0)), [])
+        XCTAssertEqual(recognizer.state, .idle)
 
-        // 임계값(7%) 통과 → 활성화, 값 변화는 버린다 (위로 밀면 y가 커진다)
-        let activate = recognizer.feed(frame([(0.95, 0.68), (0.92, 0.66)], at: 1.1))
-        XCTAssertEqual(activate, [.activated])
-        XCTAssertTrue(recognizer.isActive)
+        // 에지로 걸어와도 이번 세션은 시작하지 않는다
+        XCTAssertEqual(recognizer.feed(frame([(0.985, 0.50)], at: 1.02)), [])
+        XCTAssertEqual(recognizer.state, .idle)
 
-        // 14% 더 위로 → 1스텝 증가
-        let step = recognizer.feed(frame([(0.95, 0.85), (0.92, 0.83)], at: 1.3))
-        XCTAssertEqual(step.count, 1)
-        if case .valueDelta(let delta) = step[0] {
-            XCTAssertEqual(delta, 1.0 / 16.0, accuracy: 0.0001)
-        } else {
-            XCTFail("valueDelta가 아니다: \(step)")
-        }
-    }
-
-    /// 실기 피드백의 핵심 — 위로 밀면 커지고 아래로 밀면 작아져야 한다.
-    func testSliderUpIncreasesDownDecreases() {
-        let up = EdgeSliderRecognizer(rule: rightEdgeRule(cooldown: 0.05))
-        _ = up.feed(frame([(0.95, 0.40), (0.92, 0.40)], at: 1.0))
-        _ = up.feed(frame([(0.95, 0.50), (0.92, 0.50)], at: 1.05))
-        let upStep = up.feed(frame([(0.95, 0.66), (0.92, 0.66)], at: 1.1))
-        if case .valueDelta(let delta)? = upStep.first {
-            XCTAssertGreaterThan(delta, 0, "위로 밀면 증가")
-        } else {
-            XCTFail("valueDelta가 아니다: \(upStep)")
-        }
-
-        let down = EdgeSliderRecognizer(rule: rightEdgeRule(cooldown: 0.05))
-        _ = down.feed(frame([(0.95, 0.70), (0.92, 0.70)], at: 2.0))
-        _ = down.feed(frame([(0.95, 0.60), (0.92, 0.60)], at: 2.05))
-        let downStep = down.feed(frame([(0.95, 0.44), (0.92, 0.44)], at: 2.1))
-        if case .valueDelta(let delta)? = downStep.first {
-            XCTAssertLessThan(delta, 0, "아래로 밀면 감소")
-        } else {
-            XCTFail("valueDelta가 아니다: \(downStep)")
-        }
-    }
-
-    /// 두 손가락이 띠 밖으로 조금 벌어져도 추적을 시작해야 한다(실기 피드백).
-    func testSliderStartsWithSpreadTwoFingers() {
-        let recognizer = EdgeSliderRecognizer(rule: rightEdgeRule())
-        XCTAssertEqual(recognizer.feed(frame([(0.86, 0.50), (0.99, 0.50)], at: 1.0)), [])
+        // 손을 뗀 뒤 새로 대면 인정
+        _ = recognizer.feed(frame([], at: 1.04))
+        _ = recognizer.feed(frame([(0.985, 0.50)], at: 1.06))
         XCTAssertEqual(recognizer.state, .tracking)
     }
 
-    func testSliderIgnoresWrongFingerCount() {
-        let recognizer = EdgeSliderRecognizer(rule: rightEdgeRule(fingers: 2))
-        XCTAssertEqual(recognizer.feed(frame([(0.95, 0.6)], at: 1.0)), [])
+    /// 인식 띠(기본 7%) 안에서 시작하면 인정한다 — 띠 가장자리(6%)도 포함.
+    func testEntryAcceptsWholeRecognitionBand() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        _ = recognizer.feed(frame([(0.94, 0.50)], at: 1.0))
+        XCTAssertEqual(recognizer.state, .tracking, "6% 깊이는 기본 띠(7%) 안이다")
+    }
+
+    /// 커서를 옮기려고 에지에서 안쪽으로 미는 동작은 양보한다.
+    func testSliderYieldsWhenFingerMovesInward() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        _ = recognizer.feed(frame([(0.97, 0.50)], at: 1.0))
+        XCTAssertEqual(recognizer.state, .tracking)
+
+        XCTAssertEqual(recognizer.feed(frame([(0.93, 0.50)], at: 1.02)), [.deactivated])
         XCTAssertEqual(recognizer.state, .idle)
     }
 
     func testSliderThumbIgnoreRejectsBottomStart() {
-        let recognizer = EdgeSliderRecognizer(rule: rightEdgeRule(ignoreThumb: true))
+        let recognizer = EdgeSliderRecognizer(rule: rule(ignoreThumb: true))
         // 원시 y는 아래가 0 — 하단 15%는 y < 0.15
-        XCTAssertEqual(recognizer.feed(frame([(0.95, 0.10), (0.92, 0.08)], at: 1.0)), [])
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.10)], at: 1.0)), [])
         XCTAssertEqual(recognizer.state, .idle)
     }
 
+    // MARK: - 활성화·연속 매핑
+
+    func testSliderActivatesAfterSmallThreshold() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.40)], at: 1.0)), [])
+        XCTAssertEqual(recognizer.state, .tracking)
+
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.42)], at: 1.02)), [.activated])
+        XCTAssertTrue(recognizer.isActive)
+    }
+
+    /// v2의 핵심 — 이동량 × 감도가 그대로 값 변화가 된다(스텝 아님).
+    func testContinuousMappingIsProportionalToMovement() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        activate(recognizer)
+
+        // 4% 이동 × 감도 1.5 = 0.06
+        let outputs = recognizer.feed(frame([(0.98, 0.46)], at: 1.04))
+        XCTAssertEqual(outputs.count, 1)
+        if case .valueDelta(let delta)? = outputs.first {
+            XCTAssertEqual(delta, 0.06, accuracy: 0.001)
+        } else {
+            XCTFail("valueDelta가 아니다: \(outputs)")
+        }
+    }
+
+    /// 위로 밀면 커지고 아래로 밀면 작아진다.
+    func testSliderUpIncreasesDownDecreases() {
+        let up = EdgeSliderRecognizer(rule: rule())
+        activate(up)
+        let upOut = up.feed(frame([(0.98, 0.50)], at: 1.04))
+        if case .valueDelta(let delta)? = upOut.first {
+            XCTAssertGreaterThan(delta, 0)
+        } else {
+            XCTFail("valueDelta가 아니다: \(upOut)")
+        }
+
+        let down = EdgeSliderRecognizer(rule: rule())
+        activate(down, at: 2.0)
+        let downOut = down.feed(frame([(0.98, 0.30)], at: 2.04))
+        if case .valueDelta(let delta)? = downOut.first {
+            XCTAssertLessThan(delta, 0)
+        } else {
+            XCTFail("valueDelta가 아니다: \(downOut)")
+        }
+    }
+
+    /// ⇧를 누르고 있는 동안은 4배 정밀.
+    func testShiftIsFineAdjust() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        activate(recognizer)
+
+        let outputs = recognizer.feed(
+            frame([(0.98, 0.46)], at: 1.04),
+            modifiers: [.shift]
+        )
+        if case .valueDelta(let delta)? = outputs.first {
+            XCTAssertEqual(Double(delta), 0.06 * EdgeSliderRecognizer.fineAdjustScale, accuracy: 0.001)
+        } else {
+            XCTFail("valueDelta가 아니다: \(outputs)")
+        }
+    }
+
+    /// 슬라이드 중 손바닥이 얹혀도 처음 손가락을 계속 따라간다.
+    func testPalmTouchDoesNotHijackTracking() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        activate(recognizer)
+
+        let outputs = recognizer.feed(frame([(0.98, 0.46), (0.45, 0.90)], at: 1.04))
+        if case .valueDelta(let delta)? = outputs.first {
+            XCTAssertEqual(delta, 0.06, accuracy: 0.001, "가까운 손가락(0.98)을 따라가야 한다")
+        } else {
+            XCTFail("valueDelta가 아니다: \(outputs)")
+        }
+    }
+
     func testSliderDeactivatesWhenFingersLift() {
-        let recognizer = EdgeSliderRecognizer(rule: rightEdgeRule())
-        _ = recognizer.feed(frame([(0.95, 0.60), (0.92, 0.58)], at: 1.0))
-        _ = recognizer.feed(frame([(0.95, 0.68), (0.92, 0.66)], at: 1.1))
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        activate(recognizer)
         XCTAssertEqual(recognizer.feed(frame([], at: 1.2)), [.deactivated])
         XCTAssertEqual(recognizer.state, .idle)
     }
 
-    func testSliderCooldownSuppressesRapidSteps() {
-        let recognizer = EdgeSliderRecognizer(rule: rightEdgeRule(cooldown: 0.5))
-        _ = recognizer.feed(frame([(0.95, 0.60), (0.92, 0.60)], at: 1.0))
-        _ = recognizer.feed(frame([(0.95, 0.70), (0.92, 0.70)], at: 1.1))   // 활성화
-        let first = recognizer.feed(frame([(0.95, 0.90), (0.92, 0.90)], at: 1.7))
-        XCTAssertEqual(first.count, 1)
-        let tooSoon = recognizer.feed(frame([(0.95, 1.00), (0.92, 1.00)], at: 1.8))
-        XCTAssertEqual(tooSoon, [])
+    /// 프레임이 끊겼다 돌아오면 값이 튀지 않도록 세션을 버린다.
+    func testGapResetsSession() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        activate(recognizer)
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.60)], at: 3.0)), [.deactivated])
+        XCTAssertEqual(recognizer.state, .idle)
     }
 
-    /// 한 번에 1스텝만 — 빠른 스와이프가 여러 스텝을 한꺼번에 점프하지 않는다.
-    func testSliderEmitsAtMostOneStepPerFrame() {
-        let recognizer = EdgeSliderRecognizer(rule: rightEdgeRule(cooldown: 0.0))
-        _ = recognizer.feed(frame([(0.95, 0.20), (0.92, 0.20)], at: 1.0))
-        _ = recognizer.feed(frame([(0.95, 0.30), (0.92, 0.30)], at: 1.1))   // 활성화
-        let fast = recognizer.feed(frame([(0.95, 0.90), (0.92, 0.90)], at: 1.15))
-        XCTAssertEqual(fast.count, 1, "프레임당 1스텝만 내보낸다")
-        if case .valueDelta(let delta)? = fast.first {
-            XCTAssertEqual(delta, 1.0 / 16.0, accuracy: 0.0001)
-        }
+    // MARK: - 수정자 레이어
+
+    func testModifierRuleRequiresExactMatch() {
+        let recognizer = EdgeSliderRecognizer(rule: rule(modifiers: [.option]))
+
+        _ = recognizer.feed(frame([(0.98, 0.40)], at: 1.0))
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.42)], at: 1.02)), [.deactivated],
+                       "⌥ 없이는 발동하지 않는다")
+
+        let matching = EdgeSliderRecognizer(rule: rule(modifiers: [.option]))
+        _ = matching.feed(frame([(0.98, 0.40)], at: 1.0))
+        XCTAssertEqual(matching.feed(frame([(0.98, 0.42)], at: 1.02), modifiers: [.option]), [.activated])
     }
 
-    func testSliderInvertedFlipsDirection() {
-        var rule = rightEdgeRule(cooldown: 0.05)
-        rule.inverted = true
+    /// 수정자가 없는 규칙은 수정자를 누르면 발동하지 않는다 (M3 — 자연스러운 회피구).
+    func testUnmodifiedRuleYieldsToModifier() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        _ = recognizer.feed(frame([(0.98, 0.40)], at: 1.0))
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.42)], at: 1.02), modifiers: [.command]), [.deactivated])
+    }
+
+    // MARK: - 억제 시점
+
+    /// 손을 에지에 얹기만 하면 페이지를 막지 않는다 — 움직이기 시작해야 켠다.
+    func testScrollSuppressionWaitsForMovement() {
+        let recognizer = EdgeSliderRecognizer(rule: rule())
+        _ = recognizer.feed(frame([(0.98, 0.50)], at: 1.0))
+        XCTAssertFalse(recognizer.wantsScrollSuppression, "접촉만으로는 억제하지 않는다")
+
+        _ = recognizer.feed(frame([(0.98, 0.502)], at: 1.02))
+        XCTAssertFalse(recognizer.wantsScrollSuppression, "0.2% 이동은 아직 아니다")
+
+        _ = recognizer.feed(frame([(0.98, 0.51)], at: 1.04))
+        XCTAssertTrue(recognizer.wantsScrollSuppression, "1% 이동하면 억제를 켠다")
+    }
+
+    /// 수정자가 맞지 않는 규칙은 억제도 켜지 않는다 (M1).
+    func testModifierRuleDoesNotSuppressWithoutModifier() {
+        let recognizer = EdgeSliderRecognizer(rule: rule(modifiers: [.option]))
+        _ = recognizer.feed(frame([(0.98, 0.50)], at: 1.0))
+        _ = recognizer.feed(frame([(0.98, 0.51)], at: 1.02))
+        XCTAssertFalse(recognizer.wantsScrollSuppression, "⌥ 없이는 이 규칙의 입력이 아니다")
+
+        let matching = EdgeSliderRecognizer(rule: rule(modifiers: [.option]))
+        _ = matching.feed(frame([(0.98, 0.50)], at: 1.0), modifiers: [.option])
+        _ = matching.feed(frame([(0.98, 0.51)], at: 1.02), modifiers: [.option])
+        XCTAssertTrue(matching.wantsScrollSuppression)
+    }
+
+    // MARK: - 고급 경로
+
+    /// 두 손가락 규칙(고급)도 평균 위치로 동작해야 한다.
+    func testTwoFingerRuleStillWorks() {
+        let rule = EdgeSliderRule(
+            fingers: 2,
+            sensitivity: 1.0,
+            edgeWidth: 0.15,
+            ignoreThumb: false
+        )
         let recognizer = EdgeSliderRecognizer(rule: rule)
-        _ = recognizer.feed(frame([(0.95, 0.60), (0.92, 0.58)], at: 1.0))
-        _ = recognizer.feed(frame([(0.95, 0.68), (0.92, 0.66)], at: 1.1))
-        let step = recognizer.feed(frame([(0.95, 0.85), (0.92, 0.83)], at: 1.2))
-        if case .valueDelta(let delta)? = step.first {
-            XCTAssertLessThan(delta, 0, "반전이면 위로 밀 때 감소해야 한다")
+
+        _ = recognizer.feed(frame([(0.94, 0.40), (0.90, 0.42)], at: 1.0))
+        XCTAssertEqual(recognizer.state, .tracking)
+        XCTAssertEqual(recognizer.feed(frame([(0.94, 0.43), (0.90, 0.45)], at: 1.02)), [.activated])
+
+        let outputs = recognizer.feed(frame([(0.94, 0.47), (0.90, 0.49)], at: 1.04))
+        if case .valueDelta(let delta)? = outputs.first {
+            XCTAssertEqual(delta, 0.04, accuracy: 0.001)
         } else {
-            XCTFail("valueDelta가 아니다: \(step)")
+            XCTFail("valueDelta가 아니다: \(outputs)")
         }
+    }
+
+    /// 스텝 모드(고급)는 v0.33 동작을 그대로 유지한다.
+    func testSteppedMappingEmitsSixteenths() {
+        let recognizer = EdgeSliderRecognizer(rule: rule(mapping: .stepped, cooldown: 0.0))
+        activate(recognizer)
+
+        // 14% 이동 = 1스텝
+        let outputs = recognizer.feed(frame([(0.98, 0.56)], at: 1.04))
+        XCTAssertEqual(outputs.count, 1)
+        if case .valueDelta(let delta)? = outputs.first {
+            XCTAssertEqual(delta, 1.0 / 16.0, accuracy: 0.0001)
+        } else {
+            XCTFail("valueDelta가 아니다: \(outputs)")
+        }
+    }
+
+    func testSteppedMappingRespectsCooldown() {
+        let recognizer = EdgeSliderRecognizer(rule: rule(mapping: .stepped, cooldown: 0.5))
+        activate(recognizer)
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.56)], at: 1.04)).count, 1)
+        XCTAssertEqual(recognizer.feed(frame([(0.98, 0.70)], at: 1.06)), [])
     }
 
     // MARK: - 제스처 인식기
 
-    func testThreeFingerTap() {
+    func testFourFingerTap() {
         let recognizer = GestureRecognizer()
-        _ = recognizer.feed(frame([(0.4, 0.4), (0.5, 0.5), (0.6, 0.4)], at: 2.0))
+        _ = recognizer.feed(frame([(0.4, 0.4), (0.5, 0.5), (0.6, 0.4), (0.7, 0.5)], at: 2.0))
         let events = recognizer.feed(frame([], at: 2.1))
         XCTAssertEqual(events.count, 1)
         XCTAssertEqual(events.first?.kind, .tap)
-        XCTAssertEqual(events.first?.fingers, 3)
+        XCTAssertEqual(events.first?.fingers, 4)
     }
 
-    func testFourFingerSwipeLeft() {
+    /// 탭은 손을 떼는 순간의 수정자를 래치한다 (M2).
+    func testTapLatchesModifiersAtRelease() {
         let recognizer = GestureRecognizer()
-        _ = recognizer.feed(frame([(0.6, 0.4), (0.7, 0.4), (0.8, 0.4), (0.9, 0.4)], at: 3.0))
-        let events = recognizer.feed(frame([(0.3, 0.4), (0.4, 0.4), (0.5, 0.4), (0.6, 0.4)], at: 3.1))
+        _ = recognizer.feed(frame([(0.4, 0.4), (0.5, 0.5), (0.6, 0.4), (0.7, 0.5)], at: 2.0))
+        let events = recognizer.feed(frame([], at: 2.1), modifiers: [.option])
+        XCTAssertEqual(events.first?.modifiers, [.option])
+    }
+
+    func testFiveFingerSwipeLeft() {
+        let recognizer = GestureRecognizer()
+        let start: [(Float, Float)] = [(0.6, 0.4), (0.7, 0.4), (0.8, 0.4), (0.9, 0.4), (0.5, 0.5)]
+        let moved: [(Float, Float)] = [(0.3, 0.4), (0.4, 0.4), (0.5, 0.4), (0.6, 0.4), (0.2, 0.5)]
+        _ = recognizer.feed(frame(start, at: 3.0))
+        let events = recognizer.feed(frame(moved, at: 3.1))
         XCTAssertEqual(events.count, 1)
         XCTAssertEqual(events.first?.kind, .swipe(.left))
+        XCTAssertEqual(events.first?.fingers, 5)
     }
 
-    func testSwipeUpAndDownDirections() {
-        // 원시 y는 위로 갈수록 커진다 — 위로 민 것은 y 증가.
-        let up = GestureRecognizer()
-        _ = up.feed(frame([(0.4, 0.4), (0.5, 0.4)], at: 4.0))
-        let upEvents = up.feed(frame([(0.4, 0.7), (0.5, 0.7)], at: 4.1))
-        XCTAssertEqual(upEvents.first?.kind, .swipe(.up))
-
-        let down = GestureRecognizer()
-        _ = down.feed(frame([(0.4, 0.7), (0.5, 0.7)], at: 5.0))
-        let downEvents = down.feed(frame([(0.4, 0.4), (0.5, 0.4)], at: 5.1))
-        XCTAssertEqual(downEvents.first?.kind, .swipe(.down))
+    /// 스와이프로 판정된 세션은 손을 뗄 때 **탭으로 중복 판정하지 않는다**.
+    func testSwipeDoesNotAlsoEmitTapOnRelease() {
+        let recognizer = GestureRecognizer()
+        _ = recognizer.feed(frame([(0.6, 0.4), (0.7, 0.4), (0.8, 0.4), (0.9, 0.4)], at: 4.0))
+        let swipes = recognizer.feed(frame([(0.4, 0.4), (0.5, 0.4), (0.6, 0.4), (0.7, 0.4)], at: 4.05))
+        XCTAssertEqual(swipes.count, 1)
+        XCTAssertEqual(swipes.first?.kind, .swipe(.left))
+        XCTAssertEqual(recognizer.feed(frame([], at: 4.2)), [], "스와이프 후 탭이 또 나오면 안 된다")
     }
 
     func testFingerCountChangeCancelsSession() {
@@ -230,15 +369,31 @@ final class TrackpadRecognizerTests: XCTestCase {
         rule.target = .shortcut
         rule.sensitivity = 1.4
         rule.cooldown = 0.4
+        rule.modifiers = [.option, .command]
+        rule.mapping = .stepped
         let data = try JSONEncoder().encode(rule)
         let decoded = try JSONDecoder().decode(EdgeSliderRule.self, from: data)
         XCTAssertEqual(decoded, rule)
     }
 
+    /// v1.8.1까지 저장된 JSON에는 `modifiers`·`mapping` 키가 없다 — 롤백 안전.
+    func testLegacySliderJSONDecodesAsSteppedWithoutModifiers() throws {
+        let json = """
+        {"id":"11111111-1111-1111-1111-111111111111","enabled":true,"edge":"right",
+         "fingers":2,"target":"volume","sensitivity":1.0,"inverted":false,
+         "edgeWidth":0.15,"startThreshold":0.07,"cooldown":0.12,
+         "ignoreThumb":true,"suppressScroll":true}
+        """.data(using: .utf8)!
+        let rule = try JSONDecoder().decode(EdgeSliderRule.self, from: json)
+        XCTAssertEqual(rule.modifiers, [])
+        XCTAssertEqual(rule.mapping, .stepped, "기존 규칙은 기존 동작(스텝)을 유지해야 한다")
+        XCTAssertEqual(rule.fingers, 2)
+    }
+
     func testGestureRuleCodableRoundTripWithParameter() throws {
         let rule = GestureRule(
             kind: .swipe,
-            fingers: 4,
+            fingers: 5,
             direction: .down,
             action: GestureAction(
                 kind: .system,
@@ -246,35 +401,52 @@ final class TrackpadRecognizerTests: XCTestCase {
                 systemText: "com.apple.Safari"
             ),
             scope: .apps,
-            appBundleIDs: ["com.apple.Safari", "com.apple.finder"]
+            appBundleIDs: ["com.apple.Safari", "com.apple.finder"],
+            modifiers: [.control, .shift]
         )
         let data = try JSONEncoder().encode(rule)
         let decoded = try JSONDecoder().decode(GestureRule.self, from: data)
         XCTAssertEqual(decoded, rule)
         XCTAssertEqual(decoded.action.systemText, "com.apple.Safari")
+        XCTAssertEqual(decoded.modifiers, [.control, .shift])
     }
 
-    /// 이전 버전(파라미터 키 없음)으로 저장된 규칙도 읽혀야 한다 — 롤백 안전.
-    func testGestureActionDecodesWithoutSystemText() throws {
+    /// 이전 버전(수정자 키 없음)으로 저장된 규칙도 읽혀야 한다.
+    func testLegacyGestureJSONDecodesWithoutModifiers() throws {
         let json = """
-        {"kind":"system","menuPath":[],"systemAction":"mute"}
+        {"id":"22222222-2222-2222-2222-222222222222","enabled":true,"kind":"tap",
+         "fingers":3,"direction":"left","repeats":false,
+         "action":{"kind":"system","menuPath":[],"systemAction":"mute"},
+         "scope":"global","appBundleIDs":[]}
         """.data(using: .utf8)!
-        let action = try JSONDecoder().decode(GestureAction.self, from: json)
-        XCTAssertEqual(action.systemAction, .mute)
-        XCTAssertNil(action.systemText)
+        let rule = try JSONDecoder().decode(GestureRule.self, from: json)
+        XCTAssertEqual(rule.modifiers, [])
+        XCTAssertEqual(rule.action.systemAction, .mute)
     }
 
-    // MARK: - 시스템 볼륨 상수
+    // MARK: - 메타데이터
 
     func testVolumeStepIsSixteenth() {
         XCTAssertEqual(EdgeSliderRecognizer.stepValue, 1.0 / 16.0, accuracy: 0.0001)
     }
 
-    func testGestureKeyDistinguishesKindFingersAndDirection() {
-        var rule = GestureRule(kind: .tap, fingers: 3)
-        XCTAssertEqual(rule.gestureKey, "tap:3")
-        rule.kind = .swipe
-        rule.direction = .left
-        XCTAssertEqual(rule.gestureKey, "swipe:3:left")
+    func testGestureKeyIncludesModifiers() {
+        var rule = GestureRule(kind: .tap, fingers: 4)
+        XCTAssertEqual(rule.gestureKey, "tap:4:m0")
+        rule.modifiers = [.option]
+        XCTAssertEqual(rule.gestureKey, "tap:4:m2", "⌥ = rawValue 2")
+    }
+
+    func testSystemConflictOnlyForThreeOrFourFingerSwipes() {
+        XCTAssertTrue(GestureRule(kind: .swipe, fingers: 3).hasSystemConflict)
+        XCTAssertTrue(GestureRule(kind: .swipe, fingers: 4).hasSystemConflict)
+        XCTAssertFalse(GestureRule(kind: .swipe, fingers: 5).hasSystemConflict)
+        XCTAssertFalse(GestureRule(kind: .tap, fingers: 4).hasSystemConflict)
+    }
+
+    func testModifierSymbolStringFollowsMacOrder() {
+        XCTAssertEqual(GestureModifiers([.command, .option]).symbolString, "⌥⌘")
+        XCTAssertEqual(GestureModifiers([]).summaryPrefix, "")
+        XCTAssertEqual(GestureModifiers([.control]).symbolString, "⌃")
     }
 }

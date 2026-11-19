@@ -179,7 +179,13 @@ final class MTBridge {
     // MARK: - C 콜백
 
     private static let contactCallback: MTContactCallback = { _, fingerData, count, timestamp, _ in
-        guard let bridge = MTBridge.active, let base = fingerData, count > 0 else { return 0 }
+        guard let bridge = MTBridge.active else { return 0 }
+        // 손을 모두 떼면 count 0 프레임이 온다. 이 프레임을 버리면 인식기는
+        // "손을 뗐다"를 영영 모른다(탭 판정·슬라이더 종료가 0.5초 워치독까지 밀린다).
+        guard count > 0, let base = fingerData else {
+            bridge.onFrame?(TrackpadFrame(timestamp: timestamp, touches: []))
+            return 0
+        }
         let n = min(Int(count), MTBridge.maxFingers)
         var touches: [TrackpadTouch] = []
         touches.reserveCapacity(n)

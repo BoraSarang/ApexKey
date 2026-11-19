@@ -12,6 +12,8 @@ struct GestureEvent: Equatable {
     /// 같은 터치 세션(손을 대고 떼기까지)을 묶는 식별자
     var sessionID: Int
     var timestamp: Double
+    /// 판정 순간에 눌려 있던 수정자 (M2 — 결정 시점 래치)
+    var modifiers: GestureModifiers = []
 }
 
 /// 탭·스와이프 인식기 — 규칙을 모른 채 "무슨 제스처였는지"만 판정한다.
@@ -31,26 +33,32 @@ final class GestureRecognizer {
     private var sessionID = 0
     private var startCount = 0
     private var startTime: Double = 0
-    private var startCentroid: (x: Double, y: Double) = (0, 0)
     private var lastCentroid: (x: Double, y: Double) = (0, 0)
     private var travel: (x: Double, y: Double) = (0, 0)
     private var cancelled = true
     private var isTracking = false
+    /// 이번 세션에서 스와이프를 이미 냈는가 — 손을 뗄 때 탭으로 중복 판정하지 않는다
+    private var didSwipe = false
+    /// 이번 프레임에 눌린 수정자 — 판정 시점 값
+    private var currentModifiers: GestureModifiers = []
 
     func reset() {
         isTracking = false
         cancelled = true
         startCount = 0
         travel = (0, 0)
+        didSwipe = false
+        currentModifiers = []
     }
 
-    func feed(_ frame: TrackpadFrame) -> [GestureEvent] {
+    func feed(_ frame: TrackpadFrame, modifiers: GestureModifiers = []) -> [GestureEvent] {
         let touches = frame.touches
 
         guard !touches.isEmpty else {
-            return finishSession(timestamp: frame.timestamp)
+            return finishSession(timestamp: frame.timestamp, modifiers: modifiers)
         }
 
+        currentModifiers = modifiers
         let centroid = Self.centroid(touches)
 
         guard isTracking else {
@@ -81,21 +89,27 @@ final class GestureRecognizer {
         sessionID &+= 1
         startCount = touches.count
         startTime = timestamp
-        startCentroid = centroid
         lastCentroid = centroid
         travel = (0, 0)
+        didSwipe = false
     }
 
-    private func finishSession(timestamp: Double) -> [GestureEvent] {
+    private func finishSession(timestamp: Double, modifiers: GestureModifiers) -> [GestureEvent] {
         guard isTracking else { return [] }
         defer { reset() }
-        guard !cancelled else { return [] }
+        guard !cancelled, !didSwipe else { return [] }
         let distance = hypot(travel.x, travel.y)
         let duration = timestamp - startTime
         guard startCount >= 2,
               distance < Self.tapMovement,
               duration <= Self.tapDuration else { return [] }
-        return [GestureEvent(kind: .tap, fingers: startCount, sessionID: sessionID, timestamp: timestamp)]
+        return [GestureEvent(
+            kind: .tap,
+            fingers: startCount,
+            sessionID: sessionID,
+            timestamp: timestamp,
+            modifiers: modifiers
+        )]
     }
 
     private func swipeEventsIfNeeded(timestamp: Double) -> [GestureEvent] {
@@ -111,6 +125,7 @@ final class GestureRecognizer {
             direction = dominant > 0 ? .up : .down
         }
 
+        didSwipe = true
         // 다음 1회를 위해 그 방향 성분만 소비
         if horizontal {
             travel.x -= dominant > 0 ? Self.swipeDistance : -Self.swipeDistance
@@ -118,7 +133,13 @@ final class GestureRecognizer {
             travel.y -= dominant > 0 ? Self.swipeDistance : -Self.swipeDistance
         }
 
-        return [GestureEvent(kind: .swipe(direction), fingers: startCount, sessionID: sessionID, timestamp: timestamp)]
+        return [GestureEvent(
+            kind: .swipe(direction),
+            fingers: startCount,
+            sessionID: sessionID,
+            timestamp: timestamp,
+            modifiers: currentModifiers
+        )]
     }
 
     private static func centroid(_ touches: [TrackpadTouch]) -> (x: Double, y: Double) {

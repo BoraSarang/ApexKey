@@ -7,7 +7,8 @@ v0.33의 핵심 약속은 **"비공개 프레임워크를 한 파일에 가두�
 검사 항목
 1. 금지 심볼(`MTDeviceGetFamilyID`, `MTDeviceGetDeviceID`)이 저장소 어디에도 없다.
    — macOS 26/27에서 호출 시 SIGSEGV (SPIKE §1 실측).
-2. `dlopen`/`dlsym`/`MultitouchSupport`는 `Trackpad/MTBridge.swift`에만 있다.
+2. `dlopen`/`dlsym`은 `Trackpad/MTBridge.swift`·`Trackpad/DisplayBrightness.swift`에만 있고,
+   `MultitouchSupport`는 MTBridge, `DisplayServices`는 DisplayBrightness에만 있다.
 3. Input Monitoring 계열 API(`IOHIDEventSystemClient`, `CGPreflightListenEventAccess`,
    `CGRequestListenEventAccess`)를 쓰지 않는다.
 4. 트랙패드 코드가 `AXIsProcessTrusted`/`CGEventTap` 외의 새 TCC 프롬프트를 유발하는
@@ -29,7 +30,13 @@ SRC = ROOT / "Sources" / "ApexKey"
 TRACKPAD = SRC / "Trackpad"
 
 FORBIDDEN_SYMBOLS = ("MTDeviceGetFamilyID", "MTDeviceGetDeviceID")
-PRIVATE_API_TOKENS = ("dlopen(", "dlsym(", "MultitouchSupport")
+PRIVATE_API_TOKENS = ("dlopen(", "dlsym(", "MultitouchSupport", "DisplayServices")
+
+# 비공개 API별 허용 파일 — 각 프레임워크는 **한 파일에만** 둔다.
+PRIVATE_API_CONTAINERS = {
+    TRACKPAD / "MTBridge.swift": {"dlopen(", "dlsym(", "MultitouchSupport"},
+    TRACKPAD / "DisplayBrightness.swift": {"dlopen(", "dlsym(", "DisplayServices"},
+}
 INPUT_MONITORING_SYMBOLS = (
     "IOHIDEventSystemClient",
     "CGPreflightListenEventAccess",
@@ -71,16 +78,14 @@ def check_forbidden_symbols() -> None:
 
 
 def check_private_api_containment() -> None:
-    allowed = TRACKPAD / "MTBridge.swift"
     for path in swift_files():
         text = path.read_text(encoding="utf-8", errors="ignore")
+        allowed = PRIVATE_API_CONTAINERS.get(path, set())
         for token in PRIVATE_API_TOKENS:
-            if token not in text:
-                continue
-            if path == allowed:
+            if token not in text or token in allowed:
                 continue
             # 문서 주석에서 이름만 언급하는 것은 허용하지 않는다 — 코드/주석 구분 없이 금지.
-            errors.append(f"{path.relative_to(ROOT)}: 비공개 API 토큰 '{token}' 이 MTBridge 밖에 있다")
+            errors.append(f"{path.relative_to(ROOT)}: 비공개 API 토큰 '{token}' 이 허용된 컨테이너 밖에 있다")
 
 
 def check_no_input_monitoring() -> None:
