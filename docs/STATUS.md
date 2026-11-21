@@ -43,7 +43,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 | user 실동작 대기 | **146건** (확인 19건 / 전체 165건 — §8-21 트랙패드 v2 8건 추가 확인. §8-14 v0.33은 v1.9.0에서 대체되어 집계 제외) | `FUNCTIONAL_CHECKLIST.md` §8 |
 | 브랜치 | `main` — PR #22·#23·#24·#25·#26·#27 머지 완료. T-226·트랙패드 v2 실동작 확인 완료 | — |
 | 릴리스 | **v1.9.0** — PR #26 머지 + annotated 태그 푸시, `ApexKey-1.9.0-macOS.dmg`(7,056,658 bytes) GitHub Releases 배포 완료(2026-11-20) | [Release](https://github.com/BoraSarang/ApexKey/releases/tag/v1.9.0) |
-| 미배포 배치 | **고정 선택지 결함 3건**(터미널·메뉴 명령·AppFinder) — **미커밋·사용자 실동작 대기**. 그 외 v1.5.0 이후 변경은 **v1.9.0에서 일괄 배포** 완료. v1.6.0은 v1.7.0에, v1.8.1은 v1.9.0에 통합. v1.7.0·v1.8.0은 태그만 push되어 있고 별도 GitHub Release는 없다 | — |
+| 미배포 배치 | **고정 선택지 결함 3건**(터미널·메뉴 명령·AppFinder) — **PR #29 open, 사용자 실동작 확인 완료, 머지 대기**. 그 외 v1.5.0 이후 변경은 **v1.9.0에서 일괄 배포** 완료. v1.6.0은 v1.7.0에, v1.8.1은 v1.9.0에 통합. v1.7.0·v1.8.0은 태그만 push되어 있고 별도 GitHub Release는 없다 | — |
 
 ---
 
@@ -51,7 +51,7 @@ macOS 메뉴바 핫키 런처. **기능·저장 안전성·테스트는 healthy*
 
 | 작업 | 결과 |
 |---|---|
-| **2026-11-21 고정 선택지 결함 3건 (R-20261121-01)** | 전수 조사(`docs/plans/RESEARCH_2026-11-21_fixed-choices_macos.md`)에서 확인한 결함 중 최소 3건을 수정. ① **터미널** — `TerminalTarget`(known/custom) 도입, OpenPanel로 Ghostty·Warp 등 임의 앱 선택(새 창). 새 탭은 앱별 AppleScript가 있는 iTerm2·터미널만. ② **메뉴 명령** — "앱 직접 선택…" OpenPanel 추가, `AppFinder` 밖 앱도 번들ID로 저장. ③ **AppFinder** — `/Applications`·`~/Applications`·`/System/Applications` 깊이 2 재귀 스캔(앱 번들 내부 제외). **unit 888건 0실패**(3 skip) · 게이트 3종 · 신규 경고 0 · i18n **1641키**. **사용자 실동작 미확인** |
+| **2026-11-21 고정 선택지 결함 3건 (R-20261121-01)** | 전수 조사(`docs/plans/RESEARCH_2026-11-21_fixed-choices_macos.md`)에서 확인한 결함 중 최소 3건을 수정. ① **터미널** — `TerminalTarget`(known/custom) 도입, OpenPanel로 Ghostty·Warp 등 임의 앱 선택(새 창). 새 탭은 앱별 AppleScript가 있는 iTerm2·터미널만. ② **메뉴 명령** — "앱 직접 선택…" OpenPanel 추가, `AppFinder` 밖 앱도 번들ID로 저장. ③ **AppFinder** — `/Applications`·`~/Applications`·`/System/Applications` 깊이 2 재귀 스캔(앱 번들 내부 제외). **unit 888건 0실패**(3 skip) · 게이트 3종 · 신규 경고 0 · i18n **1641키**. **사용자 실동작 확인 완료(2026-11-21)** — §8-22 6항목. **PR #29** |
 | **2026-11-20 v1.9.0 릴리스 (R-20261120-02)** | annotated 태그 `v1.9.0` push → Release 워크플로 성공(Release 빌드·unit·DMG). **`ApexKey-1.9.0-macOS.dmg`(7,056,658 bytes)** GitHub Releases 배포. v1.5.0 이후 변경을 일괄 포함. 트랙패드 사용성은 일부 불편 피드백이 있으나 **현 상태 수용**(구체 항목 추후 수집) |
 | **2026-11-20 Alfred 6 조사 (R-20261120-01)** | Alfred 6.0~6.0.2(2026-11-18~19) 공식 문서 조사 → `docs/plans/RESEARCH_2026-11-20_alfred-6.md`. 핵심은 **Alfred UI(JSON 네이티브 UI 툴킷)**. ApexKey와 직접 경쟁 기능(메뉴 실행·트랙패드) 없음 → **기능 동결 유지**, macOS 27 호환만 관찰. **PR #27** |
 | **2026-11-19 트랙패드 v2 (R-20261119-02)** | 인식 계층 전면 재설계(`PLAN_v1.9.0`). 기본 제공을 **OS 미점유 입력**으로 한정 — 에지 슬라이더는 **1손가락·오른쪽 에지·연속 매핑**(감도 1.5, 띠 7%, 임계 1.5%, ⇧ ×0.25 미세 조정), 이산 제스처는 4손가락 탭·5손가락 스와이프(3/4손가락 스와이프는 충돌 경고 후 고급). **수정자 레이어**(⌃⌥⌘) 추가 — 정확 일치·결정 시점 래치·무수정자 규칙과 배타라 "⌥ 누르면 기능 끄기" 특례를 삭제했다. 커서 고정·복원(`PointerAnchor`, 멱등·5초 워치독), **이동 시작 즉시 스크롤 억제**, 절대값 볼륨(경계 클램프), 1/16 햅틱, HUD 세로 바. **버그 수정: `MTBridge`가 count 0 프레임을 버려 손을 떼도 0.5초 동안 억제가 남았다.** 자동 시드 제거 → 빈 상태 "권장 설정 불러오기"(tuningVersion 3 마이그레이션은 기본값 그대로인 규칙만). **밝기 대상 구현**(내장 디스플레이, `DisplayServices` dlopen 격리·실패 시 비활성), 절대값 누적을 볼륨·밝기가 공유. **unit 883건 0실패**(3 skip) · 게이트 3종 · **신규 경고 0**(기존 5건: Combine 2·NSEvent 2·AppIcon 1). **사용자 실동작 확인 완료(2026-11-19)** — A1·A2·A3·A6·A8 + B1~B3("잘 되는 것 같다"). **PR #26 / v1.9.0** — `PLAN` §15-3 |
