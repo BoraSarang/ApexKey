@@ -332,6 +332,7 @@ final class ActionExecutor {
     static func openInTerminal(
         path: String,
         appBundleID: String?,
+        appPath: String? = nil,
         openInNewTab: Bool
     ) -> (success: Bool, message: String?, path: String?) {
         let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -351,11 +352,11 @@ final class ActionExecutor {
             Logger.error("E-MAC-TERM-8102", "터미널에서 열 경로 없음: \(trimmed)")
             return (false, "toast.reason.folder_missing".localized, nil)
         }
-        guard let app = TerminalLauncher.resolveApp(bundleID: appBundleID) else {
+        guard let target = TerminalLauncher.resolveTarget(bundleID: appBundleID, path: appPath) else {
             Logger.error("E-MAC-TERM-8103", "터미널 앱 자동 탐지 실패 — iTerm2·터미널 모두 없음")
             return (false, "toast.reason.terminal_app_missing".localized, folder.path)
         }
-        let result = TerminalLauncher.open(folder: folder, app: app, openInNewTab: openInNewTab)
+        let result = TerminalLauncher.open(folder: folder, target: target, openInNewTab: openInNewTab)
         return (result.success, result.message, folder.path)
     }
 

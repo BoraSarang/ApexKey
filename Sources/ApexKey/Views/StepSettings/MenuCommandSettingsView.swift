@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// 메뉴 명령 단계 설정 (T-187, T-036 실구현).
@@ -79,6 +80,17 @@ struct MenuCommandSettingsView: View {
                 }
             }
 
+            // 스캔 목록에 없는 앱도 고를 수 있게 한다 (R-20261121-01).
+            // 실행 계층은 번들ID만 있으면 되므로 UI 제약이 전부였다.
+            if bundleID.isEmpty {
+                HStack {
+                    Button("menucommand.pick_app".localized) { chooseApp() }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    Spacer()
+                }
+            }
+
             Divider()
 
             Text("menucommand.menu".localized)
@@ -136,6 +148,23 @@ struct MenuCommandSettingsView: View {
         bundleID = id
         MenuCommandSelection.apply(bundleID: id, item: nil, to: &step)
         if step.title.isEmpty { step.title = name }
+    }
+
+    /// OpenPanel로 앱 직접 선택 — AppFinder가 놓친 앱도 메뉴 명령 대상이 된다.
+    private func chooseApp() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.applicationBundle]
+        guard panel.runModal() == .OK, let url = panel.url,
+              let app = AppFinder.appItem(fromPicked: url) else { return }
+        // 목록에 없던 앱이면 이름 표시용으로 추가한다
+        if !allApps.contains(where: { $0.bundleID == app.bundleID }) {
+            allApps.append(app)
+            allApps.sort { $0.name < $1.name }
+        }
+        selectApp(app.bundleID, name: app.name)
     }
 
     private func selectMenu(_ item: MenuItem) {
