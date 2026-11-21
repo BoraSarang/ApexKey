@@ -18,9 +18,14 @@ final class OpenInTerminalTests: XCTestCase {
     }
 
     func testConfigRoundTrip() {
-        let cfg = TerminalOpenConfig(appBundleID: "com.googlecode.iterm2", openInNewTab: true)
+        let cfg = TerminalOpenConfig(
+            appBundleID: "com.mitchellh.ghostty",
+            appPath: "/Applications/Ghostty.app",
+            openInNewTab: true
+        )
         let decoded = TerminalOpenConfig.decode(from: cfg.encode())
-        XCTAssertEqual(decoded.appBundleID, "com.googlecode.iterm2")
+        XCTAssertEqual(decoded.appBundleID, "com.mitchellh.ghostty")
+        XCTAssertEqual(decoded.appPath, "/Applications/Ghostty.app")
         XCTAssertTrue(decoded.openInNewTab)
     }
 
@@ -29,6 +34,7 @@ final class OpenInTerminalTests: XCTestCase {
         let partial = #"{"appBundleID":"com.apple.Terminal"}"#.data(using: .utf8)
         let decoded = TerminalOpenConfig.decode(from: partial)
         XCTAssertEqual(decoded.appBundleID, "com.apple.Terminal")
+        XCTAssertNil(decoded.appPath)
         XCTAssertFalse(decoded.openInNewTab)
     }
 
@@ -117,23 +123,60 @@ final class OpenInTerminalTests: XCTestCase {
     // MARK: - 터미널 앱 결정
 
     func testResolveAutoPrefersITerm2() {
-        XCTAssertEqual(TerminalLauncher.resolveApp(bundleID: nil, isInstalled: { _ in true }), .iTerm2)
-        XCTAssertEqual(TerminalLauncher.resolveApp(bundleID: "  ", isInstalled: { _ in true }), .iTerm2)
+        XCTAssertEqual(
+            TerminalLauncher.resolveTarget(bundleID: nil, isInstalled: { _ in true }),
+            .known(.iTerm2)
+        )
+        XCTAssertEqual(
+            TerminalLauncher.resolveTarget(bundleID: "  ", isInstalled: { _ in true }),
+            .known(.iTerm2)
+        )
     }
 
     func testResolveAutoFallsBackToAppleTerminal() {
         let onlyTerminal: (String) -> Bool = { $0 == "com.apple.Terminal" }
-        XCTAssertEqual(TerminalLauncher.resolveApp(bundleID: nil, isInstalled: onlyTerminal), .appleTerminal)
-        XCTAssertNil(TerminalLauncher.resolveApp(bundleID: nil, isInstalled: { _ in false }))
+        XCTAssertEqual(
+            TerminalLauncher.resolveTarget(bundleID: nil, isInstalled: onlyTerminal),
+            .known(.appleTerminal)
+        )
+        XCTAssertNil(TerminalLauncher.resolveTarget(bundleID: nil, isInstalled: { _ in false }))
     }
 
-    func testResolveExplicitSelectionWins() {
+    func testResolveExplicitKnownSelectionWins() {
         XCTAssertEqual(
-            TerminalLauncher.resolveApp(bundleID: "com.apple.Terminal", isInstalled: { _ in true }),
-            .appleTerminal
+            TerminalLauncher.resolveTarget(bundleID: "com.apple.Terminal", isInstalled: { _ in true }),
+            .known(.appleTerminal)
         )
-        // 지원하지 않는 번들ID는 자동으로 흘리지 않는다 — 사용자가 고른 값이 무효면 실패로 알린다
-        XCTAssertNil(TerminalLauncher.resolveApp(bundleID: "com.unknown.terminal", isInstalled: { _ in true }))
+    }
+
+    /// enum 밖 앱(Ghostty 등)도 새 창용으로 받는다 — 예전에는 nil로 거부됐다 (R-20261121-01)
+    func testResolveCustomBundleIDIsAccepted() {
+        XCTAssertEqual(
+            TerminalLauncher.resolveTarget(
+                bundleID: "com.mitchellh.ghostty",
+                path: "/Applications/Ghostty.app",
+                isInstalled: { _ in false }
+            ),
+            .custom(bundleID: "com.mitchellh.ghostty", path: "/Applications/Ghostty.app")
+        )
+    }
+
+    func testResolvePathOnlyCustom() {
+        XCTAssertEqual(
+            TerminalLauncher.resolveTarget(
+                bundleID: nil,
+                path: "/Applications/Ghostty.app",
+                isInstalled: { _ in false }
+            ),
+            .custom(bundleID: nil, path: "/Applications/Ghostty.app")
+        )
+    }
+
+    /// 새 탭은 앱별 AppleScript가 필요하다 — 직접 고른 앱은 새 창만 지원
+    func testCustomTargetDoesNotSupportNewTab() {
+        let custom = TerminalTarget.custom(bundleID: "com.mitchellh.ghostty", path: nil)
+        XCTAssertFalse(custom.supportsNewTab)
+        XCTAssertTrue(TerminalTarget.known(.iTerm2).supportsNewTab)
     }
 
     // MARK: - 인용 (셸 → AppleScript 2계층)

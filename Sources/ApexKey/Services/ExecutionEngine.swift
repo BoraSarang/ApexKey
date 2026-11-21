@@ -1982,9 +1982,11 @@ final class ExecutionEngine {
         let path = VariableResolver.resolveText(step.target, context: ctx)
         let config = TerminalOpenConfig.decode(from: step.actionParameters)
         let appID = VariableResolver.resolveText(config.appBundleID ?? "", context: ctx)
+        let appPath = VariableResolver.resolveText(config.appPath ?? "", context: ctx)
         let result = ActionExecutor.openInTerminal(
             path: path,
             appBundleID: appID,
+            appPath: appPath,
             openInNewTab: config.openInNewTab
         )
         // 열린 폴더를 출력으로 남긴다 — 다음 단계가 같은 경로를 쓸 수 있다 (실패 시엔 빈 값)

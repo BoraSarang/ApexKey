@@ -7,12 +7,16 @@ import Foundation
 struct TerminalOpenConfig: Codable, Hashable {
     /// 터미널 앱 번들ID. 비어 있으면 **자동** (iTerm2가 있으면 iTerm2, 없으면 터미널).
     var appBundleID: String?
+    /// OpenPanel로 직접 고른 앱 경로. 번들ID가 없는 앱의 fallback (R-20261121-01).
+    var appPath: String?
     /// 새 탭으로 열기. false(기본)면 새 창 — 새 창은 **터미널 앱에** AppleEvent를 보내지 않는다
     /// (Finder 폴더 읽기는 별개로 자동화 권한을 쓴다 — `FinderPathProvider` 참고).
+    /// 직접 고른 앱(`.custom`)은 새 창만 지원한다.
     var openInNewTab: Bool
 
-    init(appBundleID: String? = nil, openInNewTab: Bool = false) {
+    init(appBundleID: String? = nil, appPath: String? = nil, openInNewTab: Bool = false) {
         self.appBundleID = appBundleID
+        self.appPath = appPath
         self.openInNewTab = openInNewTab
     }
 
@@ -22,6 +26,7 @@ struct TerminalOpenConfig: Codable, Hashable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.appBundleID = try c.decodeIfPresent(String.self, forKey: .appBundleID)
+        self.appPath = try c.decodeIfPresent(String.self, forKey: .appPath)
         self.openInNewTab = try c.decodeIfPresent(Bool.self, forKey: .openInNewTab) ?? false
     }
 

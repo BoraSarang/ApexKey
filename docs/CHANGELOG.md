@@ -3,6 +3,15 @@
 > 형식: `{날짜} {platform} {error_code/부가} — 내용`
 > 프로젝트 전체 변경 내역은 이 파일에 기록합니다.
 
+## 2026-11-21 macos — 고정 선택지 결함 3건 (R-20261121-01)
+
+* **배경** — "터미널에서 열기"의 앱 선택이 iTerm2·터미널 2종에 고정되고, enum 밖 번들ID는 `resolveApp`이 거부했다. 같은 패턴을 전수 조사해 메뉴 명령 앱 선택 우회로 부재, `AppFinder` 비재귀 스캔을 확인했다. 조사 문서는 `docs/plans/RESEARCH_2026-11-21_fixed-choices_macos.md`.
+* **터미널** — `TerminalTarget`(known/custom) 도입. 새 창은 OpenPanel로 고른 앱(Ghostty·Warp 등)도 동작하고, 새 탭은 앱별 AppleScript가 있는 known 2종만 유지한다. 설정에 `appPath` fallback을 추가하고(관대 디코딩), 직접 고른 앱은 새 창으로 정리한다. 새 탭 미지원 앱을 강제로 실행하면 사유를 돌려준다(`E-MAC-TERM-8106`).
+* **메뉴 명령** — 앱 목록 아래 **"앱 직접 선택…"** OpenPanel 추가. `AppFinder`가 놓친 앱도 번들ID로 저장해 메뉴 명령을 만들 수 있다.
+* **앱 탐색** — `/Applications`·`~/Applications`·`/System/Applications`를 **깊이 2까지** 재귀 스캔. 앱 번들 내부로는 들어가지 않는다. CoreServices 전체 추가는 시스템 내부 앱이 섞여 보류하고 Finder만 유지한다.
+* **검증** — unit **888건 0실패**(3 skip, AppFinder 재귀 2건 추가), 게이트 3종 통과, 클린 빌드 신규 경고 0(기존 5건: Combine 2·NSEvent 2·AppIcon 1). **사용자 실동작 확인 완료(2026-11-21)** — §8-22 6항목(직접 선택·새 창, 새 탭 숨김, iTerm2·터미널 회귀, 메뉴 명령 직접 선택, 중첩 앱 탐색, 로딩 속도).
+* **범위 제외** — 파일 열기 앱 피커·URL 앱 지정·스크린샷·클립보드·카메라·셸·서드파티 Mail/Music 통합은 이번 최소 수정에서 제외(문서 4.2·4.3).
+
 ## 2026-11-20 macos — v1.9.0 GitHub Release + Alfred 6 조사
 
 * **릴리스** — annotated 태그 `v1.9.0` push, Release 워크플로 성공(Release 빌드·unit·DMG 생성). **`ApexKey-1.9.0-macOS.dmg`(7,056,658 bytes)** 를 GitHub Releases에 배포했다. v1.8.1은 이 버전에 포함됐고, v1.7.0·v1.8.0은 태그만 push되어 있으며 별도 GitHub Release는 없다.

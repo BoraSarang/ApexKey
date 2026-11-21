@@ -3,31 +3,21 @@ import AppKit
 
 /// 앱 검색/추가 유틸리티
 enum AppFinder {
-    /// /Applications + ~/Applications + (선택) 시스템 앱 디렉터리에 설치된 앱을 스캔
-    /// - Parameter includesSystem: true면 /System/Applications(+Utilities)까지 포함
+    /// /Applications + ~/Applications + (선택) 시스템 앱 디렉터리에 설치된 앱을 스캔.
+    /// 하위 폴더는 **깊이 2까지** 들어간다 — `/Applications/Adobe…/Photoshop.app`처럼
+    /// 묶음 폴더에 설치된 앱도 찾기 위해서다 (R-20261121-01).
+    /// - Parameter includesSystem: true면 /System/Applications까지 포함
     static func installedApps(includesSystem: Bool = true) -> [AppItem] {
         var apps: [AppItem] = []
-        var appURLs = [
-            URL(fileURLWithPath: "/Applications"),
-            URL(fileURLWithPath: NSHomeDirectory() + "/Applications"),
+        var roots: [(url: URL, depth: Int)] = [
+            (URL(fileURLWithPath: "/Applications"), 2),
+            (URL(fileURLWithPath: NSHomeDirectory() + "/Applications"), 2),
         ]
         if includesSystem {
-            appURLs.append(contentsOf: [
-                URL(fileURLWithPath: "/System/Applications"),
-                URL(fileURLWithPath: "/System/Applications/Utilities"),
-            ])
+            roots.append((URL(fileURLWithPath: "/System/Applications"), 2))
         }
-        for dir in appURLs {
-            guard let entries = try? FileManager.default.contentsOfDirectory(
-                at: dir,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            ) else { continue }
-            for url in entries where url.pathExtension == "app" {
-                if let app = appItem(from: url) {
-                    apps.append(app)
-                }
-            }
+        for root in roots {
+            scan(root.url, depth: root.depth, into: &apps)
         }
         // 중복 제거 (bundleID 기준)
         var seen = Set<String>()
@@ -40,6 +30,28 @@ enum AppFinder {
             deduped.append(finder)
         }
         return deduped
+    }
+
+    /// 디렉터리를 depth까지 재귀 스캔. `.app`을 만나면 그 안으로는 들어가지 않는다.
+    /// (테스트에서도 직접 호출한다 — 임시 디렉터리로 재귀 동작을 검증)
+    static func scan(_ dir: URL, depth: Int, into apps: inout [AppItem]) {
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else { return }
+        for url in entries {
+            if url.pathExtension == "app" {
+                if let app = appItem(from: url) {
+                    apps.append(app)
+                }
+                continue
+            }
+            guard depth > 0 else { continue }
+            let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            guard isDirectory else { continue }
+            scan(url, depth: depth - 1, into: &apps)
+        }
     }
 
     /// Finder 명시 조회 (/System/Library/CoreServices/Finder.app).
