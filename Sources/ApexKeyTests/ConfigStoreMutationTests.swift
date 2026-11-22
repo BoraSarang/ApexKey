@@ -490,4 +490,114 @@ final class ConfigStoreMutationTests: XCTestCase {
         XCTAssertFalse(store.showInMenuBar)
         XCTAssertFalse(store.showInDock)
     }
+
+    // MARK: - 예약 단축키 해제 ("사용 안 함")
+
+    func testClearingReservedHotkeyPersistsAcrossRestart() {
+        let store = makeStore()
+        XCTAssertEqual(store.toggleHotkey, ConfigStore.defaultToggleHotkey)
+
+        XCTAssertTrue(store.clearPanelToggleHotkey().succeeded)
+        XCTAssertTrue(store.toggleHotkey.isEmpty)
+
+        let reopened = makeStore()
+        XCTAssertTrue(reopened.toggleHotkey.isEmpty,
+                      "해제한 예약 단축키가 재시작 후 기본값으로 되살아났다")
+        XCTAssertEqual(reopened.paletteHotkey, ConfigStore.defaultPaletteHotkey,
+                       "건드리지 않은 예약 단축키는 기본값을 유지해야 한다")
+    }
+
+    func testClearingEachReservedHotkeyPersists() {
+        let store = makeStore()
+        store.clearPaletteHotkey()
+        store.clearClipboardHotkey()
+        store.clearSendHotkey()
+        store.clearMenuHUDHotkey()
+        store.clearMenuBarIconsHotkey()
+
+        XCTAssertTrue(store.paletteHotkey.isEmpty)
+        XCTAssertTrue(store.clipboardHotkey.isEmpty)
+        XCTAssertTrue(store.sendHotkey.isEmpty)
+        XCTAssertTrue(store.menuHUDHotkey.isEmpty)
+        XCTAssertTrue(store.menuBarIconsHotkey.isEmpty)
+
+        let reopened = makeStore()
+        XCTAssertTrue(reopened.paletteHotkey.isEmpty)
+        XCTAssertTrue(reopened.clipboardHotkey.isEmpty)
+        XCTAssertTrue(reopened.sendHotkey.isEmpty)
+        XCTAssertTrue(reopened.menuHUDHotkey.isEmpty)
+        XCTAssertTrue(reopened.menuBarIconsHotkey.isEmpty)
+    }
+
+    func testAssigningAfterClearRestoresHotkey() {
+        // 해제(0:0) 뒤 다시 지정하면 정상 값으로 저장·복원되어야 한다
+        let store = makeStore()
+        store.clearPaletteHotkey()
+        XCTAssertTrue(store.setPaletteHotkey(ConfigStore.defaultPaletteHotkey).succeeded)
+
+        let reopened = makeStore()
+        XCTAssertEqual(reopened.paletteHotkey, ConfigStore.defaultPaletteHotkey)
+    }
+
+    func testLoadHotkeyTreatsExplicitEmptyAsDisabled() {
+        let key = "test.reserved.hotkey"
+        ConfigStore.saveHotkey(.empty, forKey: key, defaults: defaults)
+
+        let loaded = ConfigStore.loadHotkey(
+            forKey: key,
+            fallback: ConfigStore.defaultToggleHotkey,
+            defaults: defaults
+        )
+        XCTAssertTrue(loaded.isEmpty, "명시적 해제(0:0)는 fallback으로 되돌리면 안 된다")
+
+        let missing = ConfigStore.loadHotkey(
+            forKey: "test.reserved.hotkey.missing",
+            fallback: ConfigStore.defaultToggleHotkey,
+            defaults: defaults
+        )
+        XCTAssertEqual(missing, ConfigStore.defaultToggleHotkey, "저장 키가 없을 때만 기본값을 쓴다")
+    }
+
+    func testReservedHotkeyMutationsNeverTouchStandardDefaults() {
+        // 2026-11-22 사고 회귀: 주입 defaults를 무시하고 standard에 저장하면
+        // 테스트 실행이 **실제 앱의 예약 단축키 6종을 0:0(해제)으로 덮어쓴다**.
+        let keys = [
+            ConfigStore.PrefKeys.panelToggleHotkey,
+            ConfigStore.PrefKeys.paletteHotkey,
+            ConfigStore.PrefKeys.clipboardHotkey,
+            ConfigStore.PrefKeys.sendHotkey,
+            ConfigStore.PrefKeys.menuHUDHotkey,
+            ConfigStore.PrefKeys.menuBarIconsHotkey,
+        ]
+        let before = keys.map { UserDefaults.standard.string(forKey: $0) }
+
+        let store = makeStore()
+        store.clearPanelToggleHotkey()
+        store.clearPaletteHotkey()
+        store.clearClipboardHotkey()
+        store.clearSendHotkey()
+        store.clearMenuHUDHotkey()
+        store.clearMenuBarIconsHotkey()
+
+        let after = keys.map { UserDefaults.standard.string(forKey: $0) }
+        XCTAssertEqual(after, before, "테스트가 실제 앱의 UserDefaults를 덮어썼다")
+    }
+
+    // MARK: - 워크플로우 단축키 해제
+
+    func testClearingWorkflowHotkeyPersists() {
+        let store = makeStore()
+        guard let shortcut = store.addShortcut(name: "해제 테스트") else {
+            return XCTFail("동작 생성 실패")
+        }
+        XCTAssertTrue(store.setShortcutCombo(shortcut, combo: combo(105, "⌘F13")).succeeded)
+        XCTAssertFalse(store.shortcuts.first(where: { $0.id == shortcut.id })?.combo.isEmpty ?? true)
+
+        store.clearShortcutCombo(shortcut)
+        XCTAssertTrue(store.shortcuts.first(where: { $0.id == shortcut.id })?.combo.isEmpty ?? false)
+
+        let reopened = makeStore()
+        XCTAssertTrue(reopened.shortcuts.first(where: { $0.id == shortcut.id })?.combo.isEmpty ?? false,
+                      "워크플로우 단축키 해제가 재시작 후 되살아났다")
+    }
 }

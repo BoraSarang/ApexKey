@@ -60,17 +60,20 @@ extension ConfigStore {
     }
 
     /// HotKeyCombo UserDefaults 영속화 ("keyCode:modifiers:displayString")
+    ///
+    /// **저장 키가 없을 때만** fallback(공장 기본값)을 쓴다. 저장된 조합이 비어 있으면
+    /// (`0:0`) 사용자가 **명시적으로 해제한 것**이므로 fallback으로 되살리지 않는다.
+    /// 이 구분이 없으면 "단축키 해제"가 재시작마다 기본값으로 부활한다.
     /// - Parameter defaults: 테스트에서 전용 suite를 주입한다 (E-MAC-STORE-5009)
-    static func loadHotkey(forKey key: String, fallback: HotKeyCombo, defaults: UserDefaults = .standard) -> HotKeyCombo {
+    static func loadHotkey(forKey key: String, fallback: HotKeyCombo, defaults: UserDefaults) -> HotKeyCombo {
         guard let raw = defaults.string(forKey: key) else { return fallback }
         let parts = raw.components(separatedBy: ":")
         guard parts.count >= 2, let kc = UInt32(parts[0]), let mod = UInt32(parts[1]) else { return fallback }
         let display = parts.count >= 3 ? parts[2...].joined(separator: ":") : ""
-        let combo = HotKeyCombo(keyCode: kc, modifiers: mod, displayString: display)
-        return combo.isEmpty ? fallback : combo
+        return HotKeyCombo(keyCode: kc, modifiers: mod, displayString: display)
     }
 
-    static func saveHotkey(_ combo: HotKeyCombo, forKey key: String, defaults: UserDefaults = .standard) {
+    static func saveHotkey(_ combo: HotKeyCombo, forKey key: String, defaults: UserDefaults) {
         defaults.set("\(combo.keyCode):\(combo.modifiers):\(combo.displayString)", forKey: key)
     }
 

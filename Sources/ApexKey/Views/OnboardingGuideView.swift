@@ -21,6 +21,7 @@ struct OnboardingGuideView: View {
         let current: HotKeyCombo
         let excluded: HotKeyCombo
         let save: (HotKeyCombo) -> String?
+        let clear: () -> Void
         let test: () -> Void
     }
 
@@ -29,28 +30,34 @@ struct OnboardingGuideView: View {
             Slot(id: 0, title: "settings.panel_hotkey".localized, current: store.toggleHotkey,
                  excluded: store.toggleHotkey,
                  save: { store.setPanelToggleHotkey($0).errorMessage },
+                 clear: { store.clearPanelToggleHotkey() },
                  test: { NotificationCenter.default.post(name: .togglePanel, object: nil) }),
             Slot(id: 1, title: "settings.palette".localized, current: store.paletteHotkey,
                  excluded: store.paletteHotkey,
                  save: { store.setPaletteHotkey($0).errorMessage },
+                 clear: { store.clearPaletteHotkey() },
                  test: { store.paletteMode = .normal
                      NotificationCenter.default.post(name: .togglePalette, object: nil) }),
             Slot(id: 2, title: "settings.menu_hud".localized, current: store.menuHUDHotkey,
                  excluded: store.menuHUDHotkey,
                  save: { store.setMenuHUDHotkey($0).errorMessage },
+                 clear: { store.clearMenuHUDHotkey() },
                  test: { NotificationCenter.default.post(name: .toggleMenuHUD, object: nil) }),
             Slot(id: 3, title: "settings.clipboard".localized, current: store.clipboardHotkey,
                  excluded: store.clipboardHotkey,
                  save: { store.setClipboardHotkey($0).errorMessage },
+                 clear: { store.clearClipboardHotkey() },
                  test: { store.paletteMode = .clipboard
                      NotificationCenter.default.post(name: .togglePalette, object: nil) }),
             Slot(id: 4, title: "settings.send".localized, current: store.sendHotkey,
                  excluded: store.sendHotkey,
                  save: { store.setSendHotkey($0).errorMessage },
+                 clear: { store.clearSendHotkey() },
                  test: { store.fireInstantSend() }),
             Slot(id: 5, title: "menubar.icons.title".localized, current: store.menuBarIconsHotkey,
                  excluded: store.menuBarIconsHotkey,
                  save: { store.setMenuBarIconsHotkey($0).errorMessage },
+                 clear: { store.clearMenuBarIconsHotkey() },
                  test: { NotificationCenter.default.post(name: .toggleMenuBarIcons, object: nil) }),
         ]
     }
@@ -144,12 +151,29 @@ struct OnboardingGuideView: View {
                             Text(slot.title)
                                 .font(.body)
                             Spacer()
-                            KeycapView(combo: slot.current, style: store.keycapStyle, highlighted: true)
+                            if slot.current.isEmpty {
+                                Text("ui.hotkey.none".localized)
+                                    .font(.callout)
+                                    .foregroundColor(theme.secondaryText)
+                            } else {
+                                KeycapView(combo: slot.current, style: store.keycapStyle, highlighted: true)
+                            }
                             Button("settings.panel_hotkey.change".localized) {
                                 recordingSlot = slot
                             }
                             .buttonStyle(.borderless)
                             .foregroundColor(theme.accentColor)
+                            if !slot.current.isEmpty {
+                                Button {
+                                    slot.clear()
+                                } label: {
+                                    Image(systemName: "xmark.circle")
+                                        .foregroundColor(theme.secondaryText)
+                                }
+                                .buttonStyle(.borderless)
+                                .help("ui.hotkey.clear".localized)
+                                .accessibilityLabel("ui.hotkey.clear".localized)
+                            }
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 4)

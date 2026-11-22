@@ -22,7 +22,10 @@ struct SettingsView: View {
         let current: HotKeyCombo
         let excluded: HotKeyCombo
         let save: (HotKeyCombo) -> String?
+        /// 공장 기본값으로 복원 (↺)
         let reset: () -> Void
+        /// 등록 해제 — "사용 안 함"으로 저장한다 (복원과 다르다)
+        let clear: () -> Void
         let test: () -> Void
     }
 
@@ -33,12 +36,14 @@ struct SettingsView: View {
                               current: store.toggleHotkey, excluded: store.toggleHotkey,
                               save: { store.setPanelToggleHotkey($0).errorMessage },
                               reset: { store.setPanelToggleHotkey(ConfigStore.defaultToggleHotkey) },
+                              clear: { store.clearPanelToggleHotkey() },
                               test: { NotificationCenter.default.post(name: .togglePanel, object: nil) })
         case .palette:
             return HotkeySlot(id: tab, title: "settings.palette".localized,
                               current: store.paletteHotkey, excluded: store.paletteHotkey,
                               save: { store.setPaletteHotkey($0).errorMessage },
                               reset: { store.setPaletteHotkey(ConfigStore.defaultPaletteHotkey) },
+                              clear: { store.clearPaletteHotkey() },
                               test: { store.paletteMode = .normal
                                   NotificationCenter.default.post(name: .togglePalette, object: nil) })
         case .clipboard:
@@ -46,6 +51,7 @@ struct SettingsView: View {
                               current: store.clipboardHotkey, excluded: store.clipboardHotkey,
                               save: { store.setClipboardHotkey($0).errorMessage },
                               reset: { store.setClipboardHotkey(ConfigStore.defaultClipboardHotkey) },
+                              clear: { store.clearClipboardHotkey() },
                               test: { store.paletteMode = .clipboard
                                   NotificationCenter.default.post(name: .togglePalette, object: nil) })
         case .send:
@@ -53,18 +59,21 @@ struct SettingsView: View {
                               current: store.sendHotkey, excluded: store.sendHotkey,
                               save: { store.setSendHotkey($0).errorMessage },
                               reset: { store.setSendHotkey(ConfigStore.defaultSendHotkey) },
+                              clear: { store.clearSendHotkey() },
                               test: { store.fireInstantSend() })
         case .hud:
             return HotkeySlot(id: tab, title: "settings.menu_hud".localized,
                               current: store.menuHUDHotkey, excluded: store.menuHUDHotkey,
                               save: { store.setMenuHUDHotkey($0).errorMessage },
                               reset: { store.setMenuHUDHotkey(ConfigStore.defaultMenuHUDHotkey) },
+                              clear: { store.clearMenuHUDHotkey() },
                               test: { NotificationCenter.default.post(name: .toggleMenuHUD, object: nil) })
         case .icons:
             return HotkeySlot(id: tab, title: "menubar.icons.title".localized,
                               current: store.menuBarIconsHotkey, excluded: store.menuBarIconsHotkey,
                               save: { store.setMenuBarIconsHotkey($0).errorMessage },
                               reset: { store.setMenuBarIconsHotkey(ConfigStore.defaultMenuBarIconsHotkey) },
+                              clear: { store.clearMenuBarIconsHotkey() },
                               test: { NotificationCenter.default.post(name: .toggleMenuBarIcons, object: nil) })
         case .general, .theme:
             return nil
@@ -218,7 +227,7 @@ struct SettingsView: View {
         }
     }
 
-    /// 단축키 1행 — 칩 탭하면 변경, ▶은 직접 실행, ↺는 복원
+    /// 단축키 1행 — 칩 탭하면 변경, ▶은 직접 실행, ✕는 해제(사용 안 함), ↺는 기본값 복원
     private func hotkeyRow(_ slot: HotkeySlot) -> some View {
         HStack(spacing: 8) {
             Text(slot.title)
@@ -227,9 +236,16 @@ struct SettingsView: View {
             Button {
                 recordingSlot = slot
             } label: {
-                KeycapView(combo: slot.current, style: store.keycapStyle, highlighted: true)
+                if slot.current.isEmpty {
+                    Text("ui.hotkey.none".localized)
+                        .font(.callout)
+                        .foregroundColor(theme.secondaryText)
+                } else {
+                    KeycapView(combo: slot.current, style: store.keycapStyle, highlighted: true)
+                }
             }
             .buttonStyle(.plain)
+            .help("settings.panel_hotkey.change".localized)
             .accessibilityLabel("settings.menubar_icons.change".localized)
             Button {
                 slot.test()
@@ -239,6 +255,20 @@ struct SettingsView: View {
                     .foregroundColor(theme.accentColor)
             }
             .buttonStyle(.plain)
+            .disabled(slot.current.isEmpty)
+            .opacity(slot.current.isEmpty ? 0.4 : 1)
+            if !slot.current.isEmpty {
+                Button {
+                    slot.clear()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                        .font(.system(size: 13))
+                        .foregroundColor(theme.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .help("ui.hotkey.clear".localized)
+                .accessibilityLabel("ui.hotkey.clear".localized)
+            }
             Button {
                 slot.reset()
             } label: {

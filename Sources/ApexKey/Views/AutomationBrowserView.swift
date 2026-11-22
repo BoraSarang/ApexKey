@@ -168,7 +168,8 @@ struct AutomationBrowserView: View {
                                 .foregroundColor(theme.secondaryText)
                         }
                         .buttonStyle(.borderless)
-                        .help("ui.delete".localized)
+                        .help("ui.hotkey.clear".localized)
+                        .accessibilityLabel("ui.hotkey.clear".localized)
                     }
                 }
 

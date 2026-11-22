@@ -210,6 +210,18 @@ struct ShortcutStationView: View {
                 .buttonStyle(.borderless)
                 .help("ui.station.assign_hotkey_help".localized)
 
+                if !shortcut.combo.isEmpty {
+                    Button {
+                        store.clearShortcutCombo(shortcut)
+                    } label: {
+                        Image(systemName: "xmark.circle")
+                            .foregroundColor(theme.secondaryText)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("ui.hotkey.clear".localized)
+                    .accessibilityLabel("ui.hotkey.clear".localized)
+                }
+
                 Button {
                     openEditor(for: shortcut)
                 } label: {
