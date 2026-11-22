@@ -558,6 +558,31 @@ final class ConfigStoreMutationTests: XCTestCase {
         XCTAssertEqual(missing, ConfigStore.defaultToggleHotkey, "저장 키가 없을 때만 기본값을 쓴다")
     }
 
+    func testReservedHotkeyMutationsNeverTouchStandardDefaults() {
+        // 2026-11-22 사고 회귀: 주입 defaults를 무시하고 standard에 저장하면
+        // 테스트 실행이 **실제 앱의 예약 단축키 6종을 0:0(해제)으로 덮어쓴다**.
+        let keys = [
+            ConfigStore.PrefKeys.panelToggleHotkey,
+            ConfigStore.PrefKeys.paletteHotkey,
+            ConfigStore.PrefKeys.clipboardHotkey,
+            ConfigStore.PrefKeys.sendHotkey,
+            ConfigStore.PrefKeys.menuHUDHotkey,
+            ConfigStore.PrefKeys.menuBarIconsHotkey,
+        ]
+        let before = keys.map { UserDefaults.standard.string(forKey: $0) }
+
+        let store = makeStore()
+        store.clearPanelToggleHotkey()
+        store.clearPaletteHotkey()
+        store.clearClipboardHotkey()
+        store.clearSendHotkey()
+        store.clearMenuHUDHotkey()
+        store.clearMenuBarIconsHotkey()
+
+        let after = keys.map { UserDefaults.standard.string(forKey: $0) }
+        XCTAssertEqual(after, before, "테스트가 실제 앱의 UserDefaults를 덮어썼다")
+    }
+
     // MARK: - 워크플로우 단축키 해제
 
     func testClearingWorkflowHotkeyPersists() {
