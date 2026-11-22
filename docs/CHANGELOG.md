@@ -11,7 +11,7 @@
 * **테스트 결함 수정** — 예약 핫키 setter 6종이 주입된 `defaults`가 아닌 `UserDefaults.standard`에 저장하던 테스트 격리 결함을 함께 고쳤다(`defaults:` 전달). `loadHotkey`/`saveHotkey`의 기본 인자(`= .standard`)도 제거해 앞으로 같은 실수가 컴파일 단계에서 막히게 했다.
 * **사고와 복구** — 수정 전 첫 테스트 실행에서 `clear*Hotkey`가 실제 앱 도메인(`com.borasarang.ApexKey`)에 `0:0:`을 써, **사용자의 예약 단축키 6종이 "설정 안 됨"으로 보이는 사고**가 있었다. 해당 키를 삭제해 공장 기본값(⌥A·⌥'·⌥;·⌃⌥D·⌥S·⌥])으로 복구했고, `testReservedHotkeyMutationsNeverTouchStandardDefaults`를 추가해 실제 앱 UserDefaults가 변하면 테스트가 실패하도록 고정했다. 사용자가 직접 바꾼 값이 있었다면 재설정이 필요하다.
 * **검증** — unit **894건 0실패**(3 skip, 신규 6건: 예약 해제 영속·전체 해제·해제 후 재지정·`loadHotkey` 명시 해제·워크플로우 해제 영속·standard 미오염 가드). 게이트 3종 통과, 클린 빌드 신규 경고 0. i18n en/ko **1641키 일치**.
-* **사용자 확인 대기** — `FUNCTIONAL_CHECKLIST.md` §8-23 7항목.
+* **사용자 확인** — 2026-11-22 실사용 확인: 예약 6종 중 4종(팔레트·클립보드·전송·메뉴바 아이콘)을 ✕로 해제하고 2종(⌥A·⌥S)만 남긴 상태로 정상 동작. `FUNCTIONAL_CHECKLIST.md` §8-23 중 재실행 유지·↺ 복원·워크플로우 표면은 미확인. **PR #31**
 
 ## 2026-11-21 macos — 고정 선택지 결함 3건 (R-20261121-01)
 
