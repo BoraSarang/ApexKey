@@ -207,7 +207,19 @@ struct ShortcutEditorView: View {
                 }
                 .buttonStyle(.bordered)
                 .help(liveCombo.isEmpty ? "ui.hotkey".localized : liveCombo.displayString)
-                
+
+                if !liveCombo.isEmpty {
+                    Button {
+                        store.clearShortcutCombo(liveShortcut)
+                    } label: {
+                        Image(systemName: "xmark.circle")
+                            .foregroundColor(theme.secondaryText)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("ui.hotkey.clear".localized)
+                    .accessibilityLabel("ui.hotkey.clear".localized)
+                }
+
                 // 닫기
                 Button {
                     saveAndClose()

@@ -44,7 +44,7 @@ extension ConfigStore {
         }
         hotKeyService.unregister(panelToggleID)
         toggleHotkey = combo
-        Self.saveHotkey(combo, forKey: PrefKeys.panelToggleHotkey)
+        Self.saveHotkey(combo, forKey: PrefKeys.panelToggleHotkey, defaults: defaults)
         guard hotKeyService.register(panelToggleID, combo: combo) else {
             Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
             return .hotKeyRegistrationFailed
@@ -63,7 +63,7 @@ extension ConfigStore {
         }
         hotKeyService.unregister(paletteID)
         paletteHotkey = combo
-        Self.saveHotkey(combo, forKey: PrefKeys.paletteHotkey)
+        Self.saveHotkey(combo, forKey: PrefKeys.paletteHotkey, defaults: defaults)
         guard hotKeyService.register(paletteID, combo: combo) else {
             Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
             return .hotKeyRegistrationFailed
@@ -82,7 +82,7 @@ extension ConfigStore {
         }
         hotKeyService.unregister(menuHUDID)
         menuHUDHotkey = combo
-        Self.saveHotkey(combo, forKey: PrefKeys.menuHUDHotkey)
+        Self.saveHotkey(combo, forKey: PrefKeys.menuHUDHotkey, defaults: defaults)
         guard hotKeyService.register(menuHUDID, combo: combo) else {
             Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
             return .hotKeyRegistrationFailed
@@ -101,7 +101,7 @@ extension ConfigStore {
         }
         hotKeyService.unregister(clipboardID)
         clipboardHotkey = combo
-        Self.saveHotkey(combo, forKey: PrefKeys.clipboardHotkey)
+        Self.saveHotkey(combo, forKey: PrefKeys.clipboardHotkey, defaults: defaults)
         guard hotKeyService.register(clipboardID, combo: combo) else {
             Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
             return .hotKeyRegistrationFailed
@@ -120,7 +120,7 @@ extension ConfigStore {
         }
         hotKeyService.unregister(sendID)
         sendHotkey = combo
-        Self.saveHotkey(combo, forKey: PrefKeys.sendHotkey)
+        Self.saveHotkey(combo, forKey: PrefKeys.sendHotkey, defaults: defaults)
         guard hotKeyService.register(sendID, combo: combo) else {
             Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
             return .hotKeyRegistrationFailed
@@ -139,13 +139,84 @@ extension ConfigStore {
         }
         hotKeyService.unregister(menuBarIconsID)
         menuBarIconsHotkey = combo
-        Self.saveHotkey(combo, forKey: PrefKeys.menuBarIconsHotkey)
+        Self.saveHotkey(combo, forKey: PrefKeys.menuBarIconsHotkey, defaults: defaults)
         guard hotKeyService.register(menuBarIconsID, combo: combo) else {
             Logger.error("E-MAC-HTKEY-1004", "Carbon 핫키 등록 실패 (OS 선점 가능): \(combo.displayString)")
             return .hotKeyRegistrationFailed
         }
         Logger.info("ConfigStore", "[HOTKEY] 메뉴바 아이콘 핫키 변경: \(combo.displayString)")
         return .applied
+    }
+
+    // MARK: - 예약 핫키 해제 ("사용 안 함")
+
+    /// 예약 핫키(패널/팔레트/클립보드/전송/HUD/메뉴바 아이콘) 해제.
+    /// 기본값으로 되돌리는 복원(↺)과 다르다 — **등록을 끄고 빈 값으로 저장**한다.
+    /// `loadHotkey`는 저장 키가 없을 때만 fallback을 쓰므로, 재시작해도 살아나지 않는다.
+    @discardableResult
+    private func clearReservedHotkey(
+        id: UUID,
+        key: String,
+        label: String,
+        apply: (HotKeyCombo) -> Void
+    ) -> HotKeyApplyResult {
+        hotKeyService.unregister(id)
+        apply(.empty)
+        Self.saveHotkey(.empty, forKey: key, defaults: defaults)
+        Logger.info("ConfigStore", "[HOTKEY] \(label) 해제 — 등록하지 않음")
+        return .applied
+    }
+
+    @discardableResult
+    func clearPanelToggleHotkey() -> HotKeyApplyResult {
+        clearReservedHotkey(id: panelToggleID, key: PrefKeys.panelToggleHotkey, label: "panel toggle") {
+            toggleHotkey = $0
+        }
+    }
+
+    @discardableResult
+    func clearPaletteHotkey() -> HotKeyApplyResult {
+        clearReservedHotkey(id: paletteID, key: PrefKeys.paletteHotkey, label: "command palette") {
+            paletteHotkey = $0
+        }
+    }
+
+    @discardableResult
+    func clearClipboardHotkey() -> HotKeyApplyResult {
+        clearReservedHotkey(id: clipboardID, key: PrefKeys.clipboardHotkey, label: "clipboard palette") {
+            clipboardHotkey = $0
+        }
+    }
+
+    @discardableResult
+    func clearSendHotkey() -> HotKeyApplyResult {
+        clearReservedHotkey(id: sendID, key: PrefKeys.sendHotkey, label: "instant send") {
+            sendHotkey = $0
+        }
+    }
+
+    @discardableResult
+    func clearMenuHUDHotkey() -> HotKeyApplyResult {
+        clearReservedHotkey(id: menuHUDID, key: PrefKeys.menuHUDHotkey, label: "menu HUD") {
+            menuHUDHotkey = $0
+        }
+    }
+
+    @discardableResult
+    func clearMenuBarIconsHotkey() -> HotKeyApplyResult {
+        clearReservedHotkey(id: menuBarIconsID, key: PrefKeys.menuBarIconsHotkey, label: "menu bar icons") {
+            menuBarIconsHotkey = $0
+        }
+    }
+
+    /// 예약 핫키 등록 — 해제(빈 값) 상태면 조용히 건너뛰고 로그만 남긴다.
+    func registerReservedHotkey(_ id: UUID, combo: HotKeyCombo, label: String) {
+        guard !combo.isEmpty else {
+            Logger.info("ConfigStore", "[HOTKEY] \(label) 해제 상태 — 등록 생략")
+            return
+        }
+        _ = hotKeyService.register(id, combo: combo)
+        Logger.info("ConfigStore", "[HOTKEY] \(label) 등록: \(combo.displayString)")
     }
 
     /// Instant Send 발화 — 선택 캡처(백그라운드) 후 전송 팔레트 표시.

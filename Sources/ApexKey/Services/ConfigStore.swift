@@ -384,28 +384,22 @@ final class ConfigStore: ObservableObject {
 
         // 등록된 핫키를 서비스에 반영
         registerAllBindings()
-        // ⌥A 패널 토글 핫키 등록
-        _ = hotKeyService.register(panelToggleID, combo: toggleHotkey)
-        Logger.info("ConfigStore", "[HOTKEY] 패널 토글 핫키 등록: \(toggleHotkey.displayString)")
+        // ⌥A 패널 토글 핫키 등록 (해제 상태면 생략)
+        registerReservedHotkey(panelToggleID, combo: toggleHotkey, label: "패널 토글")
         // ⌘⇧↩ 마지막 바인딩 반복 핫키 등록
         _ = hotKeyService.register(repeatLastID, combo: Self.defaultRepeatHotkey)
         Logger.info("ConfigStore", "[HOTKEY] 반복 핫키 등록: ⌘⇧↩")
         // ⌥' 명령 팔레트 핫키 등록
-        _ = hotKeyService.register(paletteID, combo: paletteHotkey)
-        Logger.info("ConfigStore", "[HOTKEY] 명령 팔레트 핫키 등록: \(paletteHotkey.displayString)")
+        registerReservedHotkey(paletteID, combo: paletteHotkey, label: "명령 팔레트")
         // ⌥S Menu HUD 핫키 등록
-        _ = hotKeyService.register(menuHUDID, combo: menuHUDHotkey)
-        Logger.info("ConfigStore", "[HOTKEY] Menu HUD 핫키 등록: \(menuHUDHotkey.displayString)")
+        registerReservedHotkey(menuHUDID, combo: menuHUDHotkey, label: "Menu HUD")
         // ⌥; 클립보드 팔레트 핫키 등록 + 기록 감시 시작
-        _ = hotKeyService.register(clipboardID, combo: clipboardHotkey)
-        Logger.info("ConfigStore", "[HOTKEY] 클립보드 팔레트 핫키 등록: \(clipboardHotkey.displayString)")
+        registerReservedHotkey(clipboardID, combo: clipboardHotkey, label: "클립보드 팔레트")
         ClipboardMonitor.shared.start()
         // ⇧⌥D Instant Send 핫키 등록
-        _ = hotKeyService.register(sendID, combo: sendHotkey)
-        Logger.info("ConfigStore", "[HOTKEY] Instant Send 핫키 등록: \(sendHotkey.displayString)")
+        registerReservedHotkey(sendID, combo: sendHotkey, label: "Instant Send")
         // ⌥] 메뉴바 아이콘 그리드 핫키 등록
-        _ = hotKeyService.register(menuBarIconsID, combo: menuBarIconsHotkey)
-        Logger.info("ConfigStore", "[HOTKEY] 메뉴바 아이콘 그리드 핫키 등록: \(menuBarIconsHotkey.displayString)")
+        registerReservedHotkey(menuBarIconsID, combo: menuBarIconsHotkey, label: "메뉴바 아이콘")
     }
 
     /// 저장소 → 메모리 복원
